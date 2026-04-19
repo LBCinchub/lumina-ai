@@ -5,8 +5,10 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
-// Add page imports here
-import LuminaChat from "./pages/LuminaChat";
+import AppShell from '@/components/layout/AppShell';
+import Converse from '@/pages/Converse';
+import Context from '@/pages/Context';
+import Insights from '@/pages/Insights';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -34,7 +36,11 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
-      <Route path="/" element={<LuminaChat />} />
+      <Route element={<AppShell />}>
+        <Route path="/" element={<Converse />} />
+        <Route path="/context" element={<Context />} />
+        <Route path="/insights" element={<Insights />} />
+      </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
