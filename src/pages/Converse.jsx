@@ -143,11 +143,9 @@ export default function Converse() {
       await loadMessages(convoId);
       loadConversations();
     } catch (err) {
-      setMessages(prev => [...prev, {
-        id: 'err-' + Date.now(),
-        role: 'assistant',
-        content: "Something blocked that response. Try again."
-      }]);
+      console.error('chatWithLumina error:', err);
+      // Remove optimistic message on error so user can retry
+      setMessages(prev => prev.filter(m => m.id !== optimistic.id));
     } finally {
       setIsSending(false);
     }
