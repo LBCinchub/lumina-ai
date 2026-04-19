@@ -6,7 +6,7 @@ import MessageBubble from '@/components/chat/MessageBubble';
 import ThinkingIndicator from '@/components/chat/ThinkingIndicator';
 import Composer from '@/components/chat/Composer';
 import LuminaMark from '@/components/layout/LuminaMark';
-import { PanelLeft, Download, Radio } from 'lucide-react';
+import { PanelLeft, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useExportPDF } from '@/hooks/useExportPDF';
 import { useSpeechOutput } from '@/hooks/useSpeechOutput';
@@ -197,6 +197,10 @@ export default function Converse() {
           onSelect={handleSelect}
           onNew={handleNew}
           isLoading={isLoadingConvos}
+          voiceMode={voiceMode}
+          speaking={speaking}
+          listening={listening}
+          onToggleVoice={toggleVoiceMode}
         />
       </aside>
 
@@ -221,19 +225,6 @@ export default function Converse() {
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <button
-                onClick={toggleVoiceMode}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs transition-colors",
-                  voiceMode
-                    ? "bg-accent text-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                )}
-                title={voiceMode ? "Stop voice chat" : "Start voice chat"}
-              >
-                <Radio className={cn("w-3.5 h-3.5", voiceMode && speaking && "animate-pulse text-red-500")} strokeWidth={1.75} />
-                <span className="hidden sm:inline">{voiceMode ? 'Live' : 'Voice'}</span>
-              </button>
               {activeId && messages.length > 0 && (
                 <button
                   onClick={handleExport}

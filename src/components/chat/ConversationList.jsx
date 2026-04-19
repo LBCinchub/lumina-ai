@@ -2,8 +2,9 @@ import React from 'react';
 import { Plus, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+import VoicePanel from './VoicePanel';
 
-export default function ConversationList({ conversations, activeId, onSelect, onNew, isLoading }) {
+export default function ConversationList({ conversations, activeId, onSelect, onNew, isLoading, voiceMode, speaking, listening, onToggleVoice }) {
   return (
     <div className="flex flex-col h-full">
       <div className="px-5 py-5">
@@ -55,6 +56,14 @@ export default function ConversationList({ conversations, activeId, onSelect, on
           ))
         )}
       </div>
+    </div>
+
+      <VoicePanel
+        voiceMode={voiceMode}
+        speaking={speaking}
+        listening={listening}
+        onToggle={onToggleVoice}
+      />
     </div>
   );
 }
