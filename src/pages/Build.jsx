@@ -1,15 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Code2, Globe, Layers, ArrowUp, Copy, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Code2, Globe, Layers, ArrowUp, Copy, Check, ChevronDown, ChevronUp, Monitor, Eye } from 'lucide-react';
 import LuminaMark from '@/components/layout/LuminaMark';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 
 const STARTERS = [
   { icon: Globe, label: "Landing page", prompt: "Build a modern SaaS landing page with hero, features, pricing, and footer sections." },
-  { icon: Code2, label: "Web app", prompt: "Build a full React task management app with a sidebar, kanban board, and dark mode." },
+  { icon: Code2, label: "Web app", prompt: "Build a full task management app with a sidebar, task list, and clean UI." },
   { icon: Layers, label: "Portfolio site", prompt: "Build a minimal portfolio website for a designer/developer with project showcase and contact section." },
 ];
+
+// Extract the first complete HTML block from assistant message
+function extractHTML(content) {
+  const match = content.match(/```html[\s\S]*?\n([\s\S]*?)```/);
+  return match ? match[1].trim() : null;
+}
 
 function CodeBlock({ code, lang, filename }) {
   const [copied, setCopied] = useState(false);
@@ -38,7 +44,7 @@ function CodeBlock({ code, lang, filename }) {
         </div>
       </div>
       {expanded && (
-        <pre className="overflow-x-auto p-4 text-[13px] leading-relaxed text-foreground/85 bg-card scrollbar-minimal max-h-[500px]">
+        <pre className="overflow-x-auto p-4 text-[13px] leading-relaxed text-foreground/85 bg-card scrollbar-minimal max-h-[400px]">
           <code>{code}</code>
         </pre>
       )}
@@ -69,7 +75,6 @@ function Message({ msg }) {
             code({ inline, className, children }) {
               const match = /language-(\w+)/.exec(className || '');
               const raw = String(children).replace(/\n$/, '');
-              // Extract filename from first line if present (e.g. "filename: index.html")
               const firstLine = raw.split('\n')[0];
               const filenameMatch = firstLine.match(/^filename:\s*(.+)/i);
               const filename = filenameMatch ? filenameMatch[1].trim() : null;
@@ -95,10 +100,41 @@ function Message({ msg }) {
   );
 }
 
+function PreviewPane({ html }) {
+  const iframeRef = useRef(null);
+
+  useEffect(() => {
+    if (!iframeRef.current || !html) return;
+    const doc = iframeRef.current.contentDocument || iframeRef.current.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+  }, [html]);
+
+  if (!html) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+        Preview will appear here once Lumina builds something.
+      </div>
+    );
+  }
+
+  return (
+    <iframe
+      ref={iframeRef}
+      className="w-full flex-1 border-0"
+      title="Live preview"
+      sandbox="allow-scripts allow-same-origin"
+    />
+  );
+}
+
 export default function Build() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [activeTab, setActiveTab] = useState('preview'); // 'preview' | 'code'
+  const [latestHTML, setLatestHTML] = useState(null);
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
 
@@ -125,7 +161,6 @@ export default function Build() {
     setSending(true);
 
     try {
-      // Use a dedicated build conversation (stateless per session — just pass history inline)
       const history = [...messages, userMsg]
         .map(m => `${m.role === 'user' ? 'User' : 'Lumina'}: ${m.content}`)
         .join('\n\n');
@@ -133,13 +168,12 @@ export default function Build() {
       const prompt = `You are Lumina — an expert full-stack developer and product designer. Your primary role here is to BUILD apps and websites when asked.
 
 When building, always:
-- Produce complete, working, production-quality code
-- Use React + Tailwind CSS for web apps/dashboards
-- Use clean HTML + embedded CSS for static websites (single file, ready to open in browser)
-- Wrap each file in a labeled code block: start with \`\`\`html\\nfilename: index.html or \`\`\`jsx\\nfilename: App.jsx
+- Produce a COMPLETE, single-file HTML document that runs entirely in the browser (no external dependencies except CDN links like Tailwind CDN or Google Fonts)
+- Use inline CSS and/or Tailwind CDN for styling
 - Make designs visually polished, modern, and responsive — not generic
 - Include realistic sample data / placeholder content
-- After code, give a brief rationale for key decisions
+- Wrap the file in a single \`\`\`html code block — just ONE code block containing the full HTML
+- After the code block, give a brief 2-3 sentence rationale
 
 CONVERSATION SO FAR:
 ${history}
@@ -152,6 +186,11 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
       });
 
       const content = typeof res === 'string' ? res : (res?.content || String(res));
+      const html = extractHTML(content);
+      if (html) {
+        setLatestHTML(html);
+        setActiveTab('preview');
+      }
       setMessages(prev => [...prev, { role: 'assistant', content, id: Date.now() + 1 }]);
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', content: "Something went wrong. Try again.", id: Date.now() + 1 }]);
@@ -170,60 +209,61 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)] md:h-screen">
-      {/* Header */}
-      <div className="shrink-0 px-6 py-4 border-b border-border/60 flex items-center gap-3">
-        <Code2 className="w-4 h-4 text-foreground/60" strokeWidth={1.75} />
-        <h1 className="font-serif text-lg tracking-tight">Build</h1>
-        <span className="text-xs text-muted-foreground/60 ml-1">— apps & websites</span>
-      </div>
+    <div className="flex h-[calc(100vh-3.5rem)] md:h-screen overflow-hidden">
+      {/* Left: chat panel */}
+      <div className="flex flex-col w-full md:w-[420px] lg:w-[460px] shrink-0 border-r border-border">
+        {/* Header */}
+        <div className="shrink-0 px-5 py-4 border-b border-border/60 flex items-center gap-3">
+          <Code2 className="w-4 h-4 text-foreground/60" strokeWidth={1.75} />
+          <h1 className="font-serif text-lg tracking-tight">Build</h1>
+          <span className="text-xs text-muted-foreground/60 ml-1">— apps & websites</span>
+        </div>
 
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-minimal">
-        {isEmpty ? (
-          <div className="h-full flex flex-col items-center justify-center px-6 animate-fade-up">
-            <LuminaMark size={48} className="text-foreground/60 mb-6" />
-            <h2 className="font-serif text-2xl md:text-3xl tracking-tight text-center mb-2">
-              What should I build?
-            </h2>
-            <p className="text-sm text-muted-foreground text-center max-w-md mb-8">
-              Describe any app or website. I'll produce complete, working code — ready to use.
-            </p>
-            <div className="flex flex-wrap gap-3 justify-center">
-              {STARTERS.map(s => (
-                <button
-                  key={s.label}
-                  onClick={() => send(s.prompt)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-accent transition-colors text-sm"
-                >
-                  <s.icon className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="max-w-3xl mx-auto px-5 md:px-8 py-8 space-y-6">
-            {messages.map(m => <Message key={m.id} msg={m} />)}
-            {sending && (
-              <div className="flex gap-4 animate-fade-up">
-                <div className="shrink-0 mt-1">
-                  <LuminaMark size={22} className="text-foreground/80" />
-                </div>
-                <div className="flex items-center gap-1.5 py-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-pulse-soft" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-pulse-soft" style={{ animationDelay: '200ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-pulse-soft" style={{ animationDelay: '400ms' }} />
-                </div>
+        {/* Messages */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-minimal">
+          {isEmpty ? (
+            <div className="h-full flex flex-col items-center justify-center px-6 animate-fade-up">
+              <LuminaMark size={48} className="text-foreground/60 mb-6" />
+              <h2 className="font-serif text-2xl tracking-tight text-center mb-2">
+                What should I build?
+              </h2>
+              <p className="text-sm text-muted-foreground text-center max-w-sm mb-8">
+                Describe any app or website. I'll build it and show you the live result instantly.
+              </p>
+              <div className="flex flex-wrap gap-3 justify-center">
+                {STARTERS.map(s => (
+                  <button
+                    key={s.label}
+                    onClick={() => send(s.prompt)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-accent transition-colors text-sm"
+                  >
+                    <s.icon className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
+                    {s.label}
+                  </button>
+                ))}
               </div>
-            )}
-          </div>
-        )}
-      </div>
+            </div>
+          ) : (
+            <div className="px-5 py-6 space-y-6">
+              {messages.map(m => <Message key={m.id} msg={m} />)}
+              {sending && (
+                <div className="flex gap-4 animate-fade-up">
+                  <div className="shrink-0 mt-1">
+                    <LuminaMark size={22} className="text-foreground/80" />
+                  </div>
+                  <div className="flex items-center gap-1.5 py-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-pulse-soft" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-pulse-soft" style={{ animationDelay: '200ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-pulse-soft" style={{ animationDelay: '400ms' }} />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
-      {/* Input */}
-      <div className="shrink-0 border-t border-border/60 bg-background/80 backdrop-blur-xl">
-        <div className="max-w-3xl mx-auto px-5 md:px-8 py-4">
+        {/* Input */}
+        <div className="shrink-0 border-t border-border/60 bg-background/80 backdrop-blur-xl p-4">
           <div className={cn(
             "relative flex items-end gap-2 bg-card border border-border rounded-2xl px-4 py-3",
             "focus-within:border-foreground/30 focus-within:shadow-[0_2px_20px_-8px_hsl(var(--foreground)/0.15)]",
@@ -252,10 +292,56 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
               <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
             </button>
           </div>
-          <p className="text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground/60 text-center mt-3">
-            Lumina builds · you ship
-          </p>
         </div>
+      </div>
+
+      {/* Right: preview panel */}
+      <div className="hidden md:flex flex-col flex-1 min-w-0">
+        {/* Tabs */}
+        <div className="shrink-0 px-5 py-3 border-b border-border/60 flex items-center gap-1">
+          <button
+            onClick={() => setActiveTab('preview')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
+              activeTab === 'preview'
+                ? "bg-accent text-foreground font-medium"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
+            )}
+          >
+            <Eye className="w-3.5 h-3.5" strokeWidth={1.75} />
+            Preview
+          </button>
+          <button
+            onClick={() => setActiveTab('code')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
+              activeTab === 'code'
+                ? "bg-accent text-foreground font-medium"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
+            )}
+          >
+            <Monitor className="w-3.5 h-3.5" strokeWidth={1.75} />
+            Code
+          </button>
+          {sending && (
+            <span className="ml-auto text-xs text-muted-foreground animate-pulse">Building…</span>
+          )}
+        </div>
+
+        {/* Preview / Code content */}
+        {activeTab === 'preview' ? (
+          <PreviewPane html={latestHTML} />
+        ) : (
+          <div className="flex-1 overflow-y-auto scrollbar-minimal p-5">
+            {latestHTML ? (
+              <CodeBlock code={latestHTML} lang="html" filename="index.html" />
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                No code yet. Ask Lumina to build something.
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
