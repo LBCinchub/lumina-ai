@@ -6,9 +6,10 @@ import MessageBubble from '@/components/chat/MessageBubble';
 import ThinkingIndicator from '@/components/chat/ThinkingIndicator';
 import Composer from '@/components/chat/Composer';
 import LuminaMark from '@/components/layout/LuminaMark';
-import { PanelLeft, Download } from 'lucide-react';
+import { PanelLeft, Download, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useExportPDF } from '@/hooks/useExportPDF';
+import { useSpeechOutput } from '@/hooks/useSpeechOutput';
 
 const OPENERS = [
   "What are you circling right now?",
@@ -33,6 +34,9 @@ export default function Converse() {
   const [opener] = useState(() => OPENERS[Math.floor(Math.random() * OPENERS.length)]);
 
   const scrollRef = useRef(null);
+  const [voiceMode, setVoiceMode] = useState(false);
+  const lastSpokenIdRef = useRef(null);
+  const { speak, stop: stopSpeaking, speaking } = useSpeechOutput();
 
   const loadConversations = useCallback(async () => {
     setIsLoadingConvos(true);
@@ -73,6 +77,16 @@ export default function Converse() {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }
   }, [messages, isSending]);
+
+  // Auto-speak latest Lumina message in voice mode
+  useEffect(() => {
+    if (!voiceMode || isSending) return;
+    const last = [...messages].reverse().find(m => m.role === 'assistant');
+    if (last && last.id !== lastSpokenIdRef.current) {
+      lastSpokenIdRef.current = last.id;
+      speak(last.content);
+    }
+  }, [messages, isSending, voiceMode, speak]);
 
   const handleSelect = (id) => {
     setSearchParams({ c: id });
@@ -129,6 +143,15 @@ export default function Converse() {
     exportThread(activeTitle, messages);
   };
 
+  const toggleVoiceMode = () => {
+    if (voiceMode) {
+      stopSpeaking();
+      setVoiceMode(false);
+    } else {
+      setVoiceMode(true);
+    }
+  };
+
   const showEmpty = !activeId && messages.length === 0;
 
   return (
@@ -168,16 +191,31 @@ export default function Converse() {
                 {activeTitle}
               </div>
             </div>
-            {activeId && messages.length > 0 && (
+            <div className="flex items-center gap-1">
               <button
-                onClick={handleExport}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                title="Export thread as PDF"
+                onClick={toggleVoiceMode}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs transition-colors",
+                  voiceMode
+                    ? "bg-accent text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                )}
+                title={voiceMode ? "Stop voice chat" : "Start voice chat"}
               >
-                <Download className="w-3.5 h-3.5" strokeWidth={1.75} />
-                <span className="hidden sm:inline">Export</span>
+                <Radio className={cn("w-3.5 h-3.5", voiceMode && speaking && "animate-pulse text-red-500")} strokeWidth={1.75} />
+                <span className="hidden sm:inline">{voiceMode ? 'Live' : 'Voice'}</span>
               </button>
-            )}
+              {activeId && messages.length > 0 && (
+                <button
+                  onClick={handleExport}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  title="Export thread as PDF"
+                >
+                  <Download className="w-3.5 h-3.5" strokeWidth={1.75} />
+                  <span className="hidden sm:inline">Export</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -226,6 +264,8 @@ export default function Converse() {
               onChange={setInput}
               onSubmit={handleSubmit}
               disabled={isSending}
+              voiceMode={voiceMode}
+              luminaSpeaking={speaking}
             />
             <p className="text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground/60 text-center mt-3">
               Lumina reflects · not advises

@@ -64,5 +64,5 @@ export function useSpeechInput({ onTranscript, onAutoSubmit }) {
     }
   }, [listening, start, stop]);
 
-  return { listening, supported, toggle };
+  return { listening, supported, toggle, start };
 }

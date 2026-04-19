@@ -3,16 +3,27 @@ import { ArrowUp, Mic, MicOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSpeechInput } from '@/hooks/useSpeechInput';
 
-export default function Composer({ value, onChange, onSubmit, disabled, placeholder = "Speak plainly." }) {
+export default function Composer({ value, onChange, onSubmit, disabled, placeholder = "Speak plainly.", voiceMode = false, luminaSpeaking = false }) {
   const textareaRef = useRef(null);
+  const prevLuminaSpeaking = useRef(false);
 
-  const { listening, supported, toggle: toggleVoice } = useSpeechInput({
+  const { listening, supported, toggle: toggleVoice, start: startVoice } = useSpeechInput({
     onTranscript: (text) => onChange(text),
     onAutoSubmit: (text) => {
       onChange(text);
       onSubmit(text);
     },
   });
+
+  // In voice mode: auto-start mic when Lumina finishes speaking
+  useEffect(() => {
+    if (!voiceMode || !supported) return;
+    const wasSpeak = prevLuminaSpeaking.current;
+    prevLuminaSpeaking.current = luminaSpeaking;
+    if (wasSpeak && !luminaSpeaking && !listening && !disabled) {
+      startVoice();
+    }
+  }, [luminaSpeaking, voiceMode, listening, disabled, supported, startVoice]);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -55,13 +66,15 @@ export default function Composer({ value, onChange, onSubmit, disabled, placehol
           <button
             type="button"
             onClick={toggleVoice}
-            disabled={disabled}
+            disabled={disabled || luminaSpeaking}
             className={cn(
               "shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all",
               listening
                 ? "bg-red-500/90 text-white animate-pulse"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent",
-              "disabled:opacity-30 disabled:cursor-not-allowed"
+                : luminaSpeaking
+                  ? "text-foreground/40 animate-pulse"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent",
+              "disabled:cursor-not-allowed"
             )}
             aria-label={listening ? "Stop listening" : "Voice input"}
           >
