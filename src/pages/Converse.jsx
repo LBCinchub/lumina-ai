@@ -73,16 +73,19 @@ export default function Converse() {
   }, [loadConversations]);
 
   useEffect(() => {
-    if (convoIdFromUrl && convoIdFromUrl !== activeId) {
-      activeIdRef.current = convoIdFromUrl;
-      setActiveId(convoIdFromUrl);
-      loadMessages(convoIdFromUrl);
-    } else if (!convoIdFromUrl) {
+    if (convoIdFromUrl) {
+      // Only reload if it's genuinely a different conversation (not the one we just created)
+      if (convoIdFromUrl !== activeIdRef.current) {
+        activeIdRef.current = convoIdFromUrl;
+        setActiveId(convoIdFromUrl);
+        loadMessages(convoIdFromUrl);
+      }
+    } else {
       activeIdRef.current = null;
       setActiveId(null);
       setMessages([]);
     }
-  }, [convoIdFromUrl, activeId, loadMessages]);
+  }, [convoIdFromUrl, loadMessages]);
 
   useEffect(() => {
     if (scrollRef.current) {
