@@ -6,8 +6,9 @@ import MessageBubble from '@/components/chat/MessageBubble';
 import ThinkingIndicator from '@/components/chat/ThinkingIndicator';
 import Composer from '@/components/chat/Composer';
 import LuminaMark from '@/components/layout/LuminaMark';
-import { PanelLeft } from 'lucide-react';
+import { PanelLeft, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useExportPDF } from '@/hooks/useExportPDF';
 
 const OPENERS = [
   "What are you circling right now?",
@@ -121,6 +122,13 @@ export default function Converse() {
     }
   };
 
+  const { exportThread } = useExportPDF();
+  const activeTitle = activeId ? (conversations.find(c => c.id === activeId)?.title || 'Conversation') : 'New thread';
+
+  const handleExport = () => {
+    exportThread(activeTitle, messages);
+  };
+
   const showEmpty = !activeId && messages.length === 0;
 
   return (
@@ -157,10 +165,19 @@ export default function Converse() {
             </button>
             <div className="flex-1 text-center lg:text-left lg:pl-0">
               <div className="text-sm font-medium text-foreground/80 truncate px-8 lg:px-0">
-                {activeId ? (conversations.find(c => c.id === activeId)?.title || 'Conversation') : 'New thread'}
+                {activeTitle}
               </div>
             </div>
-            <div className="w-6 lg:hidden" />
+            {activeId && messages.length > 0 && (
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                title="Export thread as PDF"
+              >
+                <Download className="w-3.5 h-3.5" strokeWidth={1.75} />
+                <span className="hidden sm:inline">Export</span>
+              </button>
+            )}
           </div>
         </div>
 
