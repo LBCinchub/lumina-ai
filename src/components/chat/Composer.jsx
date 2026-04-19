@@ -33,10 +33,18 @@ const Composer = forwardRef(function Composer(
     el.style.height = Math.min(el.scrollHeight, 200) + 'px';
   }, [value]);
 
+  const submit = () => {
+    const text = textareaRef.current?.value?.trim();
+    if (text && !disabled) {
+      onChange('');
+      onSubmit(text);
+    }
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (value.trim() && !disabled) onSubmit(undefined);
+      submit();
     }
   };
 
@@ -86,7 +94,7 @@ const Composer = forwardRef(function Composer(
           </button>
         )}
         <button
-          onClick={() => onSubmit(undefined)}
+          onClick={submit}
           disabled={!value.trim() || disabled}
           className={cn(
             "shrink-0 w-8 h-8 rounded-full flex items-center justify-center",

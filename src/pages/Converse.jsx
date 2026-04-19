@@ -121,8 +121,8 @@ export default function Converse() {
     setSidebarOpen(false);
   };
 
-  const handleSubmit = async (overrideText) => {
-    const text = (overrideText ?? input).trim();
+  const handleSubmit = async (rawText) => {
+    const text = rawText?.trim();
     if (!text || isSending) return;
 
     let convoId = activeIdRef.current || activeId;
@@ -143,7 +143,6 @@ export default function Converse() {
     // Optimistic user message
     const optimistic = { id: 'tmp-' + Date.now(), role: 'user', content: text, conversation_id: convoId };
     setMessages(prev => [...prev, optimistic]);
-    setInput('');
     setIsSending(true);
 
     try {
