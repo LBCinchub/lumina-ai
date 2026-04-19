@@ -56,7 +56,6 @@ export default function ConversationList({ conversations, activeId, onSelect, on
           ))
         )}
       </div>
-    </div>
 
       <VoicePanel
         voiceMode={voiceMode}
