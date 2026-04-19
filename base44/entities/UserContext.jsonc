@@ -1,0 +1,39 @@
+{
+  "name": "UserContext",
+  "type": "object",
+  "properties": {
+    "identity": {
+      "type": "string",
+      "description": "Who the user is \u2014 background, role, self-description"
+    },
+    "vision": {
+      "type": "string",
+      "description": "Long-term vision, north star, what they're building toward"
+    },
+    "current_focus": {
+      "type": "string",
+      "description": "What they're actively working on right now"
+    },
+    "values": {
+      "type": "string",
+      "description": "Core values and principles that guide decisions"
+    },
+    "communication_style": {
+      "type": "string",
+      "description": "Preferred tone, depth, and rhythm of communication"
+    },
+    "context_notes": {
+      "type": "string",
+      "description": "Additional context, relationships, constraints, ongoing threads"
+    }
+  },
+  "rls": {
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  },
+  "required": []
+}
