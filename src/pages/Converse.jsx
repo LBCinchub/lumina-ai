@@ -35,8 +35,17 @@ export default function Converse() {
 
   const scrollRef = useRef(null);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [listening, setListening] = useState(false);
   const lastSpokenIdRef = useRef(null);
+  const voiceModeRef = useRef(false);
+  const startMicRef = useRef(null);
+  const composerRef = useRef(null);
   const { speak, stop: stopSpeaking, speaking } = useSpeechOutput();
+
+  // Wire composerRef to startMicRef once available
+  useEffect(() => {
+    startMicRef.current = () => composerRef.current?.start();
+  }, []);
 
   const loadConversations = useCallback(async () => {
     setIsLoadingConvos(true);
@@ -78,13 +87,21 @@ export default function Converse() {
     }
   }, [messages, isSending]);
 
-  // Auto-speak latest Lumina message in voice mode
+  // Keep ref in sync so callbacks don't close over stale voiceMode
+  useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
+
+  // Auto-speak latest Lumina message in voice mode, then restart mic
   useEffect(() => {
     if (!voiceMode || isSending) return;
     const last = [...messages].reverse().find(m => m.role === 'assistant');
     if (last && last.id !== lastSpokenIdRef.current) {
       lastSpokenIdRef.current = last.id;
-      speak(last.content);
+      speak(last.content, () => {
+        // After Lumina finishes speaking, restart mic if still in voice mode
+        if (voiceModeRef.current && startMicRef.current) {
+          startMicRef.current();
+        }
+      });
     }
   }, [messages, isSending, voiceMode, speak]);
 
@@ -146,9 +163,16 @@ export default function Converse() {
   const toggleVoiceMode = () => {
     if (voiceMode) {
       stopSpeaking();
+      voiceModeRef.current = false;
       setVoiceMode(false);
+      setListening(false);
     } else {
+      voiceModeRef.current = true;
       setVoiceMode(true);
+      // Start mic immediately when activating voice mode
+      setTimeout(() => {
+        if (startMicRef.current) startMicRef.current();
+      }, 100);
     }
   };
 
@@ -260,6 +284,7 @@ export default function Converse() {
         <div className="shrink-0 border-t border-border/60 bg-background/80 backdrop-blur-xl">
           <div className="max-w-3xl mx-auto px-5 md:px-8 py-4">
             <Composer
+              ref={composerRef}
               value={input}
               onChange={setInput}
               onSubmit={handleSubmit}

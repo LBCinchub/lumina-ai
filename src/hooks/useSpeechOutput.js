@@ -1,44 +1,74 @@
 import { useCallback, useRef, useState } from 'react';
 
+function stripMarkdown(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/#{1,3}\s/g, '')
+    .replace(/`(.*?)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\n+/g, ' ')
+    .trim();
+}
+
+function getBestVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  return (
+    voices.find(v => v.name === 'Samantha') ||
+    voices.find(v => v.name === 'Karen') ||
+    voices.find(v => v.name === 'Moira') ||
+    voices.find(v => v.name.includes('Google US English')) ||
+    voices.find(v => v.lang === 'en-US' && !v.name.includes('Male')) ||
+    voices.find(v => v.lang.startsWith('en'))
+  );
+}
+
 export function useSpeechOutput() {
   const [speaking, setSpeaking] = useState(false);
-  const utteranceRef = useRef(null);
+  const onEndRef = useRef(null);
 
-  const speak = useCallback((text) => {
+  const speak = useCallback((text, onEnd) => {
     if (!window.speechSynthesis) return;
-
-    // Cancel any current speech
     window.speechSynthesis.cancel();
 
-    // Strip markdown
-    const clean = text
-      .replace(/\*\*(.*?)\*\*/g, '$1')
-      .replace(/\*(.*?)\*/g, '$1')
-      .replace(/#{1,3}\s/g, '')
-      .replace(/`(.*?)`/g, '$1')
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+    const clean = stripMarkdown(text);
+    if (!clean) return;
 
-    const utter = new SpeechSynthesisUtterance(clean);
-    utter.rate = 0.95;
-    utter.pitch = 1.0;
+    onEndRef.current = onEnd;
 
-    // Pick a natural female voice if available
+    const doSpeak = () => {
+      const utter = new SpeechSynthesisUtterance(clean);
+      utter.rate = 1.0;
+      utter.pitch = 1.05;
+      utter.volume = 1;
+
+      const voice = getBestVoice();
+      if (voice) utter.voice = voice;
+
+      utter.onstart = () => setSpeaking(true);
+      utter.onend = () => {
+        setSpeaking(false);
+        onEndRef.current?.();
+      };
+      utter.onerror = (e) => {
+        if (e.error === 'interrupted' || e.error === 'canceled') return;
+        setSpeaking(false);
+        onEndRef.current?.();
+      };
+
+      window.speechSynthesis.speak(utter);
+    };
+
+    // Voices may not be loaded yet — wait if needed
     const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find(v =>
-      v.name.includes('Samantha') ||
-      v.name.includes('Karen') ||
-      v.name.includes('Moira') ||
-      v.name.includes('Victoria') ||
-      (v.lang.startsWith('en') && v.name.toLowerCase().includes('female'))
-    ) || voices.find(v => v.lang.startsWith('en'));
-    if (preferred) utter.voice = preferred;
-
-    utter.onstart = () => setSpeaking(true);
-    utter.onend = () => setSpeaking(false);
-    utter.onerror = () => setSpeaking(false);
-
-    utteranceRef.current = utter;
-    window.speechSynthesis.speak(utter);
+    if (voices.length > 0) {
+      doSpeak();
+    } else {
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.onvoiceschanged = null;
+        doSpeak();
+      };
+    }
   }, []);
 
   const stop = useCallback(() => {

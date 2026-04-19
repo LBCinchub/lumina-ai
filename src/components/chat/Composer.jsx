@@ -1,11 +1,13 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { ArrowUp, Mic, MicOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSpeechInput } from '@/hooks/useSpeechInput';
 
-export default function Composer({ value, onChange, onSubmit, disabled, placeholder = "Speak plainly.", voiceMode = false, luminaSpeaking = false }) {
+const Composer = forwardRef(function Composer(
+  { value, onChange, onSubmit, disabled, placeholder = "Speak plainly.", voiceMode = false, luminaSpeaking = false, onListeningChange },
+  ref
+) {
   const textareaRef = useRef(null);
-  const prevLuminaSpeaking = useRef(false);
 
   const { listening, supported, toggle: toggleVoice, start: startVoice } = useSpeechInput({
     onTranscript: (text) => onChange(text),
@@ -15,15 +17,13 @@ export default function Composer({ value, onChange, onSubmit, disabled, placehol
     },
   });
 
-  // In voice mode: auto-start mic when Lumina finishes speaking
+  // Expose start to parent via ref
+  useImperativeHandle(ref, () => ({ start: startVoice }), [startVoice]);
+
+  // Notify parent of listening state changes
   useEffect(() => {
-    if (!voiceMode || !supported) return;
-    const wasSpeak = prevLuminaSpeaking.current;
-    prevLuminaSpeaking.current = luminaSpeaking;
-    if (wasSpeak && !luminaSpeaking && !listening && !disabled) {
-      startVoice();
-    }
-  }, [luminaSpeaking, voiceMode, listening, disabled, supported, startVoice]);
+    onListeningChange?.(listening);
+  }, [listening, onListeningChange]);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -52,7 +52,7 @@ export default function Composer({ value, onChange, onSubmit, disabled, placehol
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          placeholder={listening ? "Listening…" : luminaSpeaking ? "Lumina is speaking…" : placeholder}
           rows={1}
           disabled={disabled}
           className={cn(
@@ -72,17 +72,20 @@ export default function Composer({ value, onChange, onSubmit, disabled, placehol
               listening
                 ? "bg-red-500/90 text-white animate-pulse"
                 : luminaSpeaking
-                  ? "text-foreground/40 animate-pulse"
+                  ? "text-foreground/30"
                   : "text-muted-foreground hover:text-foreground hover:bg-accent",
               "disabled:cursor-not-allowed"
             )}
             aria-label={listening ? "Stop listening" : "Voice input"}
           >
-            {listening ? <MicOff className="w-4 h-4" strokeWidth={2} /> : <Mic className="w-4 h-4" strokeWidth={1.75} />}
+            {listening
+              ? <MicOff className="w-4 h-4" strokeWidth={2} />
+              : <Mic className="w-4 h-4" strokeWidth={1.75} />
+            }
           </button>
         )}
         <button
-          onClick={onSubmit}
+          onClick={() => onSubmit(undefined)}
           disabled={!value.trim() || disabled}
           className={cn(
             "shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
@@ -97,4 +100,6 @@ export default function Composer({ value, onChange, onSubmit, disabled, placehol
       </div>
     </div>
   );
-}
+});
+
+export default Composer;

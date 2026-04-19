@@ -1,12 +1,18 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 export function useSpeechInput({ onTranscript, onAutoSubmit }) {
   const [listening, setListening] = useState(false);
   const [supported] = useState(() => 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
   const recognitionRef = useRef(null);
+  const onTranscriptRef = useRef(onTranscript);
+  const onAutoSubmitRef = useRef(onAutoSubmit);
+
+  useEffect(() => { onTranscriptRef.current = onTranscript; }, [onTranscript]);
+  useEffect(() => { onAutoSubmitRef.current = onAutoSubmit; }, [onAutoSubmit]);
 
   const stop = useCallback(() => {
     if (recognitionRef.current) {
+      recognitionRef.current.onend = null;
       recognitionRef.current.stop();
       recognitionRef.current = null;
     }
@@ -15,12 +21,15 @@ export function useSpeechInput({ onTranscript, onAutoSubmit }) {
 
   const start = useCallback(() => {
     if (!supported) return;
+    // Don't start if already listening
+    if (recognitionRef.current) return;
 
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     const rec = new SR();
     rec.lang = 'en-US';
     rec.interimResults = true;
     rec.continuous = false;
+    rec.maxAlternatives = 1;
 
     let finalTranscript = '';
 
@@ -36,25 +45,28 @@ export function useSpeechInput({ onTranscript, onAutoSubmit }) {
           interim = t;
         }
       }
-      onTranscript(finalTranscript || interim);
+      onTranscriptRef.current(finalTranscript || interim);
     };
 
     rec.onend = () => {
       setListening(false);
       recognitionRef.current = null;
       if (finalTranscript.trim()) {
-        onAutoSubmit(finalTranscript.trim());
+        onAutoSubmitRef.current(finalTranscript.trim());
       }
     };
 
-    rec.onerror = () => {
+    rec.onerror = (e) => {
+      if (e.error !== 'no-speech' && e.error !== 'aborted') {
+        console.warn('Speech recognition error:', e.error);
+      }
       setListening(false);
       recognitionRef.current = null;
     };
 
     recognitionRef.current = rec;
     rec.start();
-  }, [supported, onTranscript, onAutoSubmit]);
+  }, [supported]);
 
   const toggle = useCallback(() => {
     if (listening) {
