@@ -135,8 +135,9 @@ export default function Converse() {
       });
       convoId = convo.id;
       activeIdRef.current = convoId;
+      // Update state and URL together — effect will see ref already set and skip reload
       setActiveId(convoId);
-      setSearchParams({ c: convoId });
+      setSearchParams({ c: convoId }, { replace: true });
     }
 
     // Optimistic user message

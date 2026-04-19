@@ -12,7 +12,8 @@ const Composer = forwardRef(function Composer(
   const { listening, supported, toggle: toggleVoice, start: startVoice } = useSpeechInput({
     onTranscript: (text) => onChange(text),
     onAutoSubmit: (text) => {
-      onChange(text);
+      // Pass text directly to onSubmit — don't go through onChange which may not update state in time
+      onChange('');
       onSubmit(text);
     },
   });
