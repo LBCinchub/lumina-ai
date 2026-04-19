@@ -59,7 +59,11 @@ function formatContext(ctx, user) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
+
+    let user = null;
+    try {
+      user = await base44.auth.me();
+    } catch (_) {}
 
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -71,19 +75,21 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Missing conversation_id or message' }, { status: 400 });
     }
 
+    const db = base44.asServiceRole;
+
     // Load user context
-    const contexts = await base44.entities.UserContext.filter({ created_by: user.email });
+    const contexts = await db.entities.UserContext.filter({ created_by: user.email });
     const userContext = contexts[0] || null;
 
     // Load recent messages from this conversation
-    const history = await base44.entities.Message.filter(
+    const history = await db.entities.Message.filter(
       { conversation_id },
       'created_date',
       40
     );
 
     // Save user message
-    await base44.entities.Message.create({
+    await db.entities.Message.create({
       conversation_id,
       role: 'user',
       content: message
@@ -117,14 +123,14 @@ Respond as Lumina. Do not prefix with "Lumina:" — just write the response dire
     const assistantContent = typeof llmResponse === 'string' ? llmResponse : (llmResponse?.content || String(llmResponse));
 
     // Save assistant message
-    const assistantMsg = await base44.entities.Message.create({
+    const assistantMsg = await db.entities.Message.create({
       conversation_id,
       role: 'assistant',
       content: assistantContent
     });
 
     // Update conversation last_message_at (and title if first exchange)
-    const convo = await base44.entities.Conversation.filter({ id: conversation_id });
+    const convo = await db.entities.Conversation.filter({ id: conversation_id });
     if (convo[0]) {
       const updates = { last_message_at: new Date().toISOString() };
       // If it's the very first user message, generate a title
@@ -137,7 +143,7 @@ Respond as Lumina. Do not prefix with "Lumina:" — just write the response dire
           if (title) updates.title = title;
         } catch (_) { /* keep default title */ }
       }
-      await base44.entities.Conversation.update(conversation_id, updates);
+      await db.entities.Conversation.update(conversation_id, updates);
     }
 
     return Response.json({
