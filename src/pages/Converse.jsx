@@ -34,6 +34,7 @@ export default function Converse() {
   const [opener] = useState(() => OPENERS[Math.floor(Math.random() * OPENERS.length)]);
 
   const scrollRef = useRef(null);
+  const activeIdRef = useRef(null);
   const [voiceMode, setVoiceMode] = useState(false);
   const [listening, setListening] = useState(false);
   const lastSpokenIdRef = useRef(null);
@@ -73,9 +74,11 @@ export default function Converse() {
 
   useEffect(() => {
     if (convoIdFromUrl && convoIdFromUrl !== activeId) {
+      activeIdRef.current = convoIdFromUrl;
       setActiveId(convoIdFromUrl);
       loadMessages(convoIdFromUrl);
     } else if (!convoIdFromUrl) {
+      activeIdRef.current = null;
       setActiveId(null);
       setMessages([]);
     }
@@ -119,7 +122,7 @@ export default function Converse() {
     const text = (overrideText ?? input).trim();
     if (!text || isSending) return;
 
-    let convoId = activeId;
+    let convoId = activeIdRef.current || activeId;
     const isNew = !convoId;
 
     if (isNew) {
@@ -128,6 +131,7 @@ export default function Converse() {
         last_message_at: new Date().toISOString()
       });
       convoId = convo.id;
+      activeIdRef.current = convoId;
       setActiveId(convoId);
       setSearchParams({ c: convoId });
     }
