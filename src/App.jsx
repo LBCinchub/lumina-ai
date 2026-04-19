@@ -9,6 +9,7 @@ import AppShell from '@/components/layout/AppShell';
 import Converse from '@/pages/Converse';
 import Context from '@/pages/Context';
 import Insights from '@/pages/Insights';
+import Build from '@/pages/Build';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -40,6 +41,7 @@ const AuthenticatedApp = () => {
         <Route path="/" element={<Converse />} />
         <Route path="/context" element={<Context />} />
         <Route path="/insights" element={<Insights />} />
+        <Route path="/build" element={<Build />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
