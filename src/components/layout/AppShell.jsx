@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { MessageSquare, User, Sparkles, Code2, Menu, X, Sun, Moon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { base44 } from '@/api/base44Client';
+import { Button } from '@/components/ui/button';
+import { useTheme } from '@/hooks/useTheme';
+import LuminaMark from './LuminaMark';
 
 const navItems = [
   { to: '/', label: 'Converse', icon: MessageSquare, end: true },
