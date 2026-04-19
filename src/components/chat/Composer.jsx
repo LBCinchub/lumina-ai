@@ -1,9 +1,18 @@
 import React, { useRef, useEffect } from 'react';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, Mic, MicOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSpeechInput } from '@/hooks/useSpeechInput';
 
 export default function Composer({ value, onChange, onSubmit, disabled, placeholder = "Speak plainly." }) {
   const textareaRef = useRef(null);
+
+  const { listening, supported, toggle: toggleVoice } = useSpeechInput({
+    onTranscript: (text) => onChange(text),
+    onAutoSubmit: (text) => {
+      onChange(text);
+      onSubmit(text);
+    },
+  });
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -15,7 +24,7 @@ export default function Composer({ value, onChange, onSubmit, disabled, placehol
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (value.trim() && !disabled) onSubmit();
+      if (value.trim() && !disabled) onSubmit(undefined);
     }
   };
 
@@ -42,6 +51,23 @@ export default function Composer({ value, onChange, onSubmit, disabled, placehol
           )}
           style={{ maxHeight: '200px' }}
         />
+        {supported && (
+          <button
+            type="button"
+            onClick={toggleVoice}
+            disabled={disabled}
+            className={cn(
+              "shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all",
+              listening
+                ? "bg-red-500/90 text-white animate-pulse"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent",
+              "disabled:opacity-30 disabled:cursor-not-allowed"
+            )}
+            aria-label={listening ? "Stop listening" : "Voice input"}
+          >
+            {listening ? <MicOff className="w-4 h-4" strokeWidth={2} /> : <Mic className="w-4 h-4" strokeWidth={1.75} />}
+          </button>
+        )}
         <button
           onClick={onSubmit}
           disabled={!value.trim() || disabled}

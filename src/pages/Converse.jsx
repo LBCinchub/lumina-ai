@@ -84,8 +84,8 @@ export default function Converse() {
     setSidebarOpen(false);
   };
 
-  const handleSubmit = async () => {
-    const text = input.trim();
+  const handleSubmit = async (overrideText) => {
+    const text = (overrideText ?? input).trim();
     if (!text || isSending) return;
 
     let convoId = activeId;
