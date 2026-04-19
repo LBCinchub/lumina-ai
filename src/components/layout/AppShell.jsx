@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { MessageSquare, User, Sparkles, Menu, X } from 'lucide-react';
+import { MessageSquare, User, Sparkles, Menu, X, Sun, Moon } from 'lucide-react';
 import LuminaMark from './LuminaMark';
 import { cn } from '@/lib/utils';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
+import { useTheme } from '@/hooks/useTheme';
 
 const navItems = [
   { to: '/', label: 'Converse', icon: MessageSquare, end: true },
@@ -16,6 +17,7 @@ export default function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
+  const { theme, toggle } = useTheme();
 
   React.useEffect(() => {
     base44.auth.me().then(setUser).catch(() => {});
@@ -52,8 +54,26 @@ export default function AppShell() {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-sidebar-border">
-          <div className="text-xs text-muted-foreground mb-2 truncate">
+        <div className="p-4 border-t border-sidebar-border space-y-2">
+          {/* LBC.Network branding */}
+          <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/50 mb-3">
+            by <span className="font-medium text-muted-foreground/70">LBC.Network</span>
+          </div>
+
+          <div className="flex items-center justify-between -mx-1">
+            {/* Dark mode toggle */}
+            <button
+              onClick={toggle}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+            >
+              {theme === 'dark'
+                ? <Sun className="w-3.5 h-3.5" strokeWidth={1.5} />
+                : <Moon className="w-3.5 h-3.5" strokeWidth={1.5} />}
+              {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            </button>
+          </div>
+
+          <div className="text-xs text-muted-foreground truncate pt-1">
             {user?.email || '—'}
           </div>
           <Button
