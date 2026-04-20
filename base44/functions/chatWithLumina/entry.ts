@@ -116,8 +116,7 @@ User: ${message}
 Respond as Lumina. Do not prefix with "Lumina:" — just write the response directly.`;
 
     const llmResponse = await base44.integrations.Core.InvokeLLM({
-      prompt: fullPrompt,
-      model: 'claude_sonnet_4_6'
+      prompt: fullPrompt
     });
 
     const assistantContent = typeof llmResponse === 'string' ? llmResponse : (llmResponse?.content || String(llmResponse));
