@@ -1,0 +1,39 @@
+{
+  "name": "UserSubscription",
+  "type": "object",
+  "properties": {
+    "requests_used": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of requests used this cycle"
+    },
+    "subscription_status": {
+      "type": "string",
+      "enum": [
+        "free",
+        "active",
+        "inactive"
+      ],
+      "default": "free",
+      "description": "Current subscription status"
+    },
+    "subscription_expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When subscription expires"
+    },
+    "solana_tx_hash": {
+      "type": "string",
+      "description": "Last verified Solana transaction hash"
+    }
+  },
+  "rls": {
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  },
+  "required": []
+}

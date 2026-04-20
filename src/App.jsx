@@ -10,6 +10,7 @@ import Converse from '@/pages/Converse';
 import Context from '@/pages/Context';
 import Insights from '@/pages/Insights';
 import Build from '@/pages/Build';
+import Pricing from '@/pages/Pricing';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -42,6 +43,7 @@ const AuthenticatedApp = () => {
         <Route path="/context" element={<Context />} />
         <Route path="/insights" element={<Insights />} />
         <Route path="/build" element={<Build />} />
+        <Route path="/pricing" element={<Pricing />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
