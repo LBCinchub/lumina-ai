@@ -145,7 +145,7 @@ Respond as Lumina. Do not prefix with "Lumina:" — just write the response dire
     const llmResponse = await base44.integrations.Core.InvokeLLM({
       prompt: fullPrompt,
       add_context_from_internet: true,
-      model: 'gpt_5_mini',
+      model: 'gemini_3_flash',
       ...(file_urls && file_urls.length ? { file_urls } : {})
     });
 
