@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { MessageSquare, User, Sparkles, Code2, Menu, X, Sun, Moon } from 'lucide-react';
+import { MessageSquare, User, Sparkles, Code2, Menu, X, Sun, Moon, LayoutDashboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/build', label: 'Build', icon: Code2 },
   { to: '/context', label: 'Context', icon: User },
   { to: '/insights', label: 'Insights', icon: Sparkles },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
 ];
 
 export default function AppShell() {
