@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import ConversationList from '@/components/chat/ConversationList';
 import MessageBubble from '@/components/chat/MessageBubble';
 import ThinkingIndicator from '@/components/chat/ThinkingIndicator';
-import Composer from '@/components/chat/Composer';
+import Composer from '@/components/chat/Composer.jsx';
 import LuminaMark from '@/components/layout/LuminaMark';
 import { PanelLeft, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -132,9 +132,10 @@ export default function Converse() {
     setSidebarOpen(false);
   };
 
-  const handleSubmit = async (rawText) => {
-    const text = rawText?.trim();
-    if (!text || isSendingRef.current) return;
+  const handleSubmit = async (rawText, attachments = []) => {
+    const text = rawText?.trim() || '';
+    if (!text && !attachments.length) return;
+    if (isSendingRef.current) return;
 
     // If Lumina is speaking, interrupt her immediately
     if (speaking) stopSpeaking();
@@ -153,14 +154,17 @@ export default function Converse() {
       setSearchParams({ c: convoId }, { replace: true });
     }
 
+    const fileUrls = attachments.map(a => a.url);
+    const displayText = text || (attachments.length ? `[${attachments.map(a => a.name).join(', ')}]` : '');
+
     // Optimistic user message
-    const optimistic = { id: 'tmp-' + Date.now(), role: 'user', content: text, conversation_id: convoId };
+    const optimistic = { id: 'tmp-' + Date.now(), role: 'user', content: displayText, conversation_id: convoId, file_urls: fileUrls };
     setMessages(prev => [...prev, optimistic]);
     isSendingRef.current = true;
     setIsSending(true);
 
     try {
-      await base44.functions.invoke('chatWithLumina', { conversation_id: convoId, message: text });
+      await base44.functions.invoke('chatWithLumina', { conversation_id: convoId, message: displayText, file_urls: fileUrls });
       await loadMessages(convoId);
       loadConversations();
     } catch (err) {

@@ -6,11 +6,28 @@ import { cn } from '@/lib/utils';
 export default function MessageBubble({ message, isLatest }) {
   const isUser = message.role === 'user';
 
+  const fileUrls = message.file_urls || [];
+
   if (isUser) {
     return (
       <div className="flex justify-end animate-fade-up">
-        <div className="max-w-[85%] md:max-w-[75%] bg-accent text-accent-foreground rounded-2xl rounded-tr-sm px-4 py-2.5">
-          <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{message.content}</p>
+        <div className="max-w-[85%] md:max-w-[75%] space-y-2">
+          {fileUrls.map((url, i) => {
+            const isImage = /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(url);
+            const isVideo = /\.(mp4|webm|mov|avi)(\?|$)/i.test(url);
+            if (isImage) return <img key={i} src={url} alt="attachment" className="rounded-xl max-h-60 object-cover" />;
+            if (isVideo) return <video key={i} src={url} controls className="rounded-xl max-h-60 w-full" />;
+            return (
+              <a key={i} href={url} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-accent text-accent-foreground rounded-xl px-3 py-2 text-sm hover:opacity-80">
+                📎 {url.split('/').pop()}
+              </a>
+            );
+          })}
+          {message.content && (
+            <div className="bg-accent text-accent-foreground rounded-2xl rounded-tr-sm px-4 py-2.5">
+              <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{message.content}</p>
+            </div>
+          )}
         </div>
       </div>
     );

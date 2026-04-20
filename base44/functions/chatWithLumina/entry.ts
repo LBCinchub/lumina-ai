@@ -72,9 +72,9 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { conversation_id, message } = await req.json();
+    const { conversation_id, message, file_urls } = await req.json();
 
-    if (!conversation_id || !message) {
+    if (!conversation_id || (!message && (!file_urls || !file_urls.length))) {
       return Response.json({ error: 'Missing conversation_id or message' }, { status: 400 });
     }
 
@@ -121,7 +121,8 @@ Respond as Lumina. Do not prefix with "Lumina:" — just write the response dire
     const llmResponse = await base44.integrations.Core.InvokeLLM({
       prompt: fullPrompt,
       add_context_from_internet: true,
-      model: 'gemini_3_1_pro'
+      model: 'gemini_3_1_pro',
+      ...(file_urls && file_urls.length ? { file_urls } : {})
     });
 
     const assistantContent = typeof llmResponse === 'string' ? llmResponse : (llmResponse?.content || String(llmResponse));
