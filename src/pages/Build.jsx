@@ -346,11 +346,6 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
         </div>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-minimal">
-          {activeProject && !isEmpty && (
-            <div className="px-5 py-4">
-              <ProjectDashboard project={activeProject} />
-            </div>
-          )}
           {isEmpty ? (
             <div className="h-full overflow-y-auto scrollbar-minimal px-5 py-6 animate-fade-up">
               <div className="mb-6">
@@ -436,7 +431,7 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
       </div>
 
       {/* Preview panel */}
-      <div className="hidden md:flex flex-col flex-1 min-w-0">
+      <div className="hidden md:flex flex-col flex-1 min-w-0 relative">
         <div className="shrink-0 px-5 py-3 border-b border-border/60 flex items-center gap-1">
           <button
             onClick={() => setActiveTab('preview')}
@@ -472,6 +467,13 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
                 No code yet. Ask Lumina to build something.
               </div>
             )}
+          </div>
+        )}
+
+        {/* Floating Dashboard */}
+        {activeProject && !isEmpty && (
+          <div className="absolute bottom-6 right-6 z-20 max-w-sm">
+            <ProjectDashboard project={activeProject} />
           </div>
         )}
       </div>
