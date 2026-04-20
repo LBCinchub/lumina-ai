@@ -5,6 +5,7 @@ export function useSpeechInput({ onTranscript, onAutoSubmit }) {
   const [supported] = useState(() => 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
   const recognitionRef = useRef(null);
   const accumulatedRef = useRef('');
+  const shouldRestartRef = useRef(false); // keep alive flag
 
   // Always-current refs — updated synchronously on every render
   const onTranscriptRef = useRef(onTranscript);
@@ -12,17 +13,7 @@ export function useSpeechInput({ onTranscript, onAutoSubmit }) {
   onTranscriptRef.current = onTranscript;
   onAutoSubmitRef.current = onAutoSubmit;
 
-  const stop = useCallback(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.onend = null;
-      recognitionRef.current.onerror = null;
-      recognitionRef.current.abort();
-      recognitionRef.current = null;
-    }
-    setListening(false);
-  }, []);
-
-  const start = useCallback(() => {
+  const createAndStart = useCallback(() => {
     if (!supported) return;
     if (recognitionRef.current) return;
 
@@ -30,7 +21,7 @@ export function useSpeechInput({ onTranscript, onAutoSubmit }) {
     const rec = new SR();
     rec.lang = 'en-US';
     rec.interimResults = true;
-    rec.continuous = true;
+    rec.continuous = false; // single utterance per session; we restart manually
     rec.maxAlternatives = 1;
 
     accumulatedRef.current = '';
@@ -57,8 +48,15 @@ export function useSpeechInput({ onTranscript, onAutoSubmit }) {
       recognitionRef.current = null;
       const text = accumulatedRef.current.trim();
       accumulatedRef.current = '';
+
       if (text) {
+        // User said something — submit it (this will also interrupt Lumina if speaking)
         onAutoSubmitRef.current(text);
+      } else if (shouldRestartRef.current) {
+        // No speech detected, but we're still in live mode — restart immediately
+        setTimeout(() => {
+          if (shouldRestartRef.current) createAndStart();
+        }, 150);
       }
     };
 
@@ -68,16 +66,47 @@ export function useSpeechInput({ onTranscript, onAutoSubmit }) {
       }
       setListening(false);
       recognitionRef.current = null;
+      // Auto-restart on no-speech so we keep listening
+      if (shouldRestartRef.current && e.error === 'no-speech') {
+        setTimeout(() => {
+          if (shouldRestartRef.current) createAndStart();
+        }, 150);
+      }
     };
 
     recognitionRef.current = rec;
-    rec.start();
+    try { rec.start(); } catch (_) {}
   }, [supported]);
 
-  const toggle = useCallback(() => {
-    if (listening) stop();
-    else start();
-  }, [listening, start, stop]);
+  const start = useCallback(() => {
+    shouldRestartRef.current = true;
+    createAndStart();
+  }, [createAndStart]);
 
-  return { listening, supported, toggle, start, stop };
+  const stop = useCallback(() => {
+    shouldRestartRef.current = false;
+    if (recognitionRef.current) {
+      recognitionRef.current.onend = null;
+      recognitionRef.current.onerror = null;
+      recognitionRef.current.abort();
+      recognitionRef.current = null;
+    }
+    setListening(false);
+  }, []);
+
+  const toggle = useCallback(() => {
+    if (shouldRestartRef.current) stop();
+    else start();
+  }, [start, stop]);
+
+  // Called after Lumina finishes speaking to restart listening
+  const restart = useCallback(() => {
+    if (!shouldRestartRef.current) return;
+    if (recognitionRef.current) return; // already running
+    setTimeout(() => {
+      if (shouldRestartRef.current) createAndStart();
+    }, 200);
+  }, [createAndStart]);
+
+  return { listening, supported, toggle, start, stop, restart };
 }

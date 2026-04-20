@@ -50,6 +50,13 @@ export default function Converse() {
     startMicRef.current = () => composerRef.current?.start();
   }, []);
 
+  // In voice mode, keep mic running even while Lumina speaks
+  // When user speaks, stopSpeaking() is called inside handleSubmit to interrupt
+  const restartMicRef = useRef(null);
+  useEffect(() => {
+    restartMicRef.current = () => composerRef.current?.restart();
+  }, []);
+
   const loadConversations = useCallback(async () => {
     setIsLoadingConvos(true);
     const data = await base44.entities.Conversation.list('-last_message_at', 50);
@@ -98,16 +105,17 @@ export default function Converse() {
   // Keep ref in sync so callbacks don't close over stale voiceMode
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
 
-  // Auto-speak latest Lumina message in voice mode, then restart mic
+  // Auto-speak latest Lumina message in voice mode
+  // Mic stays on the whole time; if user speaks mid-sentence, handleSubmit will stopSpeaking first
   useEffect(() => {
     if (!voiceMode || isSending) return;
     const last = [...messages].reverse().find(m => m.role === 'assistant');
     if (last && last.id !== lastSpokenIdRef.current) {
       lastSpokenIdRef.current = last.id;
       speak(last.content, () => {
-        // After Lumina finishes speaking, restart mic if still in voice mode
-        if (voiceModeRef.current && startMicRef.current) {
-          startMicRef.current();
+        // Lumina finished speaking naturally — restart mic if not already running
+        if (voiceModeRef.current && restartMicRef.current) {
+          restartMicRef.current();
         }
       });
     }
@@ -126,6 +134,9 @@ export default function Converse() {
   const handleSubmit = async (rawText) => {
     const text = rawText?.trim();
     if (!text || isSendingRef.current) return;
+
+    // If Lumina is speaking, interrupt her immediately
+    if (speaking) stopSpeaking();
 
     let convoId = activeIdRef.current || activeId;
     const isNew = !convoId;
@@ -170,13 +181,14 @@ export default function Converse() {
   const toggleVoiceMode = () => {
     if (voiceMode) {
       stopSpeaking();
+      composerRef.current?.stop();
       voiceModeRef.current = false;
       setVoiceMode(false);
       setListening(false);
     } else {
       voiceModeRef.current = true;
       setVoiceMode(true);
-      // Start mic immediately when activating voice mode
+      // Start mic immediately — it will stay on for the whole call
       setTimeout(() => {
         if (startMicRef.current) startMicRef.current();
       }, 100);

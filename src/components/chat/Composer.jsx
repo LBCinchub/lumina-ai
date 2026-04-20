@@ -14,7 +14,7 @@ const Composer = forwardRef(function Composer(
   useEffect(() => { onSubmitRef.current = onSubmit; }, [onSubmit]);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
-  const { listening, supported, toggle: toggleVoice, start: startVoice } = useSpeechInput({
+  const { listening, supported, toggle: toggleVoice, start: startVoice, stop: stopVoice, restart: restartVoice } = useSpeechInput({
     onTranscript: (text) => onChangeRef.current(text),
     onAutoSubmit: (text) => {
       onChangeRef.current('');
@@ -22,7 +22,7 @@ const Composer = forwardRef(function Composer(
     },
   });
 
-  useImperativeHandle(ref, () => ({ start: startVoice }), [startVoice]);
+  useImperativeHandle(ref, () => ({ start: startVoice, stop: stopVoice, restart: restartVoice }), [startVoice, stopVoice, restartVoice]);
 
   useEffect(() => {
     onListeningChange?.(listening);
