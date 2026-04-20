@@ -62,8 +62,8 @@ export function useSpeechOutput() {
 
     const doSpeak = () => {
       const utter = new SpeechSynthesisUtterance(clean);
-      utter.rate = 0.88;   // slower, more deliberate — emotional weight
-      utter.pitch = 1.2;   // warmer, expressive
+      utter.rate = 0.95;   // natural conversational pace
+      utter.pitch = 1.0;   // natural pitch — human-like
       utter.volume = 1;
 
       const voice = getBestVoice();
