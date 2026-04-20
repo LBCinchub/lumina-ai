@@ -205,16 +205,27 @@ export default function Build() {
     const trimmed = (text ?? input).trim();
     if (!trimmed || sending) return;
 
-    const userMsg = { role: 'user', content: trimmed, id: Date.now() };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
-    setInput('');
     setSending(true);
 
     try {
+      // Check build request limit
+      const limitCheck = await base44.functions.invoke('checkBuildRequestLimit', {});
+      if (limitCheck.data.blocked) {
+        setMessages(prev => [...prev, { role: 'assistant', content: limitCheck.data.message, id: Date.now() + 1 }]);
+        setSending(false);
+        return;
+      }
+
+      const userMsg = { role: 'user', content: trimmed, id: Date.now() };
+      const newMessages = [...messages, userMsg];
+      setMessages(newMessages);
+      setInput('');
       const history = newMessages
         .map(m => `${m.role === 'user' ? 'User' : 'Lumina'}: ${m.content}`)
         .join('\n\n');
+      
+      // Update reference to newMessages
+      const finalMessages = newMessages;
 
       const prompt = `You are Lumina — an expert full-stack developer and product designer. Your primary role here is to BUILD apps and websites when asked.
 
@@ -240,7 +251,7 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
       const content = typeof res === 'string' ? res : (res?.content || String(res));
       const html = extractHTML(content);
       const assistantMsg = { role: 'assistant', content, id: Date.now() + 1 };
-      const finalMessages = [...newMessages, assistantMsg];
+      finalMessages.push(assistantMsg);
 
       if (html) {
         setLatestHTML(html);

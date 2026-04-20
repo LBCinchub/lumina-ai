@@ -30,6 +30,16 @@
     "solana_tx_hash": {
       "type": "string",
       "description": "Last verified Solana transaction hash"
+    },
+    "build_requests_used": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of build requests used this cycle"
+    },
+    "last_build_reset_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the build request limit was last reset"
     }
   },
   "rls": {
