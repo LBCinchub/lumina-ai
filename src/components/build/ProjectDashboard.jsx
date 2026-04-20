@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { Settings, RefreshCw, Copy, Download, Share2, Zap } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Settings, Copy, Download, Zap } from 'lucide-react';
 
-export default function ProjectDashboard({ project, onUpdate }) {
+export default function ProjectDashboard({ project }) {
   const [showSettings, setShowSettings] = useState(false);
   const [sprites, setSprites] = useState({
     colors: ['#00d4ff', '#a78bfa', '#f472b6'],
@@ -30,7 +29,7 @@ export default function ProjectDashboard({ project, onUpdate }) {
   };
 
   return (
-    <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-cyan-500/30 rounded-xl p-5 space-y-4">
+    <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-cyan-500/30 rounded-xl p-5 space-y-4 shadow-2xl shadow-cyan-500/20">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
