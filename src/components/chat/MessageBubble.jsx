@@ -25,8 +25,8 @@ export default function MessageBubble({ message, isLatest }) {
             );
           })}
           {message.content && (
-            <div className="bg-accent text-accent-foreground rounded-2xl rounded-tr-sm px-4 py-2.5">
-              <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{message.content}</p>
+            <div className="rounded-2xl rounded-tr-sm px-4 py-2.5" style={{background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)'}}>
+              <p className="text-[15px] leading-relaxed whitespace-pre-wrap text-white/80">{message.content}</p>
             </div>
           )}
         </div>
