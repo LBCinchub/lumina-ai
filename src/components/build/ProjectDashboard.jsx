@@ -22,7 +22,6 @@ export default function ProjectDashboard({ project }) {
 
   return (
     <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-cyan-500/30 rounded p-2 shadow-2xl shadow-cyan-500/20 w-64 text-xs">
-      {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="min-w-0">
           <h3 className="text-[11px] font-medium text-white truncate">{project.title}</h3>
@@ -37,7 +36,6 @@ export default function ProjectDashboard({ project }) {
 
       {!showSettings ? (
         <>
-          {/* Quick Actions */}
           <div className="grid grid-cols-2 gap-1 mb-2">
             <button
               onClick={handleCopy}
@@ -55,7 +53,6 @@ export default function ProjectDashboard({ project }) {
             </button>
           </div>
 
-          {/* Stats */}
           <div className="grid grid-cols-3 gap-1 text-center border-t border-cyan-500/20 pt-1.5">
             <div>
               <p className="text-[7px] text-cyan-400/60 mb-0.5">Lines</p>
