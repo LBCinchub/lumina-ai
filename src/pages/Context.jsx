@@ -119,10 +119,39 @@ export default function Context() {
           </Button>
         </div>
 
-        <p className="text-[15px] text-muted-foreground leading-relaxed max-w-xl">
+        <p className="text-[15px] text-muted-foreground leading-relaxed max-w-xl mb-8">
           What you share here becomes the ground Lumina reasons from. No conversation starts from zero.
           Write plainly. Update whenever something shifts.
         </p>
+
+        <div className="mb-10 p-5 rounded-xl border border-border bg-card/40">
+          <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mb-3 font-medium">
+            Organization Structure
+          </div>
+          <div className="space-y-3 text-sm text-foreground/80">
+            <div className="flex items-start gap-3">
+              <span className="text-accent font-medium mt-0.5">🌳</span>
+              <div>
+                <p className="font-medium text-foreground">LBC.Network</p>
+                <p className="text-muted-foreground text-xs">Parent organization — the foundational protocol and ecosystem</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-accent font-medium mt-0.5">👥</span>
+              <div>
+                <p className="font-medium text-foreground">LBCHub.io</p>
+                <p className="text-muted-foreground text-xs">Big brother — hosts and manages the LBC Protocol hub and ecosystem infrastructure</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-accent font-medium mt-0.5">🚀</span>
+              <div>
+                <p className="font-medium text-foreground">Young portfolio companies (20s kids)</p>
+                <p className="text-muted-foreground text-xs">Emerging ventures and domains built on the LBC Protocol, listed on lbchub.io</p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div className="space-y-10">
           {FIELDS.map(f => (
