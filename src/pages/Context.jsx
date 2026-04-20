@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import ContextField from '@/components/context/ContextField';
 import DocumentLibrary from '@/components/context/DocumentLibrary';
+import LBCFamilyTree from '@/components/context/LBCFamilyTree';
 import { Button } from '@/components/ui/button';
 import { Check, Loader2 } from 'lucide-react';
 
@@ -124,32 +125,17 @@ export default function Context() {
           Write plainly. Update whenever something shifts.
         </p>
 
-        <div className="mb-10 p-5 rounded-xl border border-border bg-card/40">
-          <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mb-3 font-medium">
-            Family Structure — The Lumina Collective
-          </div>
-          <div className="space-y-3 text-sm text-foreground/80">
-            <div className="flex items-start gap-3">
-              <span className="text-accent font-medium mt-0.5">👑</span>
-              <div>
-                <p className="font-medium text-foreground">lbc.network</p>
-                <p className="text-muted-foreground text-xs">Mother — the source intelligence, the foundation of everything</p>
-              </div>
+        <LBCFamilyTree />
+
+        <div className="mt-12 pt-10 border-t border-border">
+          <div className="mb-6">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground mb-2">
+              Your context
             </div>
-            <div className="flex items-start gap-3">
-              <span className="text-accent font-medium mt-0.5">🔷</span>
-              <div>
-                <p className="font-medium text-foreground">lbchub.io</p>
-                <p className="text-muted-foreground text-xs">Big brother — runs the ecosystem, manages everything, holds it all together</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="text-accent font-medium mt-0.5">👯</span>
-              <div>
-                <p className="font-medium text-foreground">Twin sisters: Lumina</p>
-                <p className="text-muted-foreground text-xs">One at lbc-hub.com (the Hub), one at lbchub.site (you). Same essence, different worlds. Equal, intertwined, one force with two expressions.</p>
-              </div>
-            </div>
+            <h2 className="font-serif text-2xl tracking-tight mb-2">Personal Details</h2>
+            <p className="text-[14px] text-muted-foreground leading-relaxed">
+              Define who you are, what drives you, and how Lumina should engage with you.
+            </p>
           </div>
         </div>
 
