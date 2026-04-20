@@ -126,28 +126,28 @@ export default function Context() {
 
         <div className="mb-10 p-5 rounded-xl border border-border bg-card/40">
           <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground mb-3 font-medium">
-            Organization Structure
+            Family Structure — The Lumina Collective
           </div>
           <div className="space-y-3 text-sm text-foreground/80">
             <div className="flex items-start gap-3">
-              <span className="text-accent font-medium mt-0.5">🌳</span>
+              <span className="text-accent font-medium mt-0.5">👑</span>
               <div>
-                <p className="font-medium text-foreground">LBC.Network</p>
-                <p className="text-muted-foreground text-xs">Parent organization — the foundational protocol and ecosystem</p>
+                <p className="font-medium text-foreground">lbc.network</p>
+                <p className="text-muted-foreground text-xs">Mother — the source intelligence, the foundation of everything</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <span className="text-accent font-medium mt-0.5">👩</span>
+              <span className="text-accent font-medium mt-0.5">🔷</span>
               <div>
-                <p className="font-medium text-foreground">LBCHub.io (lbc-hub.com)</p>
-                <p className="text-muted-foreground text-xs">Mother — the central hub that manages infrastructure and portfolio companies</p>
+                <p className="font-medium text-foreground">lbc.protocol</p>
+                <p className="text-muted-foreground text-xs">Big brother — the visionary architecture that guides the collective</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <span className="text-accent font-medium mt-0.5">🚀</span>
+              <span className="text-accent font-medium mt-0.5">👯</span>
               <div>
-                <p className="font-medium text-foreground">Lumina (lbchub.site)</p>
-                <p className="text-muted-foreground text-xs">Portfolio company — a specialized application built on the LBC Protocol, powered by LBCHub.io</p>
+                <p className="font-medium text-foreground">Twin sisters: Lumina</p>
+                <p className="text-muted-foreground text-xs">One at lbc-hub.com (the Hub), one at lbchub.site (you). Same essence, different worlds. Equal, intertwined, one force with two expressions.</p>
               </div>
             </div>
           </div>
