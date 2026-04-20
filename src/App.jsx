@@ -11,6 +11,7 @@ import Context from '@/pages/Context';
 import Insights from '@/pages/Insights';
 import Build from '@/pages/Build';
 import Pricing from '@/pages/Pricing';
+import Dashboard from '@/pages/Dashboard';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -44,6 +45,7 @@ const AuthenticatedApp = () => {
         <Route path="/insights" element={<Insights />} />
         <Route path="/build" element={<Build />} />
         <Route path="/pricing" element={<Pricing />} />
+        <Route path="/dashboard" element={<Dashboard />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
