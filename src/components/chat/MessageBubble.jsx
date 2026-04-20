@@ -38,7 +38,7 @@ export default function MessageBubble({ message, isLatest }) {
       <div className="shrink-0 mt-1">
         <LuminaMark size={22} className="text-foreground/80" />
       </div>
-      <div className="flex-1 min-w-0 prose-lumina text-[15px] text-foreground/90">
+      <div className="flex-1 min-w-0 prose-lumina text-[15px] text-yellow-400">
         <ReactMarkdown>{message.content}</ReactMarkdown>
       </div>
     </div>
