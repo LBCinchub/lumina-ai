@@ -137,7 +137,7 @@ function PreviewPane({ html }) {
   if (!html) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-        Preview will appear here once Lumina builds something.
+        Choose a template or describe what to build.
       </div>
     );
   }
