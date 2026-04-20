@@ -10,6 +10,7 @@ import { PanelLeft, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useExportPDF } from '@/hooks/useExportPDF';
 import { useSpeechOutput } from '@/hooks/useSpeechOutput';
+import LiveCallOverlay from '@/components/chat/LiveCallOverlay';
 
 const OPENERS = [
   "What are you circling right now?",
@@ -185,6 +186,15 @@ export default function Converse() {
   const showEmpty = !activeId && messages.length === 0;
 
   return (
+    <>
+    {voiceMode && (
+      <LiveCallOverlay
+        speaking={speaking}
+        listening={listening}
+        isSending={isSending}
+        onEnd={toggleVoiceMode}
+      />
+    )}
     <div className="flex h-[calc(100vh-3.5rem)] md:h-screen">
       {/* Conversation sidebar */}
       <aside className={cn(
@@ -297,5 +307,6 @@ export default function Converse() {
         </div>
       </div>
     </div>
+    </>
   );
 }
