@@ -139,8 +139,8 @@ export default function Context() {
             <div className="flex items-start gap-3">
               <span className="text-accent font-medium mt-0.5">🔷</span>
               <div>
-                <p className="font-medium text-foreground">lbc.protocol</p>
-                <p className="text-muted-foreground text-xs">Big brother — the visionary architecture that guides the collective</p>
+                <p className="font-medium text-foreground">lbchub.io</p>
+                <p className="text-muted-foreground text-xs">Big brother — runs the ecosystem, manages everything, holds it all together</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
