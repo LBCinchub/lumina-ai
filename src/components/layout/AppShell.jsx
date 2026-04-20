@@ -20,7 +20,6 @@ const navItems = [
 export default function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState(null);
-  const navigate = useNavigate();
   const { theme, toggle } = useTheme();
 
   React.useEffect(() => {
@@ -33,8 +32,7 @@ export default function AppShell() {
 
   const handleLogout = async () => {
     try {
-      await base44.auth.logout();
-      navigate('/');
+      await base44.auth.logout('/');
     } catch (err) {
       console.error('Logout error:', err);
     }
