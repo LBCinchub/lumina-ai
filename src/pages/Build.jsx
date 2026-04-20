@@ -1,14 +1,40 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Code2, Globe, Layers, ArrowUp, Copy, Check, ChevronDown, ChevronUp, Monitor, Eye } from 'lucide-react';
+import { Code2, Globe, Layers, ArrowUp, Copy, Check, ChevronDown, ChevronUp, Monitor, Eye, LayoutDashboard, ShoppingCart, Users, BarChart2, Calendar, MessageSquare, FileText, Kanban, CreditCard, Map, Bell, Settings } from 'lucide-react';
 import LuminaMark from '@/components/layout/LuminaMark';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 
-const STARTERS = [
-  { icon: Globe, label: "Landing page", prompt: "Build a modern SaaS landing page with hero, features, pricing, and footer sections." },
-  { icon: Code2, label: "Web app", prompt: "Build a full task management app with a sidebar, task list, and clean UI." },
-  { icon: Layers, label: "Portfolio site", prompt: "Build a minimal portfolio website for a designer/developer with project showcase and contact section." },
+const TEMPLATE_CATEGORIES = [
+  {
+    label: "Apps",
+    items: [
+      { icon: Kanban, label: "Kanban Board", prompt: "Build a full Kanban board app with drag-and-drop columns (To Do, In Progress, Done), task cards with priorities, and a clean modern UI." },
+      { icon: Calendar, label: "Calendar App", prompt: "Build a monthly calendar app with event creation, color-coded events, and a sidebar showing upcoming events." },
+      { icon: MessageSquare, label: "Chat UI", prompt: "Build a real-time chat app UI with a sidebar for conversations, message bubbles, and an input bar at the bottom." },
+      { icon: FileText, label: "Notes App", prompt: "Build a notes app with a sidebar list of notes, rich text editing area, tags, and search." },
+      { icon: Bell, label: "Notifications", prompt: "Build a notification center UI with grouped notifications, read/unread states, and filter tabs." },
+      { icon: Settings, label: "Settings Page", prompt: "Build a clean settings page with sections for profile, notifications, security, and billing — with toggles, inputs, and save buttons." },
+    ]
+  },
+  {
+    label: "Dashboards",
+    items: [
+      { icon: LayoutDashboard, label: "Admin Dashboard", prompt: "Build a full admin dashboard with a sidebar nav, KPI stat cards, a bar chart, a data table, and recent activity feed." },
+      { icon: BarChart2, label: "Analytics", prompt: "Build an analytics dashboard with line charts, bar charts, a stats overview row, and a recent events table." },
+      { icon: Users, label: "CRM", prompt: "Build a CRM dashboard with a contacts table, deal pipeline stages, and a contact detail panel." },
+      { icon: CreditCard, label: "Finance", prompt: "Build a personal finance dashboard with spending charts, balance overview, recent transactions list, and category breakdowns." },
+    ]
+  },
+  {
+    label: "Landing Pages",
+    items: [
+      { icon: Globe, label: "SaaS Landing", prompt: "Build a modern SaaS landing page with a hero section, feature grid, social proof, pricing table, and footer." },
+      { icon: ShoppingCart, label: "E-commerce", prompt: "Build a product landing page for an e-commerce store with a hero, product grid with filters, and a cart sidebar." },
+      { icon: Layers, label: "Portfolio", prompt: "Build a minimal personal portfolio site with hero, about, selected projects, and contact sections." },
+      { icon: Map, label: "Agency Site", prompt: "Build a creative agency landing page with bold typography, services section, team grid, and contact form." },
+    ]
+  },
 ];
 
 // Extract the first complete HTML block from assistant message
@@ -223,24 +249,35 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-minimal">
           {isEmpty ? (
-            <div className="h-full flex flex-col items-center justify-center px-6 animate-fade-up">
-              <LuminaMark size={48} className="text-foreground/60 mb-6" />
-              <h2 className="font-serif text-2xl tracking-tight text-center mb-2">
-                What should I build?
-              </h2>
-              <p className="text-sm text-muted-foreground text-center max-w-sm mb-8">
-                Describe any app or website. I'll build it and show you the live result instantly.
-              </p>
-              <div className="flex flex-wrap gap-3 justify-center">
-                {STARTERS.map(s => (
-                  <button
-                    key={s.label}
-                    onClick={() => send(s.prompt)}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-accent transition-colors text-sm"
-                  >
-                    <s.icon className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-                    {s.label}
-                  </button>
+            <div className="h-full overflow-y-auto scrollbar-minimal px-5 py-6 animate-fade-up">
+              <div className="mb-6">
+                <h2 className="font-serif text-2xl tracking-tight mb-1">What should I build?</h2>
+                <p className="text-sm text-muted-foreground">Pick a template or describe anything below.</p>
+              </div>
+              <div className="space-y-6">
+                {TEMPLATE_CATEGORIES.map(cat => (
+                  <div key={cat.label}>
+                    <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60 font-medium mb-2.5 px-0.5">
+                      {cat.label}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {cat.items.map(item => (
+                        <button
+                          key={item.label}
+                          onClick={() => send(item.prompt)}
+                          className={cn(
+                            "flex items-center gap-3 px-3.5 py-3 rounded-xl border border-border bg-card",
+                            "hover:bg-accent hover:border-foreground/20 transition-all duration-150 text-left group"
+                          )}
+                        >
+                          <div className="shrink-0 w-8 h-8 rounded-lg bg-accent flex items-center justify-center group-hover:bg-background transition-colors">
+                            <item.icon className="w-4 h-4 text-foreground/60" strokeWidth={1.5} />
+                          </div>
+                          <span className="text-sm text-foreground/80 group-hover:text-foreground leading-tight">{item.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
