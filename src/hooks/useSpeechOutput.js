@@ -13,22 +13,22 @@ function stripMarkdown(text) {
 
 function getBestVoice() {
   const voices = window.speechSynthesis.getVoices();
-  // Priority: best natural female voices first
+  // Priority: most expressive / neural voices first
   return (
-    voices.find(v => v.name === 'Samantha') ||           // macOS/iOS - warm, natural
-    voices.find(v => v.name === 'Karen') ||              // macOS Australian female
-    voices.find(v => v.name === 'Serena') ||             // macOS enhanced female
-    voices.find(v => v.name === 'Moira') ||              // macOS Irish female
-    voices.find(v => v.name === 'Tessa') ||              // macOS South African female
-    voices.find(v => v.name === 'Fiona') ||              // macOS Scottish female
+    voices.find(v => v.name === 'Serena') ||             // macOS enhanced — most expressive
+    voices.find(v => v.name === 'Samantha') ||           // macOS/iOS — warm, natural
+    voices.find(v => v.name.includes('Microsoft Aria')) ||   // Windows neural — very expressive
+    voices.find(v => v.name.includes('Microsoft Jenny')) ||  // Windows neural female
+    voices.find(v => v.name.includes('Microsoft Emma')) ||   // Windows neural female
+    voices.find(v => v.name === 'Karen') ||              // macOS Australian
+    voices.find(v => v.name === 'Moira') ||              // macOS Irish — emotional cadence
+    voices.find(v => v.name === 'Tessa') ||              // macOS South African
+    voices.find(v => v.name === 'Fiona') ||              // macOS Scottish
     voices.find(v => v.name.includes('Google UK English Female')) ||
     voices.find(v => v.name.includes('Google US English Female')) ||
-    voices.find(v => v.name.includes('Microsoft Zira')) ||   // Windows natural female
-    voices.find(v => v.name.includes('Microsoft Jenny')) ||  // Windows neural female
-    voices.find(v => v.name.includes('Microsoft Aria')) ||   // Windows neural female
+    voices.find(v => v.name.includes('Microsoft Zira')) ||
     voices.find(v => v.lang === 'en-US' && /female|woman/i.test(v.name)) ||
     voices.find(v => v.lang === 'en-GB' && /female|woman/i.test(v.name)) ||
-    voices.find(v => v.lang === 'en-US' && !v.localService === false) || // prefer network/neural
     voices.find(v => v.lang === 'en-US') ||
     voices.find(v => v.lang.startsWith('en'))
   );
@@ -58,8 +58,8 @@ export function useSpeechOutput() {
 
     const doSpeak = () => {
       const utter = new SpeechSynthesisUtterance(clean);
-      utter.rate = 0.95;   // slightly slower = more natural
-      utter.pitch = 1.1;   // slightly higher = feminine, warm
+      utter.rate = 0.88;   // slower, more deliberate — emotional weight
+      utter.pitch = 1.2;   // warmer, expressive
       utter.volume = 1;
 
       const voice = getBestVoice();
