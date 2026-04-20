@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import LuminaMark from '@/components/layout/LuminaMark';
+import { Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function MessageBubble({ message, isLatest }) {
@@ -38,8 +39,9 @@ export default function MessageBubble({ message, isLatest }) {
       <div className="shrink-0 mt-1">
         <LuminaMark size={22} className="text-foreground/80" />
       </div>
-      <div className="flex-1 min-w-0 prose-lumina text-[15px] text-yellow-300" style={{textShadow: '0 0 8px rgba(253,224,71,0.8), 0 0 20px rgba(253,224,71,0.4)'}}>
-        <ReactMarkdown>{message.content}</ReactMarkdown>
+      <div className="flex-1 min-w-0 prose-lumina text-[15px] text-yellow-300 flex gap-2 items-start" style={{textShadow: '0 0 8px rgba(253,224,71,0.8), 0 0 20px rgba(253,224,71,0.4)'}}>
+        <Zap className="w-4 h-4 shrink-0 mt-1 text-yellow-300 fill-yellow-300" style={{filter: 'drop-shadow(0 0 6px rgba(253,224,71,0.9))'}} />
+        <div className="flex-1"><ReactMarkdown>{message.content}</ReactMarkdown></div>
       </div>
     </div>
   );
