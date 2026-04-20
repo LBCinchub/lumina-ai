@@ -113,13 +113,10 @@ export default function AppShell() {
       {/* Mobile header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="flex items-center justify-between px-4 h-14">
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2"
-          >
+          <a href="/" className="flex items-center gap-2">
             <LuminaMark size={20} className="text-foreground" />
             <span className="font-serif text-lg tracking-tight">Lumina</span>
-          </button>
+          </a>
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="p-2 -mr-2 text-foreground"
