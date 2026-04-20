@@ -157,7 +157,7 @@ Respond as Lumina. Do not prefix with "Lumina:" — just write the response dire
         const imgRes = await base44.integrations.Core.GenerateImage({
           prompt: message
         });
-        assistantContent = `I've created this stunning image for you:\n\n![Generated image](${imgRes.url})\n\nLet me know if you'd like variations or adjustments!`;
+        assistantContent = `**Your prompt:**\n"${message}"\n\n**Generated image:**\n\n![Generated image](${imgRes.url})\n\nLet me know if you'd like variations or adjustments!`;
       } catch (imgErr) {
         // Fallback to normal chat if image generation fails
         const llmResponse = await base44.integrations.Core.InvokeLLM({
