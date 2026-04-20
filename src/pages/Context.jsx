@@ -72,6 +72,11 @@ export default function Context() {
     setSavedAt(null);
   };
 
+  const setFounderIdentity = async () => {
+    setCtx(prev => ({ ...prev, identity: 'I am Mokhtar Tarek Samara, the founder of Lumina. Email: mokhtartareksamara@gmail.com' }));
+    setSavedAt(null);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     const payload = FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: ctx[f.key] || '' }), {});
@@ -95,13 +100,24 @@ export default function Context() {
   return (
     <div className="min-h-screen">
       <div className="max-w-3xl mx-auto px-6 md:px-10 py-12 md:py-20">
-        <div className="mb-12 md:mb-16">
-          <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground mb-3">
-            Living memory
+        <div className="mb-12 md:mb-16 flex items-start justify-between">
+          <div className="flex-1">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground mb-3">
+              Living memory
+            </div>
+            <h1 className="font-serif text-4xl md:text-5xl tracking-tight leading-[1.05] mb-4">
+              The context that shapes every conversation.
+            </h1>
           </div>
-          <h1 className="font-serif text-4xl md:text-5xl tracking-tight leading-[1.05] mb-4">
-            The context that shapes every conversation.
-          </h1>
+          <Button
+            onClick={setFounderIdentity}
+            size="sm"
+            variant="outline"
+            className="rounded-full px-3 py-1 text-xs ml-4 whitespace-nowrap"
+          >
+            Set as founder
+          </Button>
+        </div>
           <p className="text-[15px] text-muted-foreground leading-relaxed max-w-xl">
             What you share here becomes the ground Lumina reasons from. No conversation starts from zero.
             Write plainly. Update whenever something shifts.
