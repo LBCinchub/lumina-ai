@@ -431,43 +431,44 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
 
       {/* Preview panel */}
       <div className="hidden md:flex flex-col flex-1 min-w-0">
-        <div className="shrink-0 px-5 py-3 border-b border-border/60 flex items-center gap-1">
-          <button
-            onClick={() => setActiveTab('preview')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
-              activeTab === 'preview' ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
-            )}
-          >
-            <Eye className="w-3.5 h-3.5" strokeWidth={1.75} />
-            Preview
-          </button>
-          <button
-            onClick={() => setActiveTab('code')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
-              activeTab === 'code' ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
-            )}
-          >
-            <Monitor className="w-3.5 h-3.5" strokeWidth={1.75} />
-            Code
-          </button>
+        {/* Top bar */}
+        <div className="shrink-0 px-5 py-3 border-b border-border/60 flex items-center gap-2">
+          <Eye className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.75} />
+          <span className="text-sm text-foreground/70">Preview</span>
           {sending && <span className="ml-auto text-xs text-muted-foreground animate-pulse">Building…</span>}
         </div>
 
-        {activeTab === 'preview' ? (
+        {/* Preview takes all space */}
+        <div className="flex-1 min-h-0 flex flex-col">
           <PreviewPane html={latestHTML} />
-        ) : (
-          <div className="flex-1 overflow-y-auto scrollbar-minimal p-5">
-            {latestHTML ? (
-              <CodeBlock code={latestHTML} lang="html" filename={`${activeProject?.title || 'index'}.html`} />
-            ) : (
-              <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                No code yet. Ask Lumina to build something.
-              </div>
-            )}
-          </div>
-        )}
+        </div>
+
+        {/* Code drawer at bottom */}
+        <div className="shrink-0 border-t border-border/60">
+          <button
+            onClick={() => setActiveTab(activeTab === 'code' ? 'preview' : 'code')}
+            className="w-full flex items-center gap-2 px-5 py-2.5 hover:bg-accent/50 transition-colors text-left"
+          >
+            <Monitor className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.75} />
+            <span className="text-xs text-muted-foreground flex-1">
+              {activeProject?.title ? `${activeProject.title}.html` : 'index.html'}
+            </span>
+            {activeTab === 'code'
+              ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+              : <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />}
+          </button>
+          {activeTab === 'code' && (
+            <div className="overflow-y-auto scrollbar-minimal max-h-64 border-t border-border/60">
+              {latestHTML ? (
+                <CodeBlock code={latestHTML} lang="html" filename={`${activeProject?.title || 'index'}.html`} />
+              ) : (
+                <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
+                  No code yet.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
