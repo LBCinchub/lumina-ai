@@ -182,7 +182,8 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
 
       const res = await base44.integrations.Core.InvokeLLM({
         prompt,
-        model: 'claude_sonnet_4_6'
+        add_context_from_internet: true,
+        model: 'gemini_3_1_pro'
       });
 
       const content = typeof res === 'string' ? res : (res?.content || String(res));

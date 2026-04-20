@@ -9,11 +9,14 @@ Deno.serve(async (req) => {
     const contexts = await base44.entities.UserContext.filter({ created_by: user.email });
     const ctx = contexts[0];
 
-    const recentMessages = await base44.entities.Message.filter(
-      { created_by: user.email, role: 'user' },
-      '-created_date',
-      30
-    );
+    // Get user's conversations first, then their messages
+    const conversations = await base44.asServiceRole.entities.Conversation.filter({ created_by: user.email }, '-last_message_at', 10);
+    const convoIds = conversations.map(c => c.id);
+
+    // Get recent user messages across all their conversations
+    const recentMessages = convoIds.length > 0
+      ? await base44.asServiceRole.entities.Message.filter({ conversation_id: convoIds[0], role: 'user' }, '-created_date', 30)
+      : [];
 
     const contextText = ctx ? [
       ctx.identity && `Identity: ${ctx.identity}`,
@@ -41,7 +44,8 @@ Return a JSON object with an "insights" array. Each insight has a "title" (3-6 w
 
     const response = await base44.integrations.Core.InvokeLLM({
       prompt,
-      model: 'claude_sonnet_4_6',
+      add_context_from_internet: true,
+      model: 'gemini_3_1_pro',
       response_json_schema: {
         type: 'object',
         properties: {

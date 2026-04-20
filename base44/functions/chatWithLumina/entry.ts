@@ -118,13 +118,10 @@ User: ${message}
 
 Respond as Lumina. Do not prefix with "Lumina:" — just write the response directly.`;
 
-    // Detect if message likely needs live web data
-    const needsWeb = /https?:\/\/|website|search|look up|find|latest|news|current|today|price|stock|weather|who is|what is|check|browse|visit|read|article|review/i.test(message);
-
     const llmResponse = await base44.integrations.Core.InvokeLLM({
       prompt: fullPrompt,
-      add_context_from_internet: needsWeb,
-      model: needsWeb ? 'gemini_3_flash' : undefined
+      add_context_from_internet: true,
+      model: 'gemini_3_1_pro'
     });
 
     const assistantContent = typeof llmResponse === 'string' ? llmResponse : (llmResponse?.content || String(llmResponse));
