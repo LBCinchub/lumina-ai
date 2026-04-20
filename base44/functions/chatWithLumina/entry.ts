@@ -159,11 +159,10 @@ Respond as Lumina. Do not prefix with "Lumina:" — just write the response dire
     });
 
     // Update conversation last_message_at (and title if first exchange)
-    const convo = await db.entities.Conversation.filter({ id: conversation_id });
-    if (convo[0]) {
+    try {
       const updates = { last_message_at: new Date().toISOString() };
       // If it's the very first user message, generate a title
-      if (history.length === 0 && (!convo[0].title || convo[0].title === 'New conversation')) {
+      if (history.length === 0) {
         try {
           const titleRes = await base44.integrations.Core.InvokeLLM({
             prompt: `Write a 3-5 word title (no quotes, no punctuation at the end, sentence case) that captures the essence of this message from a user to their AI companion:\n\n"${message}"\n\nTitle:`
@@ -173,7 +172,7 @@ Respond as Lumina. Do not prefix with "Lumina:" — just write the response dire
         } catch (_) { /* keep default title */ }
       }
       await db.entities.Conversation.update(conversation_id, updates);
-    }
+    } catch (_) { /* conversation might not exist yet, skip */ }
 
     return Response.json({
       message: assistantMsg,
