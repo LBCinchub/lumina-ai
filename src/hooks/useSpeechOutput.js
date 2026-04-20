@@ -27,6 +27,15 @@ export function useSpeechOutput() {
   const [speaking, setSpeaking] = useState(false);
   const onEndRef = useRef(null);
 
+  // Call this on a direct user gesture (e.g. clicking the voice button)
+  // to unlock the browser's speech synthesis autoplay policy
+  const unlock = useCallback(() => {
+    if (!window.speechSynthesis) return;
+    const utter = new SpeechSynthesisUtterance('');
+    utter.volume = 0;
+    window.speechSynthesis.speak(utter);
+  }, []);
+
   const speak = useCallback((text, onEnd) => {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
@@ -76,5 +85,5 @@ export function useSpeechOutput() {
     setSpeaking(false);
   }, []);
 
-  return { speak, stop, speaking };
+  return { speak, stop, speaking, unlock };
 }

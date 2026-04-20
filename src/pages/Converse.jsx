@@ -43,7 +43,7 @@ export default function Converse() {
   const voiceModeRef = useRef(false);
   const startMicRef = useRef(null);
   const composerRef = useRef(null);
-  const { speak, stop: stopSpeaking, speaking } = useSpeechOutput();
+  const { speak, stop: stopSpeaking, speaking, unlock: unlockSpeech } = useSpeechOutput();
 
   // Wire composerRef to startMicRef once available
   useEffect(() => {
@@ -187,6 +187,7 @@ export default function Converse() {
       setVoiceMode(false);
       setListening(false);
     } else {
+      unlockSpeech(); // unlock speech synthesis on this direct user gesture
       voiceModeRef.current = true;
       setVoiceMode(true);
       // Start mic immediately — it will stay on for the whole call
