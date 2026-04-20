@@ -137,17 +137,17 @@ export default function Context() {
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <span className="text-accent font-medium mt-0.5">👥</span>
+              <span className="text-accent font-medium mt-0.5">👩</span>
               <div>
-                <p className="font-medium text-foreground">LBCHub.io</p>
-                <p className="text-muted-foreground text-xs">Big brother — hosts and manages the LBC Protocol hub and ecosystem infrastructure</p>
+                <p className="font-medium text-foreground">LBCHub.io (lbc-hub.com)</p>
+                <p className="text-muted-foreground text-xs">Mother — the central hub that manages infrastructure and portfolio companies</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <span className="text-accent font-medium mt-0.5">🚀</span>
               <div>
-                <p className="font-medium text-foreground">Young portfolio companies (20s kids)</p>
-                <p className="text-muted-foreground text-xs">Emerging ventures and domains built on the LBC Protocol, listed on lbchub.io</p>
+                <p className="font-medium text-foreground">Lumina (lbchub.site)</p>
+                <p className="text-muted-foreground text-xs">Portfolio company — a specialized application built on the LBC Protocol, powered by LBCHub.io</p>
               </div>
             </div>
           </div>
