@@ -126,7 +126,7 @@ export default function ProjectDashboard({ project }) {
   return (
     <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-cyan-500/30 rounded-xl p-5 space-y-4 shadow-2xl shadow-cyan-500/20 max-h-[600px] overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center justify-between sticky top-0 bg-gradient-to-br from-slate-900 to-slate-800 pb-3">
+      <div className="flex items-center justify-between sticky top-0 bg-gradient-to-br from-slate-900 to-slate-800 pb-3 z-10">
         <div>
           <h3 className="text-sm font-medium text-white">{project.title}</h3>
           <p className="text-xs text-cyan-400/60 mt-1">
