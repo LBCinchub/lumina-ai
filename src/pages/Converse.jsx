@@ -178,7 +178,27 @@ export default function Converse() {
     setIsSending(true);
 
     try {
-      await base44.functions.invoke('chatWithLumina', { conversation_id: convoId, message: displayText, file_urls: fileUrls });
+      const result = await base44.functions.invoke('chatWithLumina', { conversation_id: convoId, message: displayText, file_urls: fileUrls });
+      
+      // Stream the response in chunks for ~1 second total display
+      if (result.data?.content) {
+        const content = result.data.content;
+        const chunkSize = Math.ceil(content.length / 10); // 10 chunks = ~100ms per chunk
+        let displayed = '';
+        
+        for (let i = 0; i < content.length; i += chunkSize) {
+          displayed += content.slice(i, i + chunkSize);
+          setMessages(prev => {
+            const last = prev[prev.length - 1];
+            if (last?.role === 'assistant' && String(last.id).startsWith('streaming-')) {
+              return [...prev.slice(0, -1), { ...last, content: displayed }];
+            }
+            return prev;
+          });
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+      
       // Sync to shared pool if in your context
       if (currentContext === 'yours') {
         await base44.functions.invoke('syncConversation', {
