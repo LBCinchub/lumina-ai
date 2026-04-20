@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import ContextField from '@/components/context/ContextField';
+import DocumentLibrary from '@/components/context/DocumentLibrary';
 import { Button } from '@/components/ui/button';
 import { Check, Loader2 } from 'lucide-react';
 
@@ -119,6 +120,20 @@ export default function Context() {
               rows={f.rows}
             />
           ))}
+        </div>
+
+        {/* Document Library */}
+        <div className="mt-14 pt-10 border-t border-border">
+          <div className="mb-6">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground mb-2">
+              Document library
+            </div>
+            <h2 className="font-serif text-2xl tracking-tight mb-2">Source documents</h2>
+            <p className="text-[14px] text-muted-foreground leading-relaxed">
+              Upload PDFs — reports, notes, briefs, research. Lumina will read them and reference them when answering.
+            </p>
+          </div>
+          <DocumentLibrary />
         </div>
 
         <div className="sticky bottom-4 md:bottom-6 mt-12 flex items-center justify-between gap-4 bg-background/80 backdrop-blur-xl border border-border rounded-full px-5 py-2.5 shadow-[0_4px_30px_-10px_hsl(var(--foreground)/0.12)]">

@@ -1,0 +1,43 @@
+{
+  "name": "Document",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Document title or filename"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL of the uploaded file"
+    },
+    "content": {
+      "type": "string",
+      "description": "Extracted text content from the document"
+    },
+    "file_size": {
+      "type": "number",
+      "description": "File size in bytes"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "processing",
+        "ready",
+        "error"
+      ],
+      "default": "processing",
+      "description": "Processing status of the document"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "rls": {
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

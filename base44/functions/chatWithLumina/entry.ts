@@ -93,6 +93,9 @@ Deno.serve(async (req) => {
     const contexts = await db.entities.UserContext.filter({ created_by: user.email });
     const userContext = contexts[0] || null;
 
+    // Load user documents (ready ones only)
+    const docs = await db.entities.Document.filter({ created_by: user.email, status: 'ready' }, '-created_date', 10);
+
     // Load recent messages from this conversation
     const history = await db.entities.Message.filter(
       { conversation_id },
@@ -113,13 +116,22 @@ Deno.serve(async (req) => {
       ? history.map(m => `${m.role === 'user' ? 'User' : 'Lumina'}: ${m.content}`).join('\n\n')
       : '(No prior turns in this conversation.)';
 
+    // Build document context block
+    const docsBlock = docs.length > 0
+      ? docs.map(d => `--- Document: "${d.title}" ---\n${(d.content || '').slice(0, 8000)}`).join('\n\n')
+      : null;
+
+    const docsSection = docsBlock
+      ? `\nDOCUMENTS IN THE USER'S LIBRARY (use these as source material when relevant — cite the document title when referencing):\n${docsBlock}\n---\n`
+      : '';
+
     const fullPrompt = `${LUMINA_SYSTEM_PROMPT}
 
 ---
 PERSONAL CONTEXT ABOUT THIS USER:
 ${contextBlock}
 ---
-
+${docsSection}
 CONVERSATION SO FAR:
 ${historyBlock}
 
