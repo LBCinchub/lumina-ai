@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { useExportPDF } from '@/hooks/useExportPDF';
 import { useSpeechOutput } from '@/hooks/useSpeechOutput';
 import LiveCallOverlay from '@/components/chat/LiveCallOverlay';
+import ExportDialog from '@/components/chat/ExportDialog';
 
 const OPENERS = [
   "What are you circling right now?",
@@ -42,6 +43,7 @@ export default function Converse() {
   const activeIdRef = useRef(null);
   const [voiceMode, setVoiceMode] = useState(false);
   const [listening, setListening] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const lastSpokenIdRef = useRef(null);
   const voiceModeRef = useRef(false);
   const startMicRef = useRef(null);
@@ -232,6 +234,10 @@ export default function Converse() {
   const { exportThread } = useExportPDF();
   const activeTitle = activeId ? (conversations.find(c => c.id === activeId)?.title || 'Conversation') : 'New thread';
 
+  const handleExportClick = () => {
+    setExportOpen(true);
+  };
+
   const handleExport = () => {
     exportThread(activeTitle, messages);
   };
@@ -258,6 +264,13 @@ export default function Converse() {
 
   return (
     <>
+    <ExportDialog
+      open={exportOpen}
+      onOpenChange={setExportOpen}
+      title={activeTitle}
+      messages={messages}
+      onDownload={handleExport}
+    />
     {voiceMode && (
       <LiveCallOverlay
         speaking={speaking}
@@ -314,9 +327,9 @@ export default function Converse() {
             <div className="flex items-center gap-1">
               {activeId && messages.length > 0 && (
                 <button
-                  onClick={handleExport}
+                  onClick={handleExportClick}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                  title="Export thread as PDF"
+                  title="Export thread"
                 >
                   <Download className="w-3.5 h-3.5" strokeWidth={1.75} />
                   <span className="hidden sm:inline">Export</span>
