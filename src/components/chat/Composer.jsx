@@ -4,24 +4,22 @@ import { cn } from '@/lib/utils';
 import { useSpeechInput } from '@/hooks/useSpeechInput';
 
 const Composer = forwardRef(function Composer(
-  { value, onChange, onSubmit, disabled, placeholder = "Speak plainly.", voiceMode = false, luminaSpeaking = false, onListeningChange },
+  { value, onChange, onSubmit, disabled, placeholder = "Speak plainly.", luminaSpeaking = false, onListeningChange },
   ref
 ) {
   const textareaRef = useRef(null);
 
-  const { listening, supported, toggle: toggleVoice, start: startVoice, stop: stopVoice } = useSpeechInput({
+  const { listening, supported, toggle: toggleVoice, start: startVoice } = useSpeechInput({
     onTranscript: (text) => onChange(text),
     onAutoSubmit: (text) => {
-      // Pass text directly to onSubmit — don't go through onChange which may not update state in time
+      // Clear the input, then submit the captured text directly
       onChange('');
       onSubmit(text);
     },
   });
 
-  // Expose start to parent via ref
   useImperativeHandle(ref, () => ({ start: startVoice }), [startVoice]);
 
-  // Notify parent of listening state changes
   useEffect(() => {
     onListeningChange?.(listening);
   }, [listening, onListeningChange]);
@@ -34,7 +32,7 @@ const Composer = forwardRef(function Composer(
   }, [value]);
 
   const submit = () => {
-    const text = textareaRef.current?.value?.trim();
+    const text = value.trim();
     if (text && !disabled) {
       onChange('');
       onSubmit(text);

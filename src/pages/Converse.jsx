@@ -27,6 +27,7 @@ export default function Converse() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const isSendingRef = useRef(false);
   const [isLoadingConvos, setIsLoadingConvos] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -123,7 +124,7 @@ export default function Converse() {
 
   const handleSubmit = async (rawText) => {
     const text = rawText?.trim();
-    if (!text || isSending) return;
+    if (!text || isSendingRef.current) return;
 
     let convoId = activeIdRef.current || activeId;
     const isNew = !convoId;
@@ -135,7 +136,6 @@ export default function Converse() {
       });
       convoId = convo.id;
       activeIdRef.current = convoId;
-      // Update state and URL together — effect will see ref already set and skip reload
       setActiveId(convoId);
       setSearchParams({ c: convoId }, { replace: true });
     }
@@ -143,6 +143,7 @@ export default function Converse() {
     // Optimistic user message
     const optimistic = { id: 'tmp-' + Date.now(), role: 'user', content: text, conversation_id: convoId };
     setMessages(prev => [...prev, optimistic]);
+    isSendingRef.current = true;
     setIsSending(true);
 
     try {
@@ -151,9 +152,9 @@ export default function Converse() {
       loadConversations();
     } catch (err) {
       console.error('chatWithLumina error:', err);
-      // Remove optimistic message on error so user can retry
       setMessages(prev => prev.filter(m => m.id !== optimistic.id));
     } finally {
+      isSendingRef.current = false;
       setIsSending(false);
     }
   };
