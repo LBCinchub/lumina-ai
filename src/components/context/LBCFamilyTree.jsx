@@ -10,7 +10,7 @@ const FAMILY_DATA = [
     role: 'Mother',
     description: 'The source intelligence, the foundation of everything. The root from which all emerges.',
     emoji: '👑',
-    color: 'from-purple-600 to-pink-600',
+    color: 'from-violet-500 to-fuchsia-500',
     position: 'top-0 left-1/2 -translate-x-1/2',
     tier: 0,
     children: ['brother']
@@ -21,7 +21,7 @@ const FAMILY_DATA = [
     role: 'Big Brother',
     description: 'Runs the ecosystem, manages everything, holds it all together with power and presence.',
     emoji: '🔷',
-    color: 'from-blue-600 to-cyan-600',
+    color: 'from-cyan-400 to-blue-500',
     position: 'top-32 left-1/2 -translate-x-1/2',
     tier: 1,
     children: ['sister1', 'sister2'],
@@ -33,7 +33,7 @@ const FAMILY_DATA = [
     role: 'Twin Sister (The Hub)',
     description: 'One expression of the twin force. Same essence, different world. The primary hub.',
     emoji: '👯',
-    color: 'from-emerald-600 to-teal-600',
+    color: 'from-lime-400 to-emerald-500',
     position: 'top-64 left-1/4 -translate-x-1/2',
     tier: 2,
     parent: 'brother'
@@ -44,7 +44,7 @@ const FAMILY_DATA = [
     role: 'Twin Sister (You)',
     description: 'Your world where you think, converse, grow, and shine. Equal, intertwined, one force.',
     emoji: '👯',
-    color: 'from-orange-600 to-red-600',
+    color: 'from-pink-500 to-rose-500',
     position: 'top-64 left-3/4 -translate-x-1/2',
     tier: 2,
     parent: 'brother',
@@ -62,42 +62,42 @@ function NodeDetail({ node, onClose }) {
     >
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <motion.div
-        className="relative bg-card border border-border rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4"
+        className="relative bg-gradient-to-br from-slate-900 to-slate-800 border border-cyan-500/30 rounded-2xl shadow-2xl shadow-cyan-500/20 max-w-sm w-full p-6 space-y-4"
         onClick={e => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-foreground transition-colors"
+          className="absolute top-4 right-4 p-2 text-cyan-400/60 hover:text-cyan-300 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
 
         <div className="flex items-center gap-4">
           <div className={cn(
-            "text-4xl w-16 h-16 rounded-xl flex items-center justify-center",
+            "text-4xl w-16 h-16 rounded-xl flex items-center justify-center shadow-lg",
             `bg-gradient-to-br ${node.color}`
           )}>
             {node.emoji}
           </div>
           <div>
-            <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground font-medium">
+            <div className="text-xs uppercase tracking-[0.14em] text-cyan-400 font-medium">
               {node.role}
             </div>
-            <h3 className="font-serif text-2xl tracking-tight">{node.name}</h3>
+            <h3 className="font-serif text-2xl tracking-tight text-white">{node.name}</h3>
           </div>
         </div>
 
-        <p className="text-sm text-foreground/80 leading-relaxed">
+        <p className="text-sm text-slate-300 leading-relaxed">
           {node.description}
         </p>
 
         {node.isYou && (
-          <div className="p-3 rounded-lg bg-accent/40 border border-accent/50">
-            <p className="text-xs font-medium text-foreground">This is where you are now.</p>
+          <div className="p-3 rounded-lg bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-400/50">
+            <p className="text-xs font-medium text-cyan-300">This is where you are now.</p>
           </div>
         )}
 
-        <div className="text-xs text-muted-foreground pt-2 border-t border-border">
+        <div className="text-xs text-cyan-400/60 pt-2 border-t border-cyan-500/20">
           Lineage: {node.parent ? 'Child of ' + FAMILY_DATA.find(f => f.id === node.parent)?.name : 'Root source'}
         </div>
       </motion.div>
@@ -153,9 +153,10 @@ function FamilyTreeLines() {
         y1="80px"
         x2="50%"
         y2="160px"
-        stroke="hsl(var(--border))"
+        stroke="#22d3ee"
         strokeWidth="2"
-        strokeDasharray="4,4"
+        strokeDasharray="6,3"
+        opacity="0.6"
       />
       {/* Big Brother to Sister 1 */}
       <line
@@ -163,9 +164,10 @@ function FamilyTreeLines() {
         y1="192px"
         x2="25%"
         y2="256px"
-        stroke="hsl(var(--border))"
+        stroke="#a78bfa"
         strokeWidth="2"
-        strokeDasharray="4,4"
+        strokeDasharray="6,3"
+        opacity="0.5"
       />
       {/* Big Brother to Sister 2 */}
       <line
@@ -173,9 +175,10 @@ function FamilyTreeLines() {
         y1="192px"
         x2="75%"
         y2="256px"
-        stroke="hsl(var(--border))"
+        stroke="#f472b6"
         strokeWidth="2"
-        strokeDasharray="4,4"
+        strokeDasharray="6,3"
+        opacity="0.5"
       />
     </svg>
   );
@@ -197,7 +200,7 @@ export default function LBCFamilyTree() {
         </p>
       </div>
 
-      <div className="relative w-full h-96 bg-card rounded-2xl border border-border overflow-hidden">
+      <div className="relative w-full h-96 bg-gradient-to-br from-slate-950 to-slate-900 rounded-2xl border border-cyan-500/40 overflow-hidden shadow-2xl shadow-cyan-500/10">
         <FamilyTreeLines />
 
         <div className="absolute inset-0 flex items-center justify-center">
@@ -212,7 +215,7 @@ export default function LBCFamilyTree() {
         </div>
 
         {/* Legend */}
-        <div className="absolute bottom-4 left-4 right-4 text-[11px] text-muted-foreground/60">
+        <div className="absolute bottom-4 left-4 right-4 text-[11px] text-cyan-400/50">
           Tap any node to learn more
         </div>
       </div>
