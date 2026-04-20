@@ -106,20 +106,21 @@ export default function Converse() {
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
 
   // Auto-speak latest Lumina message in voice mode
-  // Mic stays on the whole time; if user speaks mid-sentence, handleSubmit will stopSpeaking first
+  // Fire whenever messages change — guard on voiceMode only
   useEffect(() => {
-    if (!voiceMode || isSending) return;
+    if (!voiceMode) return;
     const last = [...messages].reverse().find(m => m.role === 'assistant');
-    if (last && last.id !== lastSpokenIdRef.current) {
-      lastSpokenIdRef.current = last.id;
-      speak(last.content, () => {
-        // Lumina finished speaking naturally — restart mic if not already running
-        if (voiceModeRef.current && restartMicRef.current) {
-          restartMicRef.current();
-        }
-      });
-    }
-  }, [messages, isSending, voiceMode, speak]);
+    if (!last || last.id === lastSpokenIdRef.current) return;
+    // Don't speak optimistic/tmp messages
+    if (String(last.id).startsWith('tmp-')) return;
+    lastSpokenIdRef.current = last.id;
+    speak(last.content, () => {
+      // Lumina finished speaking naturally — restart mic if not already running
+      if (voiceModeRef.current && restartMicRef.current) {
+        restartMicRef.current();
+      }
+    });
+  }, [messages, voiceMode, speak]);
 
   const handleSelect = (id) => {
     setSearchParams({ c: id });
