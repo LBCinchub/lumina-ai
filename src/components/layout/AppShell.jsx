@@ -27,7 +27,12 @@ export default function AppShell() {
   }, []);
 
   const handleLogout = async () => {
-    await base44.auth.logout();
+    try {
+      await base44.auth.logout();
+      navigate('/');
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
   };
 
   return (
