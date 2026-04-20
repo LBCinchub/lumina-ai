@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import ConversationList from '@/components/chat/ConversationList';
 import MessageBubble from '@/components/chat/MessageBubble';
 import ThinkingIndicator from '@/components/chat/ThinkingIndicator';
-import Composer from '@/components/chat/Composer.jsx';
+import Composer from '@/components/chat/Composer';
 import LuminaMark from '@/components/layout/LuminaMark';
 import { PanelLeft, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
