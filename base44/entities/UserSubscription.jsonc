@@ -22,6 +22,11 @@
       "format": "date-time",
       "description": "When subscription expires"
     },
+    "last_reset_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the 24h free request limit was last reset"
+    },
     "solana_tx_hash": {
       "type": "string",
       "description": "Last verified Solana transaction hash"
