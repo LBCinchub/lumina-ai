@@ -8,13 +8,17 @@ const Composer = forwardRef(function Composer(
   ref
 ) {
   const textareaRef = useRef(null);
+  // Always-current refs so speech callbacks never close over stale props
+  const onSubmitRef = useRef(onSubmit);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onSubmitRef.current = onSubmit; }, [onSubmit]);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
   const { listening, supported, toggle: toggleVoice, start: startVoice } = useSpeechInput({
-    onTranscript: (text) => onChange(text),
+    onTranscript: (text) => onChangeRef.current(text),
     onAutoSubmit: (text) => {
-      // Clear the input, then submit the captured text directly
-      onChange('');
-      onSubmit(text);
+      onChangeRef.current('');
+      onSubmitRef.current(text);
     },
   });
 
@@ -34,8 +38,8 @@ const Composer = forwardRef(function Composer(
   const submit = () => {
     const text = value.trim();
     if (text && !disabled) {
-      onChange('');
-      onSubmit(text);
+      onChangeRef.current('');
+      onSubmitRef.current(text);
     }
   };
 
@@ -57,7 +61,7 @@ const Composer = forwardRef(function Composer(
         <textarea
           ref={textareaRef}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => onChangeRef.current(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={listening ? "Listening…" : luminaSpeaking ? "Lumina is speaking…" : placeholder}
           rows={1}
