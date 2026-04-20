@@ -1,15 +1,16 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 
 export function useSpeechInput({ onTranscript, onAutoSubmit }) {
   const [listening, setListening] = useState(false);
   const [supported] = useState(() => 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
   const recognitionRef = useRef(null);
+  const accumulatedRef = useRef('');
+
+  // Always-current refs — updated synchronously on every render
   const onTranscriptRef = useRef(onTranscript);
   const onAutoSubmitRef = useRef(onAutoSubmit);
-  const accumulatedRef = useRef(''); // persists across closure
-
-  useEffect(() => { onTranscriptRef.current = onTranscript; }, [onTranscript]);
-  useEffect(() => { onAutoSubmitRef.current = onAutoSubmit; }, [onAutoSubmit]);
+  onTranscriptRef.current = onTranscript;
+  onAutoSubmitRef.current = onAutoSubmit;
 
   const stop = useCallback(() => {
     if (recognitionRef.current) {
@@ -29,17 +30,16 @@ export function useSpeechInput({ onTranscript, onAutoSubmit }) {
     const rec = new SR();
     rec.lang = 'en-US';
     rec.interimResults = true;
-    rec.continuous = true;      // keep listening through pauses
+    rec.continuous = true;
     rec.maxAlternatives = 1;
 
-    accumulatedRef.current = ''; // reset on new session
+    accumulatedRef.current = '';
 
     rec.onstart = () => setListening(true);
 
     rec.onresult = (e) => {
-      let interim = '';
-      // Rebuild full transcript from all results
       let final = '';
+      let interim = '';
       for (let i = 0; i < e.results.length; i++) {
         const t = e.results[i][0].transcript;
         if (e.results[i].isFinal) {
@@ -66,10 +66,6 @@ export function useSpeechInput({ onTranscript, onAutoSubmit }) {
       if (e.error !== 'no-speech' && e.error !== 'aborted') {
         console.warn('Speech recognition error:', e.error);
       }
-      // On no-speech, just restart automatically if still in listening mode
-      if (e.error === 'no-speech' && recognitionRef.current) {
-        // will trigger onend which cleans up; if accumulated text exists, submit it
-      }
       setListening(false);
       recognitionRef.current = null;
     };
@@ -79,11 +75,8 @@ export function useSpeechInput({ onTranscript, onAutoSubmit }) {
   }, [supported]);
 
   const toggle = useCallback(() => {
-    if (listening) {
-      stop();
-    } else {
-      start();
-    }
+    if (listening) stop();
+    else start();
   }, [listening, start, stop]);
 
   return { listening, supported, toggle, start, stop };
