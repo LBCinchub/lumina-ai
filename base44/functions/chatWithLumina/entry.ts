@@ -158,21 +158,23 @@ Respond as Lumina. Do not prefix with "Lumina:" — just write the response dire
       content: assistantContent
     });
 
-    // Update conversation last_message_at (and title if first exchange)
-    try {
-      const updates = { last_message_at: new Date().toISOString() };
-      // If it's the very first user message, generate a title
-      if (history.length === 0) {
-        try {
-          const titleRes = await base44.integrations.Core.InvokeLLM({
-            prompt: `Write a 3-5 word title (no quotes, no punctuation at the end, sentence case) that captures the essence of this message from a user to their AI companion:\n\n"${message}"\n\nTitle:`
-          });
-          const title = (typeof titleRes === 'string' ? titleRes : '').trim().replace(/^["']|["']$/g, '').slice(0, 60);
-          if (title) updates.title = title;
-        } catch (_) { /* keep default title */ }
-      }
-      await db.entities.Conversation.update(conversation_id, updates);
-    } catch (_) { /* conversation might not exist yet, skip */ }
+    // Update conversation last_message_at (and title if first exchange) — non-blocking
+    (async () => {
+      try {
+        const updates = { last_message_at: new Date().toISOString() };
+        // If it's the very first user message, generate a title
+        if (history.length === 0) {
+          try {
+            const titleRes = await base44.integrations.Core.InvokeLLM({
+              prompt: `Write a 3-5 word title (no quotes, no punctuation at the end, sentence case) that captures the essence of this message from a user to their AI companion:\n\n"${message}"\n\nTitle:`
+            });
+            const title = (typeof titleRes === 'string' ? titleRes : '').trim().replace(/^["']|["']$/g, '').slice(0, 60);
+            if (title) updates.title = title;
+          } catch (_) { /* keep default title */ }
+        }
+        await db.entities.Conversation.update(conversation_id, updates);
+      } catch (_) { /* conversation might not exist yet, skip */ }
+    })(); // Fire and forget
 
     return Response.json({
       message: assistantMsg,
