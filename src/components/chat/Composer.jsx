@@ -9,7 +9,7 @@ const Composer = forwardRef(function Composer(
 ) {
   const textareaRef = useRef(null);
 
-  const { listening, supported, toggle: toggleVoice, start: startVoice } = useSpeechInput({
+  const { listening, supported, toggle: toggleVoice, start: startVoice, stop: stopVoice } = useSpeechInput({
     onTranscript: (text) => onChange(text),
     onAutoSubmit: (text) => {
       // Pass text directly to onSubmit — don't go through onChange which may not update state in time
