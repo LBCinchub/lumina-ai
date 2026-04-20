@@ -13,8 +13,10 @@ function stripMarkdown(text) {
 
 function getBestVoice() {
   const voices = window.speechSynthesis.getVoices();
-  // Priority: most expressive / neural voices first
+  // Priority: Canadian accent first, then most expressive neural voices
   return (
+    voices.find(v => v.name.includes('Samantha') && v.lang === 'en-CA') ||
+    voices.find(v => v.lang === 'en-CA') ||              // any Canadian English voice
     voices.find(v => v.name === 'Serena') ||             // macOS enhanced — most expressive
     voices.find(v => v.name === 'Samantha') ||           // macOS/iOS — warm, natural
     voices.find(v => v.name.includes('Microsoft Aria')) ||   // Windows neural — very expressive
@@ -29,10 +31,12 @@ function getBestVoice() {
     voices.find(v => v.name.includes('Microsoft Zira')) ||
     voices.find(v => v.lang === 'en-US' && /female|woman/i.test(v.name)) ||
     voices.find(v => v.lang === 'en-GB' && /female|woman/i.test(v.name)) ||
+    voices.find(v => v.lang === 'en-CA') ||
     voices.find(v => v.lang === 'en-US') ||
     voices.find(v => v.lang.startsWith('en'))
   );
 }
+
 
 export function useSpeechOutput() {
   const [speaking, setSpeaking] = useState(false);
