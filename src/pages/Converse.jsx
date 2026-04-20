@@ -6,6 +6,7 @@ import MessageBubble from '@/components/chat/MessageBubble';
 import ThinkingIndicator from '@/components/chat/ThinkingIndicator';
 import Composer from '@/components/chat/Composer';
 import LuminaMark from '@/components/layout/LuminaMark';
+import ContextToggle from '@/components/converse/ContextToggle';
 import { PanelLeft, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useExportPDF } from '@/hooks/useExportPDF';
@@ -34,6 +35,8 @@ export default function Converse() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [hasContext, setHasContext] = useState(null);
   const [opener] = useState(() => OPENERS[Math.floor(Math.random() * OPENERS.length)]);
+  const [currentContext, setCurrentContext] = useState('yours');
+  const [sisterMessages, setSisterMessages] = useState([]);
 
   const scrollRef = useRef(null);
   const activeIdRef = useRef(null);
@@ -132,6 +135,17 @@ export default function Converse() {
     setSidebarOpen(false);
   };
 
+  const handleContextChange = async (contextData) => {
+    if (contextData.contextType === 'yours') {
+      setCurrentContext('yours');
+      setMessages(messages);
+    } else if (contextData.contextType === 'sister') {
+      setCurrentContext('sister');
+      const conv = contextData.conversation;
+      setSisterMessages(conv.messages || []);
+    }
+  };
+
   const handleSubmit = async (rawText, attachments = []) => {
     const text = rawText?.trim() || '';
     if (!text && !attachments.length) return;
@@ -165,6 +179,13 @@ export default function Converse() {
 
     try {
       await base44.functions.invoke('chatWithLumina', { conversation_id: convoId, message: displayText, file_urls: fileUrls });
+      // Sync to shared pool if in your context
+      if (currentContext === 'yours') {
+        await base44.functions.invoke('syncConversation', {
+          conversationId: convoId,
+          platformOrigin: 'lbchub.site'
+        });
+      }
       await loadMessages(convoId);
       loadConversations();
     } catch (err) {
@@ -231,6 +252,11 @@ export default function Converse() {
           listening={listening}
           onToggleVoice={toggleVoiceMode}
         />
+        <ContextToggle
+          currentContext={currentContext}
+          onContextChange={handleContextChange}
+          myPlatform="lbchub.site"
+        />
       </aside>
 
       {sidebarOpen && (
@@ -296,9 +322,10 @@ export default function Converse() {
               {isLoadingMessages ? (
                 <div className="text-center text-sm text-muted-foreground">Loading…</div>
               ) : (
-                messages.map((m, i) => (
-                  <MessageBubble key={m.id} message={m} isLatest={i === messages.length - 1} />
-                ))
+                (currentContext === 'yours' ? messages : sisterMessages).map((m, i) => {
+                  const msgs = currentContext === 'yours' ? messages : sisterMessages;
+                  return <MessageBubble key={m.id} message={m} isLatest={i === msgs.length - 1} />;
+                })
               )}
               {isSending && <ThinkingIndicator />}
             </div>

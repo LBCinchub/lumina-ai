@@ -1,0 +1,48 @@
+{
+  "name": "SharedConversation",
+  "type": "object",
+  "properties": {
+    "conversation_id": {
+      "type": "string",
+      "description": "Reference to the original conversation"
+    },
+    "platform_origin": {
+      "type": "string",
+      "enum": [
+        "lbc-hub.com",
+        "lbchub.site"
+      ],
+      "description": "Which platform created this conversation"
+    },
+    "title": {
+      "type": "string",
+      "description": "Conversation title"
+    },
+    "summary": {
+      "type": "string",
+      "description": "Brief summary of the conversation"
+    },
+    "messages": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "description": "All messages in the conversation"
+    },
+    "last_message_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of most recent message"
+    },
+    "is_accessible_to_sister": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether the sister platform can access this conversation"
+    }
+  },
+  "required": [
+    "conversation_id",
+    "platform_origin",
+    "title"
+  ]
+}
