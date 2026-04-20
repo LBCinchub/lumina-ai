@@ -159,6 +159,9 @@ export default function Converse() {
     let convoId = activeIdRef.current || activeId;
     const isNew = !convoId;
 
+    const fileUrls = attachments.map(a => a.url);
+    const displayText = text || (attachments.length ? `[${attachments.map(a => a.name).join(', ')}]` : '');
+
     if (isNew) {
       // Generate smart title from first message
       let title = 'New conversation';
@@ -181,9 +184,6 @@ export default function Converse() {
       setActiveId(convoId);
       setSearchParams({ c: convoId }, { replace: true });
     }
-
-    const fileUrls = attachments.map(a => a.url);
-    const displayText = text || (attachments.length ? `[${attachments.map(a => a.name).join(', ')}]` : '');
 
     // Optimistic user message
     const optimistic = { id: 'tmp-' + Date.now(), role: 'user', content: displayText, conversation_id: convoId, file_urls: fileUrls };
