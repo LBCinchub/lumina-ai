@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { MessageSquare, User, Sparkles, Code2, Menu, X, Sun, Moon, LayoutDashboard, BookOpen } from 'lucide-react';
+import { MessageSquare, User, Sparkles, Code2, Menu, X, Sun, Moon, LayoutDashboard, BookOpen, LogIn, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,10 @@ export default function AppShell() {
   React.useEffect(() => {
     base44.auth.me().then(setUser).catch(() => {});
   }, []);
+
+  const handleLogin = async () => {
+    await base44.auth.redirectToLogin();
+  };
 
   const handleLogout = async () => {
     try {
@@ -84,14 +88,26 @@ export default function AppShell() {
           <div className="text-xs text-muted-foreground truncate pt-1">
             {user?.email || '—'}
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleLogout}
-            className="w-full justify-start text-xs text-muted-foreground hover:text-foreground -ml-2"
-          >
-            Sign out
-          </Button>
+          {user ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="w-full justify-start text-xs text-muted-foreground hover:text-foreground -ml-2"
+            >
+              Sign out
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogin}
+              className="w-full justify-start text-xs text-muted-foreground hover:text-foreground -ml-2"
+            >
+              <Briefcase className="w-3 h-3 mr-2" />
+              Sign in
+            </Button>
+          )}
         </div>
       </aside>
 
