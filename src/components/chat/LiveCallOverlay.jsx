@@ -16,12 +16,12 @@ export default function LiveCallOverlay({ speaking, listening, isSending, onEnd 
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
       {/* Soft ambient glow */}
       <div className={cn(
-        "absolute inset-0 transition-opacity duration-700",
+        "absolute inset-0 transition-opacity duration-700 pointer-events-none",
         speaking
           ? "opacity-100"
           : "opacity-0"
       )}>
-        <div className="absolute inset-0 bg-radial-gradient" style={{
+        <div className="absolute inset-0 bg-radial-gradient pointer-events-none" style={{
           background: 'radial-gradient(ellipse 60% 50% at 50% 50%, hsl(var(--accent) / 0.35) 0%, transparent 70%)'
         }} />
       </div>
@@ -30,11 +30,11 @@ export default function LiveCallOverlay({ speaking, listening, isSending, onEnd 
       <div className="relative flex items-center justify-center mb-10">
         {/* Outer pulse ring */}
         <div className={cn(
-          "absolute rounded-full border border-foreground/10 transition-all duration-500",
+          "absolute rounded-full border border-foreground/10 transition-all duration-500 pointer-events-none",
           (speaking || listening) ? "w-48 h-48 opacity-100 animate-ping" : "w-36 h-36 opacity-0"
         )} style={{ animationDuration: '2s' }} />
         <div className={cn(
-          "absolute rounded-full border border-foreground/15 transition-all duration-700",
+          "absolute rounded-full border border-foreground/15 transition-all duration-700 pointer-events-none",
           (speaking || listening) ? "w-40 h-40 opacity-100" : "w-28 h-28 opacity-0"
         )} />
         {/* Core */}
