@@ -40,16 +40,16 @@ export default function MessageBubble({ message, isLatest }) {
         <LuminaMark size={22} className="text-foreground/80" />
       </div>
       <div
-        className="flex-1 min-w-0 prose-lumina text-[15px] text-yellow-300 rounded-xl px-4 py-3 border border-yellow-400/20"
+        className="flex-1 min-w-0 prose-lumina text-[15px] text-blue-300 rounded-xl px-4 py-3 border border-blue-400/20"
         style={{
           background: 'rgba(0,0,0,0.55)',
-          boxShadow: '0 0 12px rgba(253,224,71,0.15), inset 0 0 20px rgba(253,224,71,0.04)',
-          textShadow: '0 0 8px rgba(253,224,71,0.8), 0 0 20px rgba(253,224,71,0.4)'
+          boxShadow: '0 0 12px rgba(96,165,250,0.15), inset 0 0 20px rgba(96,165,250,0.04)',
+          textShadow: '0 0 8px rgba(96,165,250,0.8), 0 0 20px rgba(96,165,250,0.4)'
         }}
       >
-        <div className="flex gap-2 items-center mb-2 border-b border-yellow-400/15 pb-2">
-          <Zap className="w-3.5 h-3.5 text-yellow-300 fill-yellow-300" style={{filter: 'drop-shadow(0 0 6px rgba(253,224,71,0.9))'}} />
-          <span className="text-[10px] uppercase tracking-[0.16em] text-yellow-300/60 font-mono">Lumina</span>
+        <div className="flex gap-2 items-center mb-2 border-b border-blue-400/15 pb-2">
+          <Zap className="w-3.5 h-3.5 text-blue-300 fill-blue-300" style={{filter: 'drop-shadow(0 0 6px rgba(96,165,250,0.9))'}} />
+          <span className="text-[10px] uppercase tracking-[0.16em] text-blue-300/60 font-mono">Lumina</span>
         </div>
         <ReactMarkdown>{message.content}</ReactMarkdown>
       </div>
