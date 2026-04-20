@@ -1,6 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Code2, Globe, Layers, ArrowUp, Copy, Check, ChevronDown, ChevronUp, Monitor, Eye, LayoutDashboard, ShoppingCart, Users, BarChart2, Calendar, MessageSquare, FileText, Kanban, CreditCard, Map, Bell, Settings } from 'lucide-react';
+import {
+  Code2, Globe, Layers, ArrowUp, Copy, Check, ChevronDown, ChevronUp,
+  Monitor, Eye, LayoutDashboard, ShoppingCart, Users, BarChart2, Calendar,
+  MessageSquare, FileText, Kanban, CreditCard, Map, Bell, Settings,
+  Plus, Trash2, FolderOpen
+} from 'lucide-react';
 import LuminaMark from '@/components/layout/LuminaMark';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -37,7 +42,6 @@ const TEMPLATE_CATEGORIES = [
   },
 ];
 
-// Extract the first complete HTML block from assistant message
 function extractHTML(content) {
   const match = content.match(/```html[\s\S]*?\n([\s\S]*?)```/);
   return match ? match[1].trim() : null;
@@ -46,13 +50,11 @@ function extractHTML(content) {
 function CodeBlock({ code, lang, filename }) {
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(true);
-
   const copy = () => {
     navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
-
   return (
     <div className="rounded-xl border border-border overflow-hidden my-3">
       <div className="flex items-center justify-between px-4 py-2 bg-muted/60 border-b border-border">
@@ -78,7 +80,7 @@ function CodeBlock({ code, lang, filename }) {
   );
 }
 
-function Message({ msg }) {
+function ChatMessage({ msg }) {
   const isUser = msg.role === 'user';
   if (isUser) {
     return (
@@ -89,7 +91,6 @@ function Message({ msg }) {
       </div>
     );
   }
-
   return (
     <div className="flex gap-4 animate-fade-up">
       <div className="shrink-0 mt-1">
@@ -105,10 +106,7 @@ function Message({ msg }) {
               const filenameMatch = firstLine.match(/^filename:\s*(.+)/i);
               const filename = filenameMatch ? filenameMatch[1].trim() : null;
               const code = filenameMatch ? raw.split('\n').slice(1).join('\n') : raw;
-
-              if (!inline && match) {
-                return <CodeBlock code={code} lang={match[1]} filename={filename} />;
-              }
+              if (!inline && match) return <CodeBlock code={code} lang={match[1]} filename={filename} />;
               return <code className="px-1.5 py-0.5 rounded bg-muted text-sm">{children}</code>;
             },
             p: ({ children }) => <p className="leading-relaxed mb-3 last:mb-0">{children}</p>,
@@ -128,7 +126,6 @@ function Message({ msg }) {
 
 function PreviewPane({ html }) {
   const iframeRef = useRef(null);
-
   useEffect(() => {
     if (!iframeRef.current || !html) return;
     const doc = iframeRef.current.contentDocument || iframeRef.current.contentWindow.document;
@@ -144,25 +141,30 @@ function PreviewPane({ html }) {
       </div>
     );
   }
-
-  return (
-    <iframe
-      ref={iframeRef}
-      className="w-full flex-1 border-0"
-      title="Live preview"
-      sandbox="allow-scripts allow-same-origin"
-    />
-  );
+  return <iframe ref={iframeRef} className="w-full flex-1 border-0" title="Live preview" sandbox="allow-scripts allow-same-origin" />;
 }
 
 export default function Build() {
+  const [projects, setProjects] = useState([]);
+  const [activeProjectId, setActiveProjectId] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [latestHTML, setLatestHTML] = useState(null);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [activeTab, setActiveTab] = useState('preview'); // 'preview' | 'code'
-  const [latestHTML, setLatestHTML] = useState(null);
+  const [activeTab, setActiveTab] = useState('preview');
+  const [loadingProjects, setLoadingProjects] = useState(true);
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
+
+  const loadProjects = useCallback(async () => {
+    setLoadingProjects(true);
+    const data = await base44.entities.BuildProject.list('-last_built_at', 50);
+    setProjects(data);
+    setLoadingProjects(false);
+    return data;
+  }, []);
+
+  useEffect(() => { loadProjects(); }, [loadProjects]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -177,17 +179,39 @@ export default function Build() {
     el.style.height = Math.min(el.scrollHeight, 200) + 'px';
   }, [input]);
 
+  const selectProject = (project) => {
+    setActiveProjectId(project.id);
+    setMessages(project.messages || []);
+    setLatestHTML(project.html || null);
+    setActiveTab('preview');
+  };
+
+  const newProject = () => {
+    setActiveProjectId(null);
+    setMessages([]);
+    setLatestHTML(null);
+    setInput('');
+  };
+
+  const deleteProject = async (e, id) => {
+    e.stopPropagation();
+    await base44.entities.BuildProject.delete(id);
+    if (activeProjectId === id) newProject();
+    setProjects(prev => prev.filter(p => p.id !== id));
+  };
+
   const send = async (text) => {
     const trimmed = (text ?? input).trim();
     if (!trimmed || sending) return;
 
     const userMsg = { role: 'user', content: trimmed, id: Date.now() };
-    setMessages(prev => [...prev, userMsg]);
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
     setInput('');
     setSending(true);
 
     try {
-      const history = [...messages, userMsg]
+      const history = newMessages
         .map(m => `${m.role === 'user' ? 'User' : 'Lumina'}: ${m.content}`)
         .join('\n\n');
 
@@ -214,11 +238,39 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
 
       const content = typeof res === 'string' ? res : (res?.content || String(res));
       const html = extractHTML(content);
+      const assistantMsg = { role: 'assistant', content, id: Date.now() + 1 };
+      const finalMessages = [...newMessages, assistantMsg];
+
       if (html) {
         setLatestHTML(html);
         setActiveTab('preview');
       }
-      setMessages(prev => [...prev, { role: 'assistant', content, id: Date.now() + 1 }]);
+      setMessages(finalMessages);
+
+      // Auto-generate title from first user message
+      const isFirst = messages.length === 0;
+      let title = isFirst ? trimmed.slice(0, 40) : null;
+      if (isFirst && trimmed.length > 40) title += '…';
+
+      // Save / update project
+      const projectData = {
+        messages: finalMessages,
+        html: html || latestHTML,
+        last_built_at: new Date().toISOString(),
+        ...(title ? { title } : {})
+      };
+
+      if (activeProjectId) {
+        await base44.entities.BuildProject.update(activeProjectId, projectData);
+      } else {
+        const created = await base44.entities.BuildProject.create({
+          title: title || 'Untitled project',
+          ...projectData
+        });
+        setActiveProjectId(created.id);
+      }
+
+      loadProjects();
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', content: "Something went wrong. Try again.", id: Date.now() + 1 }]);
     } finally {
@@ -234,19 +286,64 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
   };
 
   const isEmpty = messages.length === 0;
+  const activeProject = projects.find(p => p.id === activeProjectId);
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] md:h-screen overflow-hidden">
-      {/* Left: chat panel */}
-      <div className="flex flex-col w-full md:w-[420px] lg:w-[460px] shrink-0 border-r border-border">
-        {/* Header */}
+
+      {/* Projects sidebar */}
+      <aside className="hidden lg:flex w-52 shrink-0 border-r border-border flex-col bg-sidebar/60">
+        <div className="px-4 py-4 border-b border-border/60 flex items-center justify-between">
+          <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground/60 font-medium">Projects</span>
+          <button
+            onClick={newProject}
+            className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            title="New project"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto scrollbar-minimal py-2">
+          {loadingProjects ? (
+            <div className="px-4 py-3 text-xs text-muted-foreground">Loading…</div>
+          ) : projects.length === 0 ? (
+            <div className="px-4 py-3 text-xs text-muted-foreground/60">No projects yet</div>
+          ) : (
+            projects.map(p => (
+              <button
+                key={p.id}
+                onClick={() => selectProject(p)}
+                className={cn(
+                  "w-full flex items-center gap-2 px-3 py-2.5 text-left group transition-colors",
+                  activeProjectId === p.id
+                    ? "bg-accent text-foreground"
+                    : "text-foreground/70 hover:bg-accent/60 hover:text-foreground"
+                )}
+              >
+                <FolderOpen className="w-3.5 h-3.5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+                <span className="text-xs truncate flex-1">{p.title}</span>
+                <button
+                  onClick={(e) => deleteProject(e, p.id)}
+                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:text-destructive transition-all"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </button>
+            ))
+          )}
+        </div>
+      </aside>
+
+      {/* Chat panel */}
+      <div className="flex flex-col w-full md:w-[420px] lg:w-[420px] shrink-0 border-r border-border">
         <div className="shrink-0 px-5 py-4 border-b border-border/60 flex items-center gap-3">
           <Code2 className="w-4 h-4 text-foreground/60" strokeWidth={1.75} />
-          <h1 className="font-serif text-lg tracking-tight">Build</h1>
-          <span className="text-xs text-muted-foreground/60 ml-1">— apps & websites</span>
+          <h1 className="font-serif text-lg tracking-tight truncate">
+            {activeProject?.title || 'Build'}
+          </h1>
+          {!activeProject && <span className="text-xs text-muted-foreground/60 ml-1">— apps & websites</span>}
         </div>
 
-        {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-minimal">
           {isEmpty ? (
             <div className="h-full overflow-y-auto scrollbar-minimal px-5 py-6 animate-fade-up">
@@ -283,7 +380,7 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
             </div>
           ) : (
             <div className="px-5 py-6 space-y-6">
-              {messages.map(m => <Message key={m.id} msg={m} />)}
+              {messages.map(m => <ChatMessage key={m.id} msg={m} />)}
               {sending && (
                 <div className="flex gap-4 animate-fade-up">
                   <div className="shrink-0 mt-1">
@@ -300,7 +397,6 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
           )}
         </div>
 
-        {/* Input */}
         <div className="shrink-0 border-t border-border/60 bg-background/80 backdrop-blur-xl p-4">
           <div className={cn(
             "relative flex items-end gap-2 bg-card border border-border rounded-2xl px-4 py-3",
@@ -333,17 +429,14 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
         </div>
       </div>
 
-      {/* Right: preview panel */}
+      {/* Preview panel */}
       <div className="hidden md:flex flex-col flex-1 min-w-0">
-        {/* Tabs */}
         <div className="shrink-0 px-5 py-3 border-b border-border/60 flex items-center gap-1">
           <button
             onClick={() => setActiveTab('preview')}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
-              activeTab === 'preview'
-                ? "bg-accent text-foreground font-medium"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
+              activeTab === 'preview' ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
             )}
           >
             <Eye className="w-3.5 h-3.5" strokeWidth={1.75} />
@@ -353,26 +446,21 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
             onClick={() => setActiveTab('code')}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
-              activeTab === 'code'
-                ? "bg-accent text-foreground font-medium"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
+              activeTab === 'code' ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
             )}
           >
             <Monitor className="w-3.5 h-3.5" strokeWidth={1.75} />
             Code
           </button>
-          {sending && (
-            <span className="ml-auto text-xs text-muted-foreground animate-pulse">Building…</span>
-          )}
+          {sending && <span className="ml-auto text-xs text-muted-foreground animate-pulse">Building…</span>}
         </div>
 
-        {/* Preview / Code content */}
         {activeTab === 'preview' ? (
           <PreviewPane html={latestHTML} />
         ) : (
           <div className="flex-1 overflow-y-auto scrollbar-minimal p-5">
             {latestHTML ? (
-              <CodeBlock code={latestHTML} lang="html" filename="index.html" />
+              <CodeBlock code={latestHTML} lang="html" filename={`${activeProject?.title || 'index'}.html`} />
             ) : (
               <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
                 No code yet. Ask Lumina to build something.

@@ -1,0 +1,37 @@
+{
+  "name": "BuildProject",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Project name"
+    },
+    "html": {
+      "type": "string",
+      "description": "Latest generated HTML content"
+    },
+    "messages": {
+      "type": "array",
+      "description": "Chat history for this project",
+      "items": {
+        "type": "object"
+      }
+    },
+    "last_built_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the project was last built"
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "rls": {
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}
