@@ -7,6 +7,7 @@ import {
   Plus, Trash2, FolderOpen
 } from 'lucide-react';
 import LuminaMark from '@/components/layout/LuminaMark';
+import ProjectDashboard from '@/components/build/ProjectDashboard';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 
@@ -345,6 +346,11 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
         </div>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-minimal">
+          {activeProject && !isEmpty && (
+            <div className="px-5 py-4">
+              <ProjectDashboard project={activeProject} />
+            </div>
+          )}
           {isEmpty ? (
             <div className="h-full overflow-y-auto scrollbar-minimal px-5 py-6 animate-fade-up">
               <div className="mb-6">
