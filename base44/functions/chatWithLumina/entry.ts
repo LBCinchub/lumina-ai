@@ -142,14 +142,43 @@ User: ${message}
 
 Respond as Lumina. Do not prefix with "Lumina:" — just write the response directly.`;
 
-    const llmResponse = await base44.integrations.Core.InvokeLLM({
-      prompt: fullPrompt,
-      add_context_from_internet: true,
-      model: 'gemini_3_flash',
-      ...(file_urls && file_urls.length ? { file_urls } : {})
-    });
+    // Check if user is asking for image generation
+    const imageKeywords = ['generate', 'create', 'draw', 'make', 'build', 'design', 'paint', 'imagine'];
+    const imageTypes = ['pic', 'picture', 'image', 'photo', 'visual', 'art', 'artwork', 'illustration'];
+    const messageWords = message.toLowerCase().split(/\s+/);
+    const hasImageIntent = imageKeywords.some(kw => messageWords.some(w => w.includes(kw))) &&
+                          imageTypes.some(type => messageWords.some(w => w.includes(type)));
 
-    const assistantContent = typeof llmResponse === 'string' ? llmResponse : (llmResponse?.content || String(llmResponse));
+    let assistantContent;
+
+    if (hasImageIntent) {
+      // Generate image
+      try {
+        const imgRes = await base44.integrations.Core.GenerateImage({
+          prompt: message
+        });
+        assistantContent = `I've created this stunning image for you:\n\n![Generated image](${imgRes.url})\n\nLet me know if you'd like variations or adjustments!`;
+      } catch (imgErr) {
+        // Fallback to normal chat if image generation fails
+        const llmResponse = await base44.integrations.Core.InvokeLLM({
+          prompt: fullPrompt,
+          add_context_from_internet: true,
+          model: 'gemini_3_flash',
+          ...(file_urls && file_urls.length ? { file_urls } : {})
+        });
+        assistantContent = typeof llmResponse === 'string' ? llmResponse : (llmResponse?.content || String(llmResponse));
+      }
+    } else {
+      // Normal conversation
+      const llmResponse = await base44.integrations.Core.InvokeLLM({
+        prompt: fullPrompt,
+        add_context_from_internet: true,
+        model: 'gemini_3_flash',
+        ...(file_urls && file_urls.length ? { file_urls } : {})
+      });
+
+      assistantContent = typeof llmResponse === 'string' ? llmResponse : (llmResponse?.content || String(llmResponse));
+    }
 
     // Return response immediately — save message and update in background
     (async () => {
