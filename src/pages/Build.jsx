@@ -471,9 +471,9 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
         )}
 
         {/* Floating Dashboard */}
-        {activeProject && !isEmpty && (
+        {activeProject && !isEmpty && latestHTML && (
           <div className="absolute bottom-6 right-6 z-20 max-w-sm">
-            <ProjectDashboard project={activeProject} />
+            <ProjectDashboard project={{ ...activeProject, html: latestHTML }} />
           </div>
         )}
       </div>
