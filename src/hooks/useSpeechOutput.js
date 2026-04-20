@@ -13,12 +13,23 @@ function stripMarkdown(text) {
 
 function getBestVoice() {
   const voices = window.speechSynthesis.getVoices();
+  // Priority: best natural female voices first
   return (
-    voices.find(v => v.name === 'Samantha') ||
-    voices.find(v => v.name === 'Karen') ||
-    voices.find(v => v.name === 'Moira') ||
-    voices.find(v => v.name.includes('Google US English')) ||
-    voices.find(v => v.lang === 'en-US' && !v.name.includes('Male')) ||
+    voices.find(v => v.name === 'Samantha') ||           // macOS/iOS - warm, natural
+    voices.find(v => v.name === 'Karen') ||              // macOS Australian female
+    voices.find(v => v.name === 'Serena') ||             // macOS enhanced female
+    voices.find(v => v.name === 'Moira') ||              // macOS Irish female
+    voices.find(v => v.name === 'Tessa') ||              // macOS South African female
+    voices.find(v => v.name === 'Fiona') ||              // macOS Scottish female
+    voices.find(v => v.name.includes('Google UK English Female')) ||
+    voices.find(v => v.name.includes('Google US English Female')) ||
+    voices.find(v => v.name.includes('Microsoft Zira')) ||   // Windows natural female
+    voices.find(v => v.name.includes('Microsoft Jenny')) ||  // Windows neural female
+    voices.find(v => v.name.includes('Microsoft Aria')) ||   // Windows neural female
+    voices.find(v => v.lang === 'en-US' && /female|woman/i.test(v.name)) ||
+    voices.find(v => v.lang === 'en-GB' && /female|woman/i.test(v.name)) ||
+    voices.find(v => v.lang === 'en-US' && !v.localService === false) || // prefer network/neural
+    voices.find(v => v.lang === 'en-US') ||
     voices.find(v => v.lang.startsWith('en'))
   );
 }
@@ -47,8 +58,8 @@ export function useSpeechOutput() {
 
     const doSpeak = () => {
       const utter = new SpeechSynthesisUtterance(clean);
-      utter.rate = 1.0;
-      utter.pitch = 1.05;
+      utter.rate = 0.95;   // slightly slower = more natural
+      utter.pitch = 1.1;   // slightly higher = feminine, warm
       utter.volume = 1;
 
       const voice = getBestVoice();
