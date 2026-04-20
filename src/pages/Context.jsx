@@ -118,11 +118,11 @@ export default function Context() {
             Set as founder
           </Button>
         </div>
-          <p className="text-[15px] text-muted-foreground leading-relaxed max-w-xl">
-            What you share here becomes the ground Lumina reasons from. No conversation starts from zero.
-            Write plainly. Update whenever something shifts.
-          </p>
-        </div>
+
+        <p className="text-[15px] text-muted-foreground leading-relaxed max-w-xl">
+          What you share here becomes the ground Lumina reasons from. No conversation starts from zero.
+          Write plainly. Update whenever something shifts.
+        </p>
 
         <div className="space-y-10">
           {FIELDS.map(f => (
