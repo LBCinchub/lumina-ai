@@ -13,6 +13,7 @@ import Build from '@/pages/Build';
 import Pricing from '@/pages/Pricing';
 import Dashboard from '@/pages/Dashboard';
 import Resources from '@/pages/Resources';
+import YourTwinDigital from '@/pages/YourTwinDigital';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -43,6 +44,7 @@ const AuthenticatedApp = () => {
       <Route element={<AppShell />}>
         <Route path="/" element={<Converse />} />
         <Route path="/context" element={<Context />} />
+        <Route path="/twin" element={<YourTwinDigital />} />
         <Route path="/insights" element={<Insights />} />
         <Route path="/build" element={<Build />} />
         <Route path="/pricing" element={<Pricing />} />

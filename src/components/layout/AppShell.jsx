@@ -11,6 +11,7 @@ const navItems = [
   { to: '/', label: 'Converse', icon: MessageSquare, end: true },
   { to: '/build', label: 'Build', icon: Code2 },
   { to: '/context', label: 'Context', icon: User },
+  { to: '/twin', label: 'Your Twin', icon: Sparkles },
   { to: '/insights', label: 'Insights', icon: Sparkles },
   { to: '/resources', label: 'Resources', icon: BookOpen },
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },

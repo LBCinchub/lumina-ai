@@ -158,8 +158,20 @@ export default function Converse() {
     const isNew = !convoId;
 
     if (isNew) {
+      // Generate smart title from first message
+      let title = 'New conversation';
+      try {
+        const titleRes = await base44.integrations.Core.InvokeLLM({
+          prompt: `Write a 3-5 word title (no quotes, no punctuation at the end, sentence case) that captures what the user wants to discuss:\n\n"${displayText}"\n\nTitle:`
+        });
+        title = (typeof titleRes === 'string' ? titleRes : '').trim().replace(/^["']|["']$/g, '').slice(0, 60);
+      } catch (_) {
+        title = displayText.slice(0, 40);
+        if (displayText.length > 40) title += '…';
+      }
+      
       const convo = await base44.entities.Conversation.create({
-        title: 'New conversation',
+        title: title || 'New conversation',
         last_message_at: new Date().toISOString()
       });
       convoId = convo.id;
