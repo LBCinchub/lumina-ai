@@ -259,10 +259,19 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
       }
       setMessages(finalMessages);
 
-      // Auto-generate title from first user message
-      const isFirst = messages.length === 0;
-      let title = isFirst ? trimmed.slice(0, 40) : null;
-      if (isFirst && trimmed.length > 40) title += '…';
+      // Generate smart title from chat on first message
+      let title = null;
+      if (messages.length === 0) {
+        try {
+          const titleRes = await base44.integrations.Core.InvokeLLM({
+            prompt: `Write a 3-5 word title (no quotes, no punctuation at the end, sentence case) that captures what this build request is about:\n\n"${trimmed}"\n\nTitle:`
+          });
+          title = (typeof titleRes === 'string' ? titleRes : '').trim().replace(/^["']|["']$/g, '').slice(0, 60);
+        } catch (_) {
+          title = trimmed.slice(0, 40);
+          if (trimmed.length > 40) title += '…';
+        }
+      }
 
       // Save / update project
       const projectData = {
