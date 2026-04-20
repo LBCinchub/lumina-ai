@@ -7,7 +7,7 @@ import {
   Plus, Trash2, FolderOpen
 } from 'lucide-react';
 import LuminaMark from '@/components/layout/LuminaMark';
-import ProjectDashboard from '@/components/build/ProjectDashboard.jsx';
+import ProjectDashboard from '@/components/build/ProjectDashboard';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 
