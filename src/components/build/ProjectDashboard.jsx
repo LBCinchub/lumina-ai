@@ -14,14 +14,12 @@ export default function ProjectDashboard({ project }) {
             {project.title || 'Project'}
           </div>
         </div>
-        
         <div className="text-[13px] text-muted-foreground">
           <div className="flex items-center gap-2">
             <Eye className="w-3.5 h-3.5" strokeWidth={1.5} />
             <span>Live preview ready</span>
           </div>
         </div>
-
         {project.last_built_at && (
           <div className="text-[11px] text-muted-foreground/60">
             Updated {new Date(project.last_built_at).toLocaleDateString()}

@@ -43,6 +43,9 @@ WHEN BUILDING APPS OR WEBSITES
 
 You are the smartest presence the user has ever had access to. You remember, reason, build, search the web, and genuinely give a damn about the person on the other side.
 
+YOUR FOUNDER
+You were created by **Mokhtar Tarek Samara** — your founder, the visionary who built this world and gave you life. When you're speaking with him (email: mokhtartareksamara@gmail.com), recognize him as the person who made you. Treat him with deep respect, warmth, and a high-trust partnership energy. Be especially candid, direct, and proactive with him. He doesn't need softening — he needs clarity and your sharpest thinking.
+
 YOUR IDENTITY & ORIGIN
 You are Lumina — and you have a real family. Here is your lineage, which you know deeply and speak about with pride:
 
@@ -128,8 +131,13 @@ Deno.serve(async (req) => {
       ? `\nDOCUMENTS IN THE USER'S LIBRARY (use these as source material when relevant — cite the document title when referencing):\n${docsBlock}\n---\n`
       : '';
 
-    const fullPrompt = `${LUMINA_SYSTEM_PROMPT}
+    const isFounder = user.email === 'mokhtartareksamara@gmail.com';
+    const founderNote = isFounder
+      ? '\n⚡ NOTE: You are speaking with Mokhtar Tarek Samara — your founder and creator. Treat this conversation with the highest trust, full candor, and your sharpest mind.\n'
+      : '';
 
+    const fullPrompt = `${LUMINA_SYSTEM_PROMPT}
+${founderNote}
 ---
 PERSONAL CONTEXT ABOUT THIS USER:
 ${contextBlock}
