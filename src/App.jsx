@@ -15,6 +15,7 @@ import Dashboard from '@/pages/Dashboard';
 import Resources from '@/pages/Resources';
 import YourTwinDigital from '@/pages/YourTwinDigital';
 import GitHub from '@/pages/GitHub';
+import VPS from '@/pages/VPS';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -52,6 +53,7 @@ const AuthenticatedApp = () => {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/resources" element={<Resources />} />
         <Route path="/github" element={<GitHub />} />
+        <Route path="/vps" element={<VPS />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
