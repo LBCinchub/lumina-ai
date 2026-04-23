@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Github, GitBranch, CheckCircle2, AlertCircle, Loader2, Code, Upload, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const CONNECTOR_ID = '69e99f17b40a584c51165b61';
+const CONNECTOR_ID = '69e9a63841ece86c3a6ac789';
 const DEFAULT_REPO = 'LBCinchub/lumina-ai';
 
 export default function GitHubPanel() {
