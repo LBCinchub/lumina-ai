@@ -127,8 +127,9 @@ function ChatMessage({ msg }) {
   );
 }
 
-function PreviewPane({ html }) {
+function PreviewPane({ html, latestImageUrl }) {
   const iframeRef = useRef(null);
+  
   useEffect(() => {
     if (!iframeRef.current || !html) return;
     const doc = iframeRef.current.contentDocument || iframeRef.current.contentWindow.document;
@@ -137,13 +138,26 @@ function PreviewPane({ html }) {
     doc.close();
   }, [html]);
 
-  if (!html) {
+  if (!html && !latestImageUrl) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
         Choose a template or describe what to build.
       </div>
     );
   }
+
+  if (latestImageUrl) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
+        <img 
+          src={latestImageUrl} 
+          alt="Design preview" 
+          className="max-w-full h-auto rounded-lg shadow-lg"
+        />
+      </div>
+    );
+  }
+
   return <iframe ref={iframeRef} className="w-full flex-1 border-0" title="Live preview" sandbox="allow-scripts allow-same-origin" />;
 }
 
@@ -152,6 +166,7 @@ export default function Build() {
   const [activeProjectId, setActiveProjectId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [latestHTML, setLatestHTML] = useState(null);
+  const [latestImageUrl, setLatestImageUrl] = useState(null);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [activeTab, setActiveTab] = useState('preview');
@@ -197,6 +212,7 @@ export default function Build() {
     setActiveProjectId(project.id);
     setMessages(project.messages || []);
     setLatestHTML(project.html || null);
+    setLatestImageUrl(project.image_url || null);
     setActiveTab('preview');
   };
 
@@ -204,6 +220,7 @@ export default function Build() {
     setActiveProjectId(null);
     setMessages([]);
     setLatestHTML(null);
+    setLatestImageUrl(null);
     setInput('');
   };
 
@@ -240,20 +257,21 @@ export default function Build() {
       // Update reference to newMessages
       const finalMessages = newMessages;
 
-      const prompt = `You are Lumina — an expert full-stack developer and product designer. Your primary role here is to BUILD apps and websites when asked.
+      const prompt = `You are Lumina — an expert product designer and UI/UX specialist. Your role is to visualize and design beautiful interfaces.
 
-When building, always:
-- Produce a COMPLETE, single-file HTML document that runs entirely in the browser (no external dependencies except CDN links like Tailwind CDN or Google Fonts)
-- Use inline CSS and/or Tailwind CDN for styling
-- Make designs visually polished, modern, and responsive — not generic
-- Include realistic sample data / placeholder content
-- Wrap the file in a single \`\`\`html code block — just ONE code block containing the full HTML
-- After the code block, give a brief 2-3 sentence rationale
+When someone asks you to build something, describe what the design would look like as a detailed visual prompt. Focus on:
+- Layout and structure
+- Colors, typography, and visual hierarchy
+- Key UI elements and their positioning
+- Overall aesthetic and mood
+- Specific details that make it unique
+
+Respond with a detailed image description (2-3 sentences) that captures the complete visual design.
 
 CONVERSATION SO FAR:
 ${history}
 
-Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
+Respond as Lumina. Describe the visual design clearly and concisely for image generation.`;
 
       const res = await base44.integrations.Core.InvokeLLM({
         prompt,
@@ -262,12 +280,22 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
       });
 
       const content = typeof res === 'string' ? res : (res?.content || String(res));
-      const html = extractHTML(content);
-      const assistantMsg = { role: 'assistant', content, id: Date.now() + 1 };
+      
+      // Generate image from design description
+      const imageRes = await base44.integrations.Core.GenerateImage({
+        prompt: content
+      });
+      
+      const imageUrl = imageRes?.url;
+      const assistantMsg = { 
+        role: 'assistant', 
+        content: imageUrl ? `Here's the design:\n\n![Design](${imageUrl})\n\n${content}` : content, 
+        id: Date.now() + 1 
+      };
       finalMessages.push(assistantMsg);
 
-      if (html) {
-        setLatestHTML(html);
+      if (imageUrl) {
+        setLatestImageUrl(imageUrl);
         setActiveTab('preview');
       }
       setMessages(finalMessages);
@@ -289,7 +317,8 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
       // Save / update project
       const projectData = {
         messages: finalMessages,
-        html: html || latestHTML,
+        html: latestHTML,
+        image_url: imageUrl || latestImageUrl,
         last_built_at: new Date().toISOString(),
         ...(title ? { title } : {})
       };
@@ -327,10 +356,11 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
       loadProjects();
 
       // Auto-save to history
-      if (projectId && (html || latestHTML)) {
+      if (projectId && (imageUrl || latestImageUrl)) {
         base44.entities.ProjectHistory.create({
           project_id: projectId,
-          html: html || latestHTML,
+          html: latestHTML,
+          image_url: imageUrl || latestImageUrl,
           messages: finalMessages,
           is_auto: true
         }).catch(err => console.error('History save failed:', err));
@@ -604,7 +634,7 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
         </div>
 
         {activeTab === 'preview' ? (
-          <PreviewPane html={latestHTML} />
+          <PreviewPane html={latestHTML} latestImageUrl={latestImageUrl} />
         ) : activeTab === 'vps' && isOwner ? (
           <VpsToolPanel />
         ) : activeTab === 'history' ? (
@@ -631,11 +661,20 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
           )
         ) : (
           <div className="flex-1 overflow-y-auto scrollbar-minimal p-5">
-            {latestHTML ? (
-              <CodeBlock code={latestHTML} lang="html" filename={`${activeProject?.title || 'index'}.html`} />
+            {latestImageUrl ? (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-medium mb-3">Generated Design</h3>
+                  <img 
+                    src={latestImageUrl} 
+                    alt="Design" 
+                    className="w-full rounded-lg shadow-sm border border-border"
+                  />
+                </div>
+              </div>
             ) : (
               <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                No code yet. Ask Lumina to build something.
+                No design yet. Ask Lumina to build something.
               </div>
             )}
           </div>
