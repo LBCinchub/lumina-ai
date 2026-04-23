@@ -21,6 +21,19 @@
       "type": "string",
       "format": "date-time",
       "description": "When the project was last built"
+    },
+    "github_repo": {
+      "type": "string",
+      "description": "GitHub repo (owner/repo) for auto-sync"
+    },
+    "github_path": {
+      "type": "string",
+      "description": "File path in repo for auto-sync"
+    },
+    "github_auto_sync": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable auto-sync to GitHub on save"
     }
   },
   "required": [

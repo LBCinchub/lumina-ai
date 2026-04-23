@@ -4,9 +4,10 @@ import {
   Code2, Globe, Layers, ArrowUp, Copy, Check, ChevronDown, ChevronUp,
   Monitor, Eye, LayoutDashboard, ShoppingCart, Users, BarChart2, Calendar,
   MessageSquare, FileText, Kanban, CreditCard, Map, Bell, Settings,
-  Plus, Trash2, FolderOpen, Server
+  Plus, Trash2, FolderOpen, Server, Github
 } from 'lucide-react';
 import VpsToolPanel from '@/components/build/VpsToolPanel';
+import GitHubSyncPanel from '@/components/build/GitHubSyncPanel';
 import LuminaMark from '@/components/layout/LuminaMark';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -154,6 +155,7 @@ export default function Build() {
   const [sending, setSending] = useState(false);
   const [activeTab, setActiveTab] = useState('preview');
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
 
@@ -281,6 +283,7 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
         ...(title ? { title } : {})
       };
 
+      let projectId = activeProjectId;
       if (activeProjectId) {
         await base44.entities.BuildProject.update(activeProjectId, projectData);
       } else {
@@ -288,7 +291,26 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
           title: title || 'Untitled project',
           ...projectData
         });
-        setActiveProjectId(created.id);
+        projectId = created.id;
+        setActiveProjectId(projectId);
+      }
+
+      // Auto-sync to GitHub if enabled
+      const updatedProject = projects.find(p => p.id === projectId) || { ...projectData, id: projectId };
+      if (updatedProject.github_auto_sync && updatedProject.github_repo && updatedProject.github_path && (html || latestHTML)) {
+        setSyncing(true);
+        try {
+          await base44.functions.invoke('luminaPushCode', {
+            repo: updatedProject.github_repo,
+            path: updatedProject.github_path,
+            content: html || latestHTML,
+            message: `build: update via Lumina - ${new Date().toLocaleString()}`
+          });
+        } catch (_) {
+          // Silent fail - don't disrupt build flow
+        } finally {
+          setSyncing(false);
+        }
       }
 
       loadProjects();
@@ -483,13 +505,38 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
             <Server className="w-3.5 h-3.5" strokeWidth={1.75} />
             VPS
           </button>
+          <button
+            onClick={() => setActiveTab('sync')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
+              activeTab === 'sync' ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
+            )}
+          >
+            <Github className="w-3.5 h-3.5" strokeWidth={1.75} />
+            Sync
+          </button>
           {sending && <span className="ml-auto text-xs text-muted-foreground animate-pulse">Building…</span>}
+          {syncing && <span className="ml-auto text-xs text-muted-foreground animate-pulse">Syncing…</span>}
         </div>
 
         {activeTab === 'preview' ? (
           <PreviewPane html={latestHTML} />
         ) : activeTab === 'vps' ? (
           <VpsToolPanel />
+        ) : activeTab === 'sync' ? (
+          activeProject ? (
+            <GitHubSyncPanel 
+              project={activeProject}
+              onUpdate={async (config) => {
+                await base44.entities.BuildProject.update(activeProject.id, config);
+                loadProjects();
+              }}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+              Create or select a project to configure GitHub sync.
+            </div>
+          )
         ) : (
           <div className="flex-1 overflow-y-auto scrollbar-minimal p-5">
             {latestHTML ? (
