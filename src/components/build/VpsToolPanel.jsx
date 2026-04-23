@@ -114,7 +114,6 @@ export default function VpsToolPanel() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <div className="shrink-0 px-4 py-3 border-b border-border/60 flex items-center gap-2">
         <Server className="w-4 h-4 text-foreground/60" strokeWidth={1.75} />
         <span className="text-sm font-medium">VPS Control</span>
@@ -122,7 +121,6 @@ export default function VpsToolPanel() {
         <div className="ml-auto w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" title="Connected" />
       </div>
 
-      {/* Log / messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-minimal px-4 py-4 space-y-4">
         {log.length === 0 && (
           <div className="space-y-3">
@@ -151,7 +149,6 @@ export default function VpsToolPanel() {
         )}
       </div>
 
-      {/* Input */}
       <div className="shrink-0 border-t border-border/60 p-3">
         <div className={cn(
           "flex items-end gap-2 bg-card border border-border rounded-xl px-3 py-2",

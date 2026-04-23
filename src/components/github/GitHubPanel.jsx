@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { Github, GitBranch, CheckCircle2, AlertCircle, Loader2, Code, Upload } from 'lucide-react';
+import { Github, GitBranch, CheckCircle2, AlertCircle, Loader2, Code, Upload, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const CONNECTOR_ID = '69e99f17b40a584c51165b61';
@@ -11,53 +11,85 @@ export default function GitHubPanel() {
   const [user, setUser] = useState(null);
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
   const [pushing, setPushing] = useState(false);
-  const [status, setStatus] = useState(null); // { type: 'success'|'error', message }
+  const [fetching, setFetching] = useState(false);
+  const [status, setStatus] = useState(null);
 
-  // Code editor state
-  const [filePath, setFilePath] = useState('lumina/self-update.md');
+  const [repo, setRepo] = useState(DEFAULT_REPO);
+  const [filePath, setFilePath] = useState('README.md');
   const [fileContent, setFileContent] = useState('');
   const [commitMsg, setCommitMsg] = useState('');
 
-  const fetchFile = useCallback(async () => {
+  const checkConnection = useCallback(async () => {
     try {
       const res = await base44.functions.invoke('githubGetFile', {
-        repo: DEFAULT_REPO,
+        repo,
         path: filePath,
       });
-      setFileContent(res.data?.content || '');
-      setConnected(true);
+      if (res.data?.content !== undefined) {
+        setFileContent(res.data.content);
+        setConnected(true);
+      } else {
+        setConnected(false);
+      }
     } catch {
       setConnected(false);
     }
-  }, [filePath]);
+  }, [repo, filePath]);
 
   useEffect(() => {
     base44.auth.isAuthenticated().then(async (authed) => {
       if (authed) {
         const me = await base44.auth.me();
         setUser(me);
-        await fetchFile();
+        await checkConnection();
       }
       setLoading(false);
     });
-  }, [fetchFile]);
+  }, []);
 
   const handleConnect = async () => {
-    const url = await base44.connectors.connectAppUser(CONNECTOR_ID);
-    const popup = window.open(url, '_blank');
-    const timer = setInterval(() => {
-      if (!popup || popup.closed) {
-        clearInterval(timer);
-        fetchFile();
-      }
-    }, 500);
+    setConnecting(true);
+    try {
+      const url = await base44.connectors.connectAppUser(CONNECTOR_ID);
+      const popup = window.open(url, '_blank', 'width=600,height=700');
+      const timer = setInterval(async () => {
+        if (!popup || popup.closed) {
+          clearInterval(timer);
+          await checkConnection();
+          setConnecting(false);
+        }
+      }, 500);
+    } catch (e) {
+      setStatus({ type: 'error', message: e.message });
+      setConnecting(false);
+    }
   };
 
   const handleDisconnect = async () => {
     await base44.connectors.disconnectAppUser(CONNECTOR_ID);
     setConnected(false);
     setFileContent('');
+    setStatus(null);
+  };
+
+  const handleFetchFile = async () => {
+    setFetching(true);
+    setStatus(null);
+    try {
+      const res = await base44.functions.invoke('githubGetFile', { repo, path: filePath });
+      if (res.data?.content !== undefined) {
+        setFileContent(res.data.content);
+        setConnected(true);
+      } else {
+        setStatus({ type: 'error', message: res.data?.error || 'File not found.' });
+      }
+    } catch (e) {
+      setStatus({ type: 'error', message: e.message });
+    } finally {
+      setFetching(false);
+    }
   };
 
   const handlePush = async () => {
@@ -69,7 +101,7 @@ export default function GitHubPanel() {
     setStatus(null);
     try {
       const res = await base44.functions.invoke('githubPushCode', {
-        repo: DEFAULT_REPO,
+        repo,
         path: filePath,
         content: fileContent,
         message: commitMsg,
@@ -89,7 +121,7 @@ export default function GitHubPanel() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-16">
         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
       </div>
     );
@@ -110,12 +142,12 @@ export default function GitHubPanel() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Github className="w-5 h-5" />
-          <span className="font-medium text-sm">{DEFAULT_REPO}</span>
+          <span className="font-medium text-sm">GitHub</span>
           <span className={cn(
-            "text-xs px-2 py-0.5 rounded-full",
-            connected ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground"
+            "text-xs px-2 py-0.5 rounded-full font-medium",
+            connected ? "bg-green-500/15 text-green-600" : "bg-muted text-muted-foreground"
           )}>
-            {connected ? 'Connected' : 'Not connected'}
+            {connected ? '● Connected' : '○ Not connected'}
           </span>
         </div>
         {connected ? (
@@ -123,14 +155,39 @@ export default function GitHubPanel() {
             Disconnect
           </Button>
         ) : (
-          <Button size="sm" onClick={handleConnect} className="gap-2">
-            <Github className="w-4 h-4" /> Connect GitHub
+          <Button size="sm" onClick={handleConnect} disabled={connecting} className="gap-2">
+            {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Github className="w-4 h-4" />}
+            {connecting ? 'Connecting…' : 'Connect GitHub'}
           </Button>
         )}
       </div>
 
+      {!connected && !connecting && (
+        <div className="rounded-xl border border-border bg-muted/30 p-6 text-center space-y-3">
+          <Github className="w-8 h-8 mx-auto text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">
+            Connect your GitHub account to read and push code to any repository.
+          </p>
+          <Button onClick={handleConnect} disabled={connecting} className="gap-2">
+            {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Github className="w-4 h-4" />}
+            Sign in with GitHub
+          </Button>
+        </div>
+      )}
+
       {connected && (
         <>
+          {/* Repo */}
+          <div className="space-y-1.5">
+            <label className="text-xs uppercase tracking-wider text-muted-foreground">Repository</label>
+            <input
+              value={repo}
+              onChange={e => setRepo(e.target.value)}
+              className="w-full text-sm bg-muted/50 border border-border rounded-md px-3 py-1.5 font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+              placeholder="owner/repo"
+            />
+          </div>
+
           {/* File path */}
           <div className="space-y-1.5">
             <label className="text-xs uppercase tracking-wider text-muted-foreground">File path</label>
@@ -139,9 +196,11 @@ export default function GitHubPanel() {
                 value={filePath}
                 onChange={e => setFilePath(e.target.value)}
                 className="flex-1 text-sm bg-muted/50 border border-border rounded-md px-3 py-1.5 font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                placeholder="path/to/file.md"
               />
-              <Button variant="outline" size="sm" onClick={fetchFile}>
-                <Code className="w-3.5 h-3.5" />
+              <Button variant="outline" size="sm" onClick={handleFetchFile} disabled={fetching} className="gap-1.5">
+                {fetching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                Fetch
               </Button>
             </div>
           </div>
@@ -154,7 +213,7 @@ export default function GitHubPanel() {
               onChange={e => setFileContent(e.target.value)}
               rows={12}
               className="w-full text-sm bg-muted/50 border border-border rounded-md px-3 py-2 font-mono focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-              placeholder="File content..."
+              placeholder="File content…"
             />
           </div>
 
@@ -167,7 +226,7 @@ export default function GitHubPanel() {
               value={commitMsg}
               onChange={e => setCommitMsg(e.target.value)}
               className="w-full text-sm bg-muted/50 border border-border rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-ring"
-              placeholder="feat: Lumina self-update"
+              placeholder="feat: update via Lumina"
             />
           </div>
 
@@ -190,12 +249,6 @@ export default function GitHubPanel() {
             {pushing ? 'Pushing…' : 'Push to GitHub'}
           </Button>
         </>
-      )}
-
-      {!connected && (
-        <div className="text-center py-8 text-sm text-muted-foreground">
-          Connect your GitHub account to let Lumina read and write code to <strong>{DEFAULT_REPO}</strong>.
-        </div>
       )}
     </div>
   );
