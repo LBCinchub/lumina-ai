@@ -6,7 +6,7 @@ import {
   MessageSquare, FileText, Kanban, CreditCard, Map, Bell, Settings,
   Plus, Trash2, FolderOpen, Server
 } from 'lucide-react';
-import VpsToolPanel from '@/components/build/VpsToolPanel.jsx';
+import VpsToolPanel from '@/components/build/VpsToolPanel';
 import LuminaMark from '@/components/layout/LuminaMark';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
