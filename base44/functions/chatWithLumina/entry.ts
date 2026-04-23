@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
       40
     );
 
-    // Save user message
+    // Save user message (use service role for Message creation)
     await db.entities.Message.create({
       conversation_id,
       role: 'user',
@@ -237,7 +237,8 @@ Respond as Lumina. Do not prefix with "Lumina:" — just write the response dire
             if (title) updates.title = title;
           } catch (_) {}
         }
-        await db.entities.Conversation.update(conversation_id, updates);
+        // Use user-scoped client for Conversation update to respect RLS
+        await base44.entities.Conversation.update(conversation_id, updates);
       } catch (_) {}
     })();
 
