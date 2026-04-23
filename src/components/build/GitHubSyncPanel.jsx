@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Github, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
+import { Github, Link as LinkIcon, Unlink, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +12,11 @@ export default function GitHubSyncPanel({ project, onUpdate }) {
   const [status, setStatus] = useState(null);
 
   const handleSave = async () => {
+    if (!repo.trim() || !path.trim()) {
+      setStatus({ type: 'error', message: 'Repository and file path are required' });
+      return;
+    }
+
     setSaving(true);
     setStatus(null);
 
@@ -20,68 +26,65 @@ export default function GitHubSyncPanel({ project, onUpdate }) {
         github_path: path,
         github_auto_sync: autoSync
       });
-      setStatus({ type: 'success', message: 'GitHub sync settings updated' });
-      setTimeout(() => setStatus(null), 2000);
+      setStatus({ type: 'success', message: 'GitHub sync configured' });
     } catch (err) {
-      setStatus({ type: 'error', message: 'Failed to save settings' });
+      setStatus({ type: 'error', message: err.message });
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="shrink-0 px-5 py-4 border-b border-border/60">
-        <h2 className="font-serif text-lg tracking-tight flex items-center gap-2">
-          <Github className="w-5 h-5" />
-          GitHub Sync
-        </h2>
+    <div className="flex-1 overflow-y-auto scrollbar-minimal p-6 space-y-5">
+      <div>
+        <h3 className="font-medium mb-2 flex items-center gap-2">
+          <Github className="w-4 h-4" />
+          GitHub Auto-Sync
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          Push your builds directly to a GitHub repository automatically.
+        </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto scrollbar-minimal p-5 space-y-6">
-        {/* Repository */}
-        <div className="space-y-2">
+      <div className="space-y-4">
+        <div className="space-y-1.5">
           <label className="text-sm font-medium">Repository</label>
           <input
-            type="text"
             value={repo}
-            onChange={(e) => setRepo(e.target.value)}
+            onChange={e => setRepo(e.target.value)}
             placeholder="owner/repo"
-            className="w-full text-sm bg-muted/50 border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+            className="w-full text-sm bg-muted/50 border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring"
+            disabled={saving}
           />
           <p className="text-xs text-muted-foreground">Format: username/repository</p>
         </div>
 
-        {/* File path */}
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <label className="text-sm font-medium">File Path</label>
           <input
-            type="text"
             value={path}
-            onChange={(e) => setPath(e.target.value)}
-            placeholder="path/to/file.html"
-            className="w-full text-sm bg-muted/50 border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+            onChange={e => setPath(e.target.value)}
+            placeholder="path/to/index.html"
+            className="w-full text-sm bg-muted/50 border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring"
+            disabled={saving}
           />
-          <p className="text-xs text-muted-foreground">Where to save the HTML file</p>
+          <p className="text-xs text-muted-foreground">Where to save the file in the repo</p>
         </div>
 
-        {/* Auto-sync toggle */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={autoSync}
-              onChange={(e) => setAutoSync(e.target.checked)}
-              className="w-4 h-4 rounded border-border"
-            />
-            <span className="text-sm font-medium">Auto-sync on save</span>
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+          <input
+            type="checkbox"
+            id="autoSync"
+            checked={autoSync}
+            onChange={e => setAutoSync(e.target.checked)}
+            disabled={saving}
+            className="rounded"
+          />
+          <label htmlFor="autoSync" className="text-sm font-medium cursor-pointer flex-1">
+            Auto-push on build
           </label>
-          <p className="text-xs text-muted-foreground ml-7">
-            Automatically push changes to GitHub when you build
-          </p>
         </div>
 
-        {/* Status */}
         {status && (
           <div className={cn(
             "flex items-center gap-2 text-sm px-3 py-2 rounded-md",
@@ -93,26 +96,14 @@ export default function GitHubSyncPanel({ project, onUpdate }) {
             {status.message}
           </div>
         )}
-      </div>
 
-      {/* Save button */}
-      <div className="shrink-0 border-t border-border/60 p-5">
         <Button
           onClick={handleSave}
-          disabled={saving || !repo || !path}
+          disabled={saving || !repo.trim() || !path.trim()}
           className="w-full gap-2"
         >
-          {saving ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Github className="w-4 h-4" />
-              Save Settings
-            </>
-          )}
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <LinkIcon className="w-4 h-4" />}
+          {saving ? 'Saving...' : 'Save Configuration'}
         </Button>
       </div>
     </div>

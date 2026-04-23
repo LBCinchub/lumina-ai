@@ -337,13 +337,13 @@ Respond as Lumina. Describe the visual design clearly and concisely for image ge
 
       // Auto-sync to GitHub if enabled
       const updatedProject = projects.find(p => p.id === projectId) || { ...projectData, id: projectId };
-      if (updatedProject.github_auto_sync && updatedProject.github_repo && updatedProject.github_path && (html || latestHTML)) {
+      if (updatedProject.github_auto_sync && updatedProject.github_repo && updatedProject.github_path && latestHTML) {
         setSyncing(true);
         try {
           await base44.functions.invoke('luminaPushCode', {
             repo: updatedProject.github_repo,
             path: updatedProject.github_path,
-            content: html || latestHTML,
+            content: latestHTML,
             message: `build: update via Lumina - ${new Date().toLocaleString()}`
           });
         } catch (_) {

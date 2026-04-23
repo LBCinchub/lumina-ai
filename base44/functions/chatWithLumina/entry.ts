@@ -181,11 +181,9 @@ User: ${message}
 Respond as Lumina. Do not prefix with "Lumina:" — just write the response directly.`;
 
     // Check if user is asking for image generation
-    const imageKeywords = ['generate', 'create', 'draw', 'make', 'build', 'design', 'paint', 'imagine'];
-    const imageTypes = ['pic', 'picture', 'image', 'photo', 'visual', 'art', 'artwork', 'illustration'];
-    const messageWords = message.toLowerCase().split(/\s+/);
-    const hasImageIntent = imageKeywords.some(kw => messageWords.some(w => w.includes(kw))) &&
-                          imageTypes.some(type => messageWords.some(w => w.includes(type)));
+    const messageWords = message.toLowerCase();
+    const hasImageIntent = /\b(generate|create|draw|make|design|paint|imagine)\b.*\b(pic|picture|image|photo|visual|art|artwork|illustration)\b/i.test(message) ||
+                           /\b(generate|create|draw|make|design|paint|imagine)\s+(me\s+)?(a|an|some)?\s*\b(pic|picture|image|photo|visual|art|artwork|illustration|image of)\b/i.test(message);
 
     let assistantContent;
 
