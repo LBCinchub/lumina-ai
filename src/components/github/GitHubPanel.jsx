@@ -43,6 +43,12 @@ export default function GitHubPanel() {
       if (authed) {
         const me = await base44.auth.me();
         setUser(me);
+        // Check if we just came back from OAuth (URL has code param)
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('code') || params.get('connected')) {
+          // Clean up URL
+          window.history.replaceState({}, '', window.location.pathname);
+        }
         await checkConnection();
       }
       setLoading(false);
@@ -51,16 +57,11 @@ export default function GitHubPanel() {
 
   const handleConnect = async () => {
     setConnecting(true);
+    setStatus(null);
     try {
       const url = await base44.connectors.connectAppUser(CONNECTOR_ID);
-      const popup = window.open(url, '_blank', 'width=600,height=700');
-      const timer = setInterval(async () => {
-        if (!popup || popup.closed) {
-          clearInterval(timer);
-          await checkConnection();
-          setConnecting(false);
-        }
-      }, 500);
+      // Open in same tab to avoid popup blockers
+      window.location.href = url;
     } catch (e) {
       setStatus({ type: 'error', message: e.message });
       setConnecting(false);
