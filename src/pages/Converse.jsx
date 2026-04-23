@@ -194,47 +194,78 @@ export default function Converse() {
     setIsSending(true);
 
     try {
-      const result = await base44.functions.invoke('chatWithLumina', { 
-        conversation_id: convoId, 
-        message: displayText, 
-        file_urls: fileUrls,
-        explicit_context: {
-          document_ids: selectedContext.documents.map(d => d.id),
-          conversation_ids: selectedContext.conversations.map(c => c.id)
-        }
-      });
-      
-      // Stream the response in chunks for ~1 second total display
-      if (result.data?.content) {
-        const content = result.data.content;
-        const chunkSize = Math.ceil(content.length / 10); // 10 chunks = ~100ms per chunk
-        let displayed = '';
-        
-        for (let i = 0; i < content.length; i += chunkSize) {
-          displayed += content.slice(i, i + chunkSize);
-          setMessages(prev => {
-            const last = prev[prev.length - 1];
-            if (last?.role === 'assistant' && String(last.id).startsWith('streaming-')) {
-              return [...prev.slice(0, -1), { ...last, content: displayed }];
+      let result = null;
+      let retries = 0;
+      const maxRetries = 2;
+
+      // Retry logic for reliability
+      while (retries <= maxRetries) {
+        try {
+          result = await base44.functions.invoke('chatWithLumina', { 
+            conversation_id: convoId, 
+            message: displayText, 
+            file_urls: fileUrls,
+            explicit_context: {
+              document_ids: selectedContext.documents.map(d => d.id),
+              conversation_ids: selectedContext.conversations.map(c => c.id)
             }
-            return prev;
           });
-          await new Promise(resolve => setTimeout(resolve, 100));
+          break; // Success, exit retry loop
+        } catch (err) {
+          retries++;
+          if (retries > maxRetries) throw err;
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * retries));
         }
+      }
+
+      // Only proceed if we got a valid response
+      if (!result?.data?.content) {
+        throw new Error('Empty response from Lumina');
+      }
+
+      const content = result.data.content;
+      
+      // Stream the response in chunks
+      const chunkSize = Math.ceil(content.length / 10);
+      let displayed = '';
+      
+      for (let i = 0; i < content.length; i += chunkSize) {
+        displayed += content.slice(i, i + chunkSize);
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last?.role === 'assistant' && String(last.id).startsWith('streaming-')) {
+            return [...prev.slice(0, -1), { ...last, content: displayed }];
+          }
+          return prev;
+        });
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
       
       // Sync to shared pool if in your context
       if (currentContext === 'yours') {
-        await base44.functions.invoke('syncConversation', {
-          conversationId: convoId,
-          platformOrigin: 'lbchub.site'
-        });
+        try {
+          await base44.functions.invoke('syncConversation', {
+            conversationId: convoId,
+            platformOrigin: 'lbchub.site'
+          });
+        } catch (_) {
+          // Non-critical, don't break flow
+        }
       }
+
+      // Reload messages from server to ensure consistency
       await loadMessages(convoId);
       loadConversations();
     } catch (err) {
-      console.error('chatWithLumina error:', err);
+      console.error('Message send failed:', err);
+      // Remove optimistic message and show error
       setMessages(prev => prev.filter(m => m.id !== optimistic.id));
+      setMessages(prev => [...prev, { 
+        id: 'error-' + Date.now(), 
+        role: 'assistant', 
+        content: '⚠️ Message failed to send. Please try again.' 
+      }]);
     } finally {
       isSendingRef.current = false;
       setIsSending(false);
