@@ -4,8 +4,9 @@ import {
   Code2, Globe, Layers, ArrowUp, Copy, Check, ChevronDown, ChevronUp,
   Monitor, Eye, LayoutDashboard, ShoppingCart, Users, BarChart2, Calendar,
   MessageSquare, FileText, Kanban, CreditCard, Map, Bell, Settings,
-  Plus, Trash2, FolderOpen
+  Plus, Trash2, FolderOpen, Server
 } from 'lucide-react';
+import VpsToolPanel from '@/components/build/VpsToolPanel.jsx';
 import LuminaMark from '@/components/layout/LuminaMark';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -472,11 +473,23 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
             <Monitor className="w-3.5 h-3.5" strokeWidth={1.75} />
             Code
           </button>
+          <button
+            onClick={() => setActiveTab('vps')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
+              activeTab === 'vps' ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
+            )}
+          >
+            <Server className="w-3.5 h-3.5" strokeWidth={1.75} />
+            VPS
+          </button>
           {sending && <span className="ml-auto text-xs text-muted-foreground animate-pulse">Building…</span>}
         </div>
 
         {activeTab === 'preview' ? (
           <PreviewPane html={latestHTML} />
+        ) : activeTab === 'vps' ? (
+          <VpsToolPanel />
         ) : (
           <div className="flex-1 overflow-y-auto scrollbar-minimal p-5">
             {latestHTML ? (
