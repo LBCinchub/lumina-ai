@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
           await base44.entities.Conversation.update(convo.id, { title: newTitle });
           updates.push({ id: convo.id, title: newTitle });
         }
-      } catch (_) {
+      } catch (_e) {
         // Skip if title generation fails
       }
     }

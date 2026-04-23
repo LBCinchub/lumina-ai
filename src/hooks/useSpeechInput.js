@@ -46,8 +46,8 @@ export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn }) {
       accumulatedRef.current = final;
       const transcript = (final + interim).trim();
 
-      // Barge-in: if Lumina is speaking and user starts talking, interrupt her
-      if (!bargedInRef.current && transcript.length > 0 && onBargeInRef.current) {
+      // Barge-in: fire immediately on ANY speech activity to interrupt Lumina
+      if (!bargedInRef.current && onBargeInRef.current) {
         bargedInRef.current = true;
         onBargeInRef.current();
       }

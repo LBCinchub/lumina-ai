@@ -96,7 +96,12 @@ export function useSpeechOutput() {
   }, []);
 
   const stop = useCallback(() => {
-    window.speechSynthesis?.cancel();
+    if (!window.speechSynthesis) return;
+    // Cancel multiple times — Chrome sometimes ignores a single cancel
+    window.speechSynthesis.cancel();
+    setTimeout(() => window.speechSynthesis.cancel(), 50);
+    setTimeout(() => window.speechSynthesis.cancel(), 150);
+    onEndRef.current = null; // prevent onEnd from re-triggering mic restart
     setSpeaking(false);
   }, []);
 
