@@ -1,8 +1,9 @@
 import React, { useRef, useEffect, useImperativeHandle, forwardRef, useState } from 'react';
-import { ArrowUp, Mic, MicOff, Paperclip, X, Image, Video, FileText } from 'lucide-react';
+import { ArrowUp, Mic, MicOff, Paperclip, X, Image, Video, FileText, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSpeechInput } from '@/hooks/useSpeechInput';
 import { base44 } from '@/api/base44Client';
+import ReactMarkdown from 'react-markdown';
 
 function AttachmentPreview({ attachments, onRemove }) {
   if (!attachments.length) return null;
@@ -34,6 +35,7 @@ const Composer = forwardRef(function Composer(
   const fileInputRef = useRef(null);
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const onSubmitRef = useRef(onSubmit);
   const onChangeRef = useRef(onChange);
@@ -107,78 +109,131 @@ const Composer = forwardRef(function Composer(
           onRemove={(i) => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
         />
 
-        <div className="flex items-end gap-2 px-4 py-3">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={disabled || uploading}
-            className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-            aria-label="Attach file"
-          >
-            {uploading
-              ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              : <Paperclip className="w-4 h-4" strokeWidth={1.75} />
-            }
-          </button>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,video/*,.pdf,.doc,.docx,.txt,.csv,.xls,.xlsx"
-            multiple
-            className="hidden"
-            onChange={handleFileChange}
-          />
-
-          <textarea
-            ref={textareaRef}
-            value={value}
-            onChange={(e) => onChangeRef.current(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={uploading ? "Uploading…" : listening ? "Listening…" : luminaSpeaking ? "Lumina is speaking…" : placeholder}
-            rows={1}
-            disabled={disabled}
-            className={cn(
-              "flex-1 bg-transparent resize-none outline-none",
-              "text-[15px] leading-relaxed placeholder:text-muted-foreground/60",
-              "scrollbar-minimal"
-            )}
-            style={{ maxHeight: '200px' }}
-          />
-
-          {supported && (
+        {/* Preview toggle */}
+        {value && (
+          <div className="flex items-center justify-between px-4 py-2 border-t border-border/50">
             <button
               type="button"
-              onClick={toggleVoice}
-              disabled={disabled || luminaSpeaking}
-              className={cn(
-                "shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all",
-                listening
-                  ? "bg-red-500/90 text-white animate-pulse"
-                  : luminaSpeaking
-                    ? "text-foreground/30"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent",
-                "disabled:cursor-not-allowed"
-              )}
-              aria-label={listening ? "Stop listening" : "Voice input"}
+              onClick={() => setShowPreview(!showPreview)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={showPreview ? "Hide preview" : "Show preview"}
             >
-              {listening ? <MicOff className="w-4 h-4" strokeWidth={2} /> : <Mic className="w-4 h-4" strokeWidth={1.75} />}
+              {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              {showPreview ? "Hide" : "Show"} preview
             </button>
-          )}
+          </div>
+        )}
 
-          <button
-            onClick={submit}
-            disabled={!canSend}
-            className={cn(
-              "shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-              "bg-foreground text-background transition-all",
-              "hover:scale-105 disabled:opacity-30 disabled:hover:scale-100",
-              "disabled:cursor-not-allowed"
-            )}
-            aria-label="Send"
-          >
-            <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
-          </button>
+        {/* Split pane editor + preview */}
+        <div className={cn(
+          "flex",
+          showPreview ? "gap-0" : ""
+        )}>
+          {/* Editor */}
+          <div className={cn(
+            "flex flex-col flex-1 overflow-hidden",
+            showPreview && "border-r border-border/50"
+          )}>
+            <div className="flex items-end gap-2 px-4 py-3 flex-1 min-h-0">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={disabled || uploading}
+                className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label="Attach file"
+              >
+                {uploading
+                  ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  : <Paperclip className="w-4 h-4" strokeWidth={1.75} />
+                }
+              </button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,video/*,.pdf,.doc,.docx,.txt,.csv,.xls,.xlsx"
+                multiple
+                className="hidden"
+                onChange={handleFileChange}
+              />
+
+              <textarea
+                ref={textareaRef}
+                value={value}
+                onChange={(e) => onChangeRef.current(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={uploading ? "Uploading…" : listening ? "Listening…" : luminaSpeaking ? "Lumina is speaking…" : placeholder}
+                rows={1}
+                disabled={disabled}
+                className={cn(
+                  "flex-1 bg-transparent resize-none outline-none",
+                  "text-[15px] leading-relaxed placeholder:text-muted-foreground/60",
+                  "scrollbar-minimal"
+                )}
+                style={{ maxHeight: '200px' }}
+              />
+
+              <div className="flex gap-2">
+                {supported && (
+                  <button
+                    type="button"
+                    onClick={toggleVoice}
+                    disabled={disabled || luminaSpeaking}
+                    className={cn(
+                      "shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all",
+                      listening
+                        ? "bg-red-500/90 text-white animate-pulse"
+                        : luminaSpeaking
+                          ? "text-foreground/30"
+                          : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                      "disabled:cursor-not-allowed"
+                    )}
+                    aria-label={listening ? "Stop listening" : "Voice input"}
+                  >
+                    {listening ? <MicOff className="w-4 h-4" strokeWidth={2} /> : <Mic className="w-4 h-4" strokeWidth={1.75} />}
+                  </button>
+                )}
+
+                <button
+                  onClick={submit}
+                  disabled={!canSend}
+                  className={cn(
+                    "shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
+                    "bg-foreground text-background transition-all",
+                    "hover:scale-105 disabled:opacity-30 disabled:hover:scale-100",
+                    "disabled:cursor-not-allowed"
+                  )}
+                  aria-label="Send"
+                >
+                  <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Preview pane */}
+          {showPreview && (
+            <div className="flex-1 overflow-y-auto scrollbar-minimal px-4 py-3 text-[15px] leading-relaxed bg-muted/30">
+              <ReactMarkdown
+                components={{
+                  p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                  h1: ({ children }) => <h1 className="text-lg font-semibold mt-4 mb-2">{children}</h1>,
+                  h2: ({ children }) => <h2 className="text-base font-semibold mt-3 mb-2">{children}</h2>,
+                  h3: ({ children }) => <h3 className="text-sm font-semibold mt-2 mb-1">{children}</h3>,
+                  ul: ({ children }) => <ul className="list-disc list-inside mb-3 space-y-1">{children}</ul>,
+                  ol: ({ children }) => <ol className="list-decimal list-inside mb-3 space-y-1">{children}</ol>,
+                  code: ({ inline, children }) => inline
+                    ? <code className="px-1.5 py-0.5 rounded bg-accent text-xs font-mono">{children}</code>
+                    : <pre className="bg-accent rounded p-2 mb-3 overflow-x-auto text-xs"><code>{children}</code></pre>,
+                  blockquote: ({ children }) => <blockquote className="border-l-2 border-border pl-3 italic text-muted-foreground my-3">{children}</blockquote>,
+                  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                  em: ({ children }) => <em className="italic">{children}</em>,
+                }}
+              >
+                {value}
+              </ReactMarkdown>
+            </div>
+          )}
         </div>
       </div>
     </div>
