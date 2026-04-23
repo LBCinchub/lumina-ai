@@ -41,6 +41,7 @@ function getBestVoice() {
 export function useSpeechOutput() {
   const [speaking, setSpeaking] = useState(false);
   const onEndRef = useRef(null);
+  const stoppedRef = useRef(false); // true when stop() was called manually
 
   // Call this on a direct user gesture (e.g. clicking the voice button)
   // to unlock the browser's speech synthesis autoplay policy
@@ -58,23 +59,26 @@ export function useSpeechOutput() {
     const clean = stripMarkdown(text);
     if (!clean) return;
 
+    stoppedRef.current = false;
     onEndRef.current = onEnd;
 
     const doSpeak = () => {
       const utter = new SpeechSynthesisUtterance(clean);
-      utter.rate = 0.95;   // natural conversational pace
-      utter.pitch = 1.0;   // natural pitch — human-like
+      utter.rate = 0.95;
+      utter.pitch = 1.0;
       utter.volume = 1;
 
       const voice = getBestVoice();
       if (voice) utter.voice = voice;
 
-      utter.onstart = () => setSpeaking(true);
+      utter.onstart = () => { if (!stoppedRef.current) setSpeaking(true); };
       utter.onend = () => {
+        if (stoppedRef.current) return; // manual stop — do nothing
         setSpeaking(false);
         onEndRef.current?.();
       };
       utter.onerror = (e) => {
+        if (stoppedRef.current) return; // manual stop — do nothing
         if (e.error === 'interrupted' || e.error === 'canceled') return;
         setSpeaking(false);
         onEndRef.current?.();
@@ -97,11 +101,11 @@ export function useSpeechOutput() {
 
   const stop = useCallback(() => {
     if (!window.speechSynthesis) return;
-    // Cancel multiple times — Chrome sometimes ignores a single cancel
+    stoppedRef.current = true; // block any pending onend/onerror callbacks
+    onEndRef.current = null;
     window.speechSynthesis.cancel();
     setTimeout(() => window.speechSynthesis.cancel(), 50);
     setTimeout(() => window.speechSynthesis.cancel(), 150);
-    onEndRef.current = null; // prevent onEnd from re-triggering mic restart
     setSpeaking(false);
   }, []);
 
