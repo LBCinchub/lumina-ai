@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 
-export function useSpeechInput({ onTranscript, onAutoSubmit }) {
+export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn }) {
   const [listening, setListening] = useState(false);
   const [supported] = useState(() => 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
   const recognitionRef = useRef(null);
@@ -10,8 +10,11 @@ export function useSpeechInput({ onTranscript, onAutoSubmit }) {
   // Always-current refs — updated synchronously on every render
   const onTranscriptRef = useRef(onTranscript);
   const onAutoSubmitRef = useRef(onAutoSubmit);
+  const onBargeInRef = useRef(onBargeIn);
   onTranscriptRef.current = onTranscript;
   onAutoSubmitRef.current = onAutoSubmit;
+  onBargeInRef.current = onBargeIn;
+  const bargedInRef = useRef(false);
 
   const createAndStart = useCallback(() => {
     if (!supported) return;
@@ -25,6 +28,7 @@ export function useSpeechInput({ onTranscript, onAutoSubmit }) {
     rec.maxAlternatives = 1;
 
     accumulatedRef.current = '';
+    bargedInRef.current = false;
 
     rec.onstart = () => setListening(true);
 
@@ -40,7 +44,15 @@ export function useSpeechInput({ onTranscript, onAutoSubmit }) {
         }
       }
       accumulatedRef.current = final;
-      onTranscriptRef.current((final + interim).trim());
+      const transcript = (final + interim).trim();
+
+      // Barge-in: if Lumina is speaking and user starts talking, interrupt her
+      if (!bargedInRef.current && transcript.length > 0 && onBargeInRef.current) {
+        bargedInRef.current = true;
+        onBargeInRef.current();
+      }
+
+      onTranscriptRef.current(transcript);
     };
 
     rec.onend = () => {

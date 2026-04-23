@@ -389,6 +389,7 @@ export default function Converse() {
               voiceMode={voiceMode}
               luminaSpeaking={speaking}
               onListeningChange={setListening}
+              onBargeIn={stopSpeaking}
             />
             <p className="text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground/60 text-center mt-3">
               Lumina reflects · not advises
