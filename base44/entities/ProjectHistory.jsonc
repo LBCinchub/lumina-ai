@@ -1,0 +1,46 @@
+{
+  "name": "ProjectHistory",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Reference to the BuildProject"
+    },
+    "html": {
+      "type": "string",
+      "description": "HTML snapshot at this point"
+    },
+    "messages": {
+      "type": "array",
+      "description": "Messages snapshot at this point",
+      "items": {
+        "type": "object"
+      }
+    },
+    "title": {
+      "type": "string",
+      "description": "User-assigned label for this snapshot"
+    },
+    "branch": {
+      "type": "string",
+      "description": "Branch name if created from a fork"
+    },
+    "is_auto": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether this was auto-saved or manual"
+    }
+  },
+  "required": [
+    "project_id",
+    "html"
+  ],
+  "rls": {
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

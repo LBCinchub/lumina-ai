@@ -4,10 +4,11 @@ import {
   Code2, Globe, Layers, ArrowUp, Copy, Check, ChevronDown, ChevronUp,
   Monitor, Eye, LayoutDashboard, ShoppingCart, Users, BarChart2, Calendar,
   MessageSquare, FileText, Kanban, CreditCard, Map, Bell, Settings,
-  Plus, Trash2, FolderOpen, Server, Github
+  Plus, Trash2, FolderOpen, Server, Github, History
 } from 'lucide-react';
 import VpsToolPanel from '@/components/build/VpsToolPanel';
 import GitHubSyncPanel from '@/components/build/GitHubSyncPanel';
+import HistorySidebar from '@/components/build/HistorySidebar';
 import LuminaMark from '@/components/layout/LuminaMark';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -156,6 +157,7 @@ export default function Build() {
   const [activeTab, setActiveTab] = useState('preview');
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
 
@@ -314,11 +316,50 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
       }
 
       loadProjects();
+
+      // Auto-save to history
+      if (projectId && (html || latestHTML)) {
+        base44.entities.ProjectHistory.create({
+          project_id: projectId,
+          html: html || latestHTML,
+          messages: finalMessages,
+          is_auto: true
+        }).catch(err => console.error('History save failed:', err));
+      }
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', content: "Something went wrong. Try again.", id: Date.now() + 1 }]);
     } finally {
       setSending(false);
     }
+  };
+
+  const handleRevert = async (snapshot) => {
+    setLatestHTML(snapshot.html);
+    setMessages(snapshot.messages || []);
+    setActiveTab('preview');
+  };
+
+  const handleBranch = async (snapshot) => {
+    // Create new project from snapshot
+    const branchName = `${activeProject?.title || 'Project'} - Branch`;
+    const newProject = await base44.entities.BuildProject.create({
+      title: branchName,
+      html: snapshot.html,
+      messages: snapshot.messages || [],
+      last_built_at: new Date().toISOString()
+    });
+
+    // Create history entry with branch info
+    await base44.entities.ProjectHistory.create({
+      project_id: newProject.id,
+      html: snapshot.html,
+      messages: snapshot.messages || [],
+      branch: branchName,
+      is_auto: false
+    });
+
+    selectProject(newProject);
+    loadProjects();
   };
 
   const handleKeyDown = (e) => {
@@ -333,6 +374,17 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] md:h-screen overflow-hidden">
+
+      {/* History sidebar - mobile/tablet only */}
+      {showHistory && (
+        <div className="lg:hidden w-64 shrink-0 border-r border-border bg-sidebar/60 flex flex-col">
+          <HistorySidebar
+            projectId={activeProjectId}
+            onRevert={handleRevert}
+            onBranch={handleBranch}
+          />
+        </div>
+      )}
 
       {/* Projects sidebar */}
       <aside className="hidden lg:flex w-52 shrink-0 border-r border-border flex-col bg-sidebar/60">
@@ -515,6 +567,26 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
             <Github className="w-3.5 h-3.5" strokeWidth={1.75} />
             Sync
           </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
+              activeTab === 'history' ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
+            )}
+          >
+            <History className="w-3.5 h-3.5" strokeWidth={1.75} />
+            History
+          </button>
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className={cn(
+              "lg:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ml-auto",
+              showHistory ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
+            )}
+            title="Toggle history sidebar"
+          >
+            <History className="w-3.5 h-3.5" strokeWidth={1.75} />
+          </button>
           {sending && <span className="ml-auto text-xs text-muted-foreground animate-pulse">Building…</span>}
           {syncing && <span className="ml-auto text-xs text-muted-foreground animate-pulse">Syncing…</span>}
         </div>
@@ -523,6 +595,14 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
           <PreviewPane html={latestHTML} />
         ) : activeTab === 'vps' ? (
           <VpsToolPanel />
+        ) : activeTab === 'history' ? (
+          <div className="hidden md:flex md:flex-col h-full">
+            <HistorySidebar
+              projectId={activeProjectId}
+              onRevert={handleRevert}
+              onBranch={handleBranch}
+            />
+          </div>
         ) : activeTab === 'sync' ? (
           activeProject ? (
             <GitHubSyncPanel 
