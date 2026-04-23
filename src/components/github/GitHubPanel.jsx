@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 const CONNECTOR_ID = '69e9a63841ece86c3a6ac789';
 const DEFAULT_REPO = 'LBCinchub/lumina-ai';
 
-export default function GitHubPanel() {
+export default function GitHubPanel({ onConnectionChange }) {
   const [user, setUser] = useState(null);
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -30,11 +30,14 @@ export default function GitHubPanel() {
       if (res.data?.content !== undefined) {
         setFileContent(res.data.content);
         setConnected(true);
+        onConnectionChange?.(true);
       } else {
         setConnected(false);
+        onConnectionChange?.(false);
       }
     } catch {
       setConnected(false);
+      onConnectionChange?.(false);
     }
   }, [repo, filePath]);
 
@@ -73,6 +76,7 @@ export default function GitHubPanel() {
     setConnected(false);
     setFileContent('');
     setStatus(null);
+    onConnectionChange?.(false);
   };
 
   const handleFetchFile = async () => {
