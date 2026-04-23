@@ -32,6 +32,14 @@ export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn }) {
 
     rec.onstart = () => setListening(true);
 
+    // Fire barge-in as soon as the mic picks up ANY audio — before speech is even recognised
+    rec.onaudiostart = () => {
+      if (!bargedInRef.current && onBargeInRef.current) {
+        bargedInRef.current = true;
+        onBargeInRef.current();
+      }
+    };
+
     rec.onresult = (e) => {
       let final = '';
       let interim = '';
