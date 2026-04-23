@@ -155,6 +155,8 @@ export default function Converse() {
     if (!text && !attachments.length) return;
     if (isSendingRef.current) return;
 
+    console.log('[Converse] Submitting message:', { text, attachments });
+
     // If Lumina is speaking, interrupt her immediately
     if (speaking) stopSpeaking();
 
@@ -433,7 +435,10 @@ export default function Converse() {
               ref={composerRef}
               value={input}
               onChange={setInput}
-              onSubmit={handleSubmit}
+              onSubmit={(text, attachments) => {
+                console.log('[Converse] Composer submitted:', { text, attachments });
+                handleSubmit(text, attachments);
+              }}
               disabled={isSending}
               voiceMode={voiceMode}
               luminaSpeaking={speaking}

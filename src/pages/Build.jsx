@@ -445,25 +445,29 @@ Respond as Lumina. Describe the visual design clearly and concisely for image ge
             <div className="px-4 py-3 text-xs text-muted-foreground/60">No projects yet</div>
           ) : (
             projects.map(p => (
-              <button
+              <div
                 key={p.id}
-                onClick={() => selectProject(p)}
                 className={cn(
-                  "w-full flex items-center gap-2 px-3 py-2.5 text-left group transition-colors",
+                  "w-full flex items-center gap-2 px-3 py-2.5 text-left group rounded transition-colors",
                   activeProjectId === p.id
                     ? "bg-accent text-foreground"
                     : "text-foreground/70 hover:bg-accent/60 hover:text-foreground"
                 )}
               >
-                <FolderOpen className="w-3.5 h-3.5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
-                <span className="text-xs truncate flex-1">{p.title}</span>
+                <button
+                  onClick={() => selectProject(p)}
+                  className="flex-1 flex items-center gap-2"
+                >
+                  <FolderOpen className="w-3.5 h-3.5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+                  <span className="text-xs truncate">{p.title}</span>
+                </button>
                 <button
                   onClick={(e) => deleteProject(e, p.id)}
-                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:text-destructive transition-all"
+                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:text-destructive transition-all shrink-0"
                 >
                   <Trash2 className="w-3 h-3" />
                 </button>
-              </button>
+              </div>
             ))
           )}
         </div>
