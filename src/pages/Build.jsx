@@ -9,7 +9,10 @@ import {
 import VpsToolPanel from '@/components/build/VpsToolPanel.jsx';
 import GitHubSyncPanel from '@/components/build/GitHubSyncPanel.jsx';
 import HistorySidebar from '@/components/build/HistorySidebar.jsx';
+import CollaboratorPresence from '@/components/build/CollaboratorPresence.jsx';
+import CursorTracker from '@/components/build/CursorTracker.jsx';
 import LuminaMark from '@/components/layout/LuminaMark';
+import { useCollaborativeSession } from '@/hooks/useCollaborativeSession';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 
@@ -174,8 +177,10 @@ export default function Build() {
   const [syncing, setSyncing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [user, setUser] = useState(null);
+  const [collaborators, setCollaborators] = useState([]);
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
+  const { syncSession } = useCollaborativeSession(activeProjectId, setCollaborators);
 
   const loadProjects = useCallback(async () => {
     setLoadingProjects(true);
@@ -297,10 +302,15 @@ Respond as Lumina. Describe the visual design clearly and concisely for image ge
       if (imageUrl) {
         setLatestImageUrl(imageUrl);
         setActiveTab('preview');
-      }
-      setMessages(finalMessages);
+        }
+        setMessages(finalMessages);
 
-      // Generate smart title from chat on first message
+        // Sync collaborative session
+        if (activeProjectId) {
+          await syncSession(latestHTML, null, null);
+        }
+
+        // Generate smart title from chat on first message
       let title = null;
       if (messages.length === 0) {
         try {
@@ -570,17 +580,18 @@ Respond as Lumina. Describe the visual design clearly and concisely for image ge
 
       {/* Preview panel */}
       <div className="hidden md:flex flex-col flex-1 min-w-0 relative">
-        <div className="shrink-0 px-5 py-3 border-b border-border/60 flex items-center gap-1">
-          <button
-            onClick={() => setActiveTab('preview')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
-              activeTab === 'preview' ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
-            )}
-          >
-            <Eye className="w-3.5 h-3.5" strokeWidth={1.75} />
-            Preview
-          </button>
+        <div className="shrink-0 px-5 py-3 border-b border-border/60 flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setActiveTab('preview')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
+                activeTab === 'preview' ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
+              )}
+            >
+              <Eye className="w-3.5 h-3.5" strokeWidth={1.75} />
+              Preview
+            </button>
           <button
             onClick={() => setActiveTab('code')}
             className={cn(
@@ -623,6 +634,10 @@ Respond as Lumina. Describe the visual design clearly and concisely for image ge
             <History className="w-3.5 h-3.5" strokeWidth={1.75} />
             History
           </button>
+          </div>
+          {activeProjectId && collaborators.length > 0 && (
+            <CollaboratorPresence collaborators={collaborators} currentUserEmail={user?.email} />
+          )}
           <button
             onClick={() => setShowHistory(!showHistory)}
             className={cn(
@@ -638,7 +653,10 @@ Respond as Lumina. Describe the visual design clearly and concisely for image ge
         </div>
 
         {activeTab === 'preview' ? (
-          <PreviewPane html={latestHTML} latestImageUrl={latestImageUrl} />
+          <div className="relative flex-1">
+            <CursorTracker collaborators={collaborators} currentUserEmail={user?.email} />
+            <PreviewPane html={latestHTML} latestImageUrl={latestImageUrl} />
+          </div>
         ) : activeTab === 'vps' && isOwner ? (
           <VpsToolPanel />
         ) : activeTab === 'history' ? (

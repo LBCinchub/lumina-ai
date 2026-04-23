@@ -1,0 +1,77 @@
+{
+  "name": "CollaborativeSession",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Reference to the BuildProject being edited"
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Email of the collaborator"
+    },
+    "user_name": {
+      "type": "string",
+      "description": "Display name of the collaborator"
+    },
+    "cursor_position": {
+      "type": "object",
+      "properties": {
+        "line": {
+          "type": "number"
+        },
+        "column": {
+          "type": "number"
+        }
+      },
+      "description": "Current cursor position in the editor"
+    },
+    "selection": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "number"
+        },
+        "end": {
+          "type": "number"
+        }
+      },
+      "description": "Current text selection range"
+    },
+    "color": {
+      "type": "string",
+      "description": "Color assigned to this collaborator for UI indicators"
+    },
+    "last_active_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this user was last active"
+    }
+  },
+  "required": [
+    "project_id",
+    "user_email"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "created_by": "{{user.email}}"
+        },
+        {
+          "user_email": "{{user.email}}"
+        }
+      ]
+    },
+    "write": {
+      "$or": [
+        {
+          "created_by": "{{user.email}}"
+        },
+        {
+          "user_email": "{{user.email}}"
+        }
+      ]
+    }
+  }
+}
