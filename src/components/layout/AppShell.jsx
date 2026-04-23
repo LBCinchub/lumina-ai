@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { MessageSquare, User, Sparkles, Code2, Menu, X, Sun, Moon, LayoutDashboard, BookOpen, LogIn, Briefcase } from 'lucide-react';
+import { MessageSquare, User, Sparkles, Code2, Menu, X, Sun, Moon, LayoutDashboard, BookOpen, LogIn, Briefcase, Github } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ const navItems = [
   { to: '/twin', label: 'Your Twin', icon: Sparkles },
   { to: '/insights', label: 'Insights', icon: Sparkles },
   { to: '/resources', label: 'Resources', icon: BookOpen },
+  { to: '/github', label: 'GitHub', icon: Github },
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
 ];
 
