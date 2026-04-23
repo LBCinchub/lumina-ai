@@ -7,7 +7,6 @@ import {
   Plus, Trash2, FolderOpen
 } from 'lucide-react';
 import LuminaMark from '@/components/layout/LuminaMark';
-import ProjectDashboard from '@/components/build/ProjectDashboard.jsx';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 
@@ -490,12 +489,7 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
           </div>
         )}
 
-        {/* Floating Dashboard */}
-        {activeProject && !isEmpty && latestHTML && (
-          <div className="absolute bottom-6 right-6 z-20 max-w-sm">
-            <ProjectDashboard project={{ ...activeProject, html: latestHTML }} />
-          </div>
-        )}
+
       </div>
     </div>
   );

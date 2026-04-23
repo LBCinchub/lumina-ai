@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-// deno-lint-ignore-next-line no-undef
+/* global Deno */
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
