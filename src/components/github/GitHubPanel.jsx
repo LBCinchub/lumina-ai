@@ -64,7 +64,19 @@ export default function GitHubPanel({ onConnectionChange }) {
     try {
       const url = await base44.connectors.connectAppUser(CONNECTOR_ID);
       if (!url) throw new Error('No OAuth URL returned. Make sure GitHub OAuth credentials are configured in the connector settings.');
-      window.location.href = url;
+      const popup = window.open(url, '_blank', 'width=500,height=600');
+      if (!popup) {
+        setStatus({ type: 'error', message: 'Pop-up blocked. Enable pop-ups and try again.' });
+        setConnecting(false);
+        return;
+      }
+      const timer = setInterval(() => {
+        if (!popup || popup.closed) {
+          clearInterval(timer);
+          setConnecting(false);
+          checkConnection();
+        }
+      }, 500);
     } catch (e) {
       setStatus({ type: 'error', message: `Connection failed: ${e.message}` });
       setConnecting(false);
