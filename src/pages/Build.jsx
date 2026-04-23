@@ -6,9 +6,9 @@ import {
   MessageSquare, FileText, Kanban, CreditCard, Map, Bell, Settings,
   Plus, Trash2, FolderOpen, Server, Github, History
 } from 'lucide-react';
-import VpsToolPanel from '@/components/build/VpsToolPanel';
-import GitHubSyncPanel from '@/components/build/GitHubSyncPanel';
-import HistorySidebar from '@/components/build/HistorySidebar';
+import VpsToolPanel from '@/components/build/VpsToolPanel.jsx';
+import GitHubSyncPanel from '@/components/build/GitHubSyncPanel.jsx';
+import HistorySidebar from '@/components/build/HistorySidebar.jsx';
 import LuminaMark from '@/components/layout/LuminaMark';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -158,6 +158,7 @@ export default function Build() {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [user, setUser] = useState(null);
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
 
@@ -169,7 +170,15 @@ export default function Build() {
     return data;
   }, []);
 
-  useEffect(() => { loadProjects(); }, [loadProjects]);
+  useEffect(() => {
+    base44.auth.isAuthenticated().then(async (authed) => {
+      if (authed) {
+        const me = await base44.auth.me();
+        setUser(me);
+      }
+    });
+    loadProjects();
+  }, [loadProjects]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -371,6 +380,7 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
 
   const isEmpty = messages.length === 0;
   const activeProject = projects.find(p => p.id === activeProjectId);
+  const isOwner = activeProject && user?.email === activeProject.created_by;
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] md:h-screen overflow-hidden">
@@ -547,16 +557,18 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
             <Monitor className="w-3.5 h-3.5" strokeWidth={1.75} />
             Code
           </button>
-          <button
-            onClick={() => setActiveTab('vps')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
-              activeTab === 'vps' ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
-            )}
-          >
-            <Server className="w-3.5 h-3.5" strokeWidth={1.75} />
-            VPS
-          </button>
+          {isOwner && (
+            <button
+              onClick={() => setActiveTab('vps')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors",
+                activeTab === 'vps' ? "bg-accent text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
+              )}
+            >
+              <Server className="w-3.5 h-3.5" strokeWidth={1.75} />
+              VPS
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('sync')}
             className={cn(
@@ -593,7 +605,7 @@ Respond as Lumina. Build exactly what was asked. Do not add disclaimers.`;
 
         {activeTab === 'preview' ? (
           <PreviewPane html={latestHTML} />
-        ) : activeTab === 'vps' ? (
+        ) : activeTab === 'vps' && isOwner ? (
           <VpsToolPanel />
         ) : activeTab === 'history' ? (
           <div className="hidden md:flex md:flex-col h-full">
