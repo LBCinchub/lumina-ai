@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { conversation_id, message, file_urls } = await req.json();
+    const { conversation_id, message, file_urls, explicit_context } = await req.json();
 
     if (!conversation_id || (!message && (!file_urls || !file_urls.length))) {
       return Response.json({ error: 'Missing conversation_id or message' }, { status: 400 });
@@ -129,8 +129,13 @@ Deno.serve(async (req) => {
     const contexts = await db.entities.UserContext.filter({ created_by: user.email });
     const userContext = contexts[0] || null;
 
-    // Load user documents (ready ones only)
-    const docs = await db.entities.Document.filter({ created_by: user.email, status: 'ready' }, '-created_date', 10);
+    // Load documents: explicit selection takes priority, then auto-load ready ones
+    let docs = [];
+    if (explicit_context?.document_ids?.length > 0) {
+      docs = await db.entities.Document.filter({ id: { $in: explicit_context.document_ids }, status: 'ready' });
+    } else {
+      docs = await db.entities.Document.filter({ created_by: user.email, status: 'ready' }, '-created_date', 10);
+    }
 
     // Load recent messages from this conversation
     const history = await db.entities.Message.filter(
@@ -157,8 +162,29 @@ Deno.serve(async (req) => {
       ? docs.map(d => `--- Document: "${d.title}" ---\n${(d.content || '').slice(0, 8000)}`).join('\n\n')
       : null;
 
+    // Load conversations if explicitly selected
+    let convosBlock = null;
+    if (explicit_context?.conversation_ids?.length > 0) {
+      const convos = await db.entities.Conversation.filter({ id: { $in: explicit_context.conversation_ids } });
+      const convoMessages = await Promise.all(
+        convos.map(c => db.entities.Message.filter({ conversation_id: c.id }, 'created_date', 20))
+      );
+      
+      if (convoMessages.some(msgs => msgs.length > 0)) {
+        convosBlock = convos.map((c, idx) => {
+          const msgs = convoMessages[idx] || [];
+          const msgText = msgs.map(m => `${m.role === 'user' ? 'User' : 'Lumina'}: ${m.content}`).join('\n');
+          return `--- Conversation: "${c.title}" ---\n${msgText}`;
+        }).join('\n\n');
+      }
+    }
+
     const docsSection = docsBlock
       ? `\nDOCUMENTS IN THE USER'S LIBRARY (use these as source material when relevant — cite the document title when referencing):\n${docsBlock}\n---\n`
+      : '';
+
+    const convosSection = convosBlock
+      ? `\nRELEVANT PAST CONVERSATIONS (use these to inform your understanding of context):\n${convosBlock}\n---\n`
       : '';
 
     const isFounder = user.email === 'mokhtartareksamara@gmail.com';
@@ -172,7 +198,7 @@ ${founderNote}
 PERSONAL CONTEXT ABOUT THIS USER:
 ${contextBlock}
 ---
-${docsSection}
+${docsSection}${convosSection}
 CONVERSATION SO FAR:
 ${historyBlock}
 

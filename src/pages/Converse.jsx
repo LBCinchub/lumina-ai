@@ -7,6 +7,7 @@ import ThinkingIndicator from '@/components/chat/ThinkingIndicator';
 import Composer from '@/components/chat/Composer';
 import LuminaMark from '@/components/layout/LuminaMark';
 import ContextToggle from '@/components/converse/ContextToggle';
+import ContextSelector from '@/components/converse/ContextSelector';
 import { PanelLeft, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useExportPDF } from '@/hooks/useExportPDF';
@@ -38,6 +39,7 @@ export default function Converse() {
   const [opener] = useState(() => OPENERS[Math.floor(Math.random() * OPENERS.length)]);
   const [currentContext, setCurrentContext] = useState('yours');
   const [sisterMessages, setSisterMessages] = useState([]);
+  const [selectedContext, setSelectedContext] = useState({ documents: [], conversations: [] });
 
   const scrollRef = useRef(null);
   const activeIdRef = useRef(null);
@@ -192,7 +194,15 @@ export default function Converse() {
     setIsSending(true);
 
     try {
-      const result = await base44.functions.invoke('chatWithLumina', { conversation_id: convoId, message: displayText, file_urls: fileUrls });
+      const result = await base44.functions.invoke('chatWithLumina', { 
+        conversation_id: convoId, 
+        message: displayText, 
+        file_urls: fileUrls,
+        explicit_context: {
+          document_ids: selectedContext.documents.map(d => d.id),
+          conversation_ids: selectedContext.conversations.map(c => c.id)
+        }
+      });
       
       // Stream the response in chunks for ~1 second total display
       if (result.data?.content) {
@@ -379,7 +389,15 @@ export default function Converse() {
 
         {/* Composer */}
         <div className="shrink-0 border-t border-border/60 bg-background/80 backdrop-blur-xl">
-          <div className="max-w-3xl mx-auto px-5 md:px-8 py-4">
+          <div className="max-w-3xl mx-auto px-5 md:px-8 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <ContextSelector onContextChange={setSelectedContext} />
+              {selectedContext.documents.length > 0 || selectedContext.conversations.length > 0 ? (
+                <span className="text-[10px] text-muted-foreground">
+                  {selectedContext.documents.length + selectedContext.conversations.length} context item(s) selected
+                </span>
+              ) : null}
+            </div>
             <Composer
               ref={composerRef}
               value={input}
