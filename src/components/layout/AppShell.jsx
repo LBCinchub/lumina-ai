@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/useTheme';
+import { useLBCHandshake } from '@/hooks/useLBCHandshake';
 import LuminaMark from './LuminaMark';
 
 const navItems = [
@@ -20,6 +21,7 @@ const navItems = [
 ];
 
 export default function AppShell() {
+  useLBCHandshake();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState(null);
   const { theme, toggle } = useTheme();
