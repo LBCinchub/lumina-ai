@@ -2,23 +2,22 @@ import React from 'react';
 
 export default function CollaboratorPresence({ collaborators = [], currentUserEmail }) {
   const others = collaborators.filter(c => c.user_email !== currentUserEmail);
-
-  if (!others.length) return null;
+  if (others.length === 0) return null;
 
   return (
     <div className="flex items-center gap-1 ml-2">
-      {others.slice(0, 5).map(c => (
+      {others.slice(0, 4).map((c, i) => (
         <div
-          key={c.user_email}
-          className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-black"
-          style={{ backgroundColor: c.color || '#10b981' }}
+          key={c.id || i}
           title={c.user_name || c.user_email}
+          className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-background"
+          style={{ backgroundColor: c.color || '#6366f1', marginLeft: i > 0 ? '-6px' : '0' }}
         >
           {(c.user_name || c.user_email || '?')[0].toUpperCase()}
         </div>
       ))}
-      {others.length > 5 && (
-        <span className="text-[10px] text-muted-foreground">+{others.length - 5}</span>
+      {others.length > 4 && (
+        <span className="text-[10px] text-muted-foreground ml-1">+{others.length - 4}</span>
       )}
     </div>
   );
