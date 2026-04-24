@@ -1,0 +1,30 @@
+{
+  "name": "LuminaState",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Current Lumina version identifier"
+    },
+    "last_refactor": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of last refactor"
+    },
+    "active_goals": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Lumina's current active goals"
+    },
+    "technical_debt": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Logged self-corrections and known issues"
+    }
+  },
+  "required": []
+}
