@@ -1,0 +1,32 @@
+name: LBC Protocol Integrity Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Lint Protocol Logic
+        run: deno lint src/functions/protocolGuard.ts src/logic/LBCOrchestrator.ts
+
+      - name: Verify Cryptographic Signatures
+        run: |
+          echo "Running LBC_SIGNATURE_VERIFICATION..."
+          deno test --allow-env src/functions/protocolGuard.test.ts
+
+      - name: Check Sister Hub Handshake Compatibility
+        run: |
+          deno run --allow-net src/logic/SisterSync.ts --verify-only
