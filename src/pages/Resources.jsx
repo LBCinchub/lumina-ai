@@ -1,191 +1,132 @@
 import React, { useState } from 'react';
-import { Search, FileText, Code2, Wrench, ChevronRight, ExternalLink } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { Book, Code, Terminal, Cpu, Search, ChevronRight, FileCode, Shield } from 'lucide-react';
 
 const RESOURCES = [
   {
-    category: 'LBC.Network',
-    description: 'Core protocol documentation and foundational tools',
-    icon: '🌳',
-    items: [
-      { name: 'LBC Protocol Whitepaper', type: 'documentation', url: '#', icon: FileText },
-      { name: 'LBC Architecture Guide', type: 'documentation', url: '#', icon: FileText },
-      { name: 'LBC.js SDK', type: 'sdk', url: '#', icon: Code2 },
-      { name: 'Protocol Validator Tool', type: 'tool', url: '#', icon: Wrench },
-    ]
+    id: 'sdk-01',
+    category: 'SDKs',
+    title: 'LBC Core TypeScript SDK',
+    description: 'The primary entry point for building apps on the LBC protocol.',
+    status: 'Stable',
+    version: 'v2.4.0'
   },
   {
-    category: 'LBCHub.io',
-    description: 'Hub infrastructure, ecosystem tools, and integration guides',
-    icon: '👥',
-    items: [
-      { name: 'Hub API Documentation', type: 'documentation', url: '#', icon: FileText },
-      { name: 'Hub Integration Guide', type: 'documentation', url: '#', icon: FileText },
-      { name: 'Hub Client SDK', type: 'sdk', url: '#', icon: Code2 },
-      { name: 'Domain Manager Dashboard', type: 'tool', url: '#', icon: Wrench },
-      { name: 'Hub CLI Toolkit', type: 'tool', url: '#', icon: Wrench },
-    ]
+    id: 'api-01',
+    category: 'API Reference',
+    title: 'Mother Node REST API',
+    description: 'Full documentation for interacting directly with lbc.network.',
+    status: 'Updated',
+    version: 'v1.1.2'
   },
   {
-    category: 'Portfolio Companies',
-    description: 'Resources for LBC Protocol-powered portfolio ventures',
-    icon: '🚀',
-    items: [
-      { name: 'Getting Started on LBCHub', type: 'documentation', url: '#', icon: FileText },
-      { name: 'Portfolio Developer Guide', type: 'documentation', url: '#', icon: FileText },
-      { name: 'Portfolio SDK Templates', type: 'sdk', url: '#', icon: Code2 },
-      { name: 'Revenue Share Calculator', type: 'tool', url: '#', icon: Wrench },
-    ]
+    id: 'sec-01',
+    category: 'Security',
+    title: 'Protocol Guard Implementation',
+    description: 'Standard practices for securing handshakes between LBC nodes.',
+    status: 'Critical',
+    version: 'v1.0.0'
   }
 ];
 
-const TYPE_COLORS = {
-  documentation: 'bg-blue-500/10 text-blue-300 border-blue-500/20',
-  sdk: 'bg-purple-500/10 text-purple-300 border-purple-500/20',
-  tool: 'bg-green-500/10 text-green-300 border-green-500/20',
-};
-
-const TYPE_LABELS = {
-  documentation: 'Documentation',
-  sdk: 'SDK',
-  tool: 'Tool',
-};
+const CategoryCard = ({ icon, title, count }) => (
+  <div className="p-6 bg-slate-900/40 border border-white/[0.03] rounded-3xl hover:border-white/10 transition-all cursor-pointer">
+    <div className="p-3 bg-white/5 w-fit rounded-xl mb-6">{icon}</div>
+    <h4 className="text-lg font-bold mb-1">{title}</h4>
+    <p className="text-xs text-white/20 font-mono uppercase tracking-widest">{count} Resources Available</p>
+  </div>
+);
 
 export default function Resources() {
-  const [search, setSearch] = useState('');
-  const [selectedType, setSelectedType] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredResources = RESOURCES.map(category => ({
-    ...category,
-    items: category.items.filter(item => {
-      const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
-      const matchesType = !selectedType || item.type === selectedType;
-      return matchesSearch && matchesType;
-    })
-  })).filter(category => category.items.length > 0);
+  const filtered = RESOURCES.filter(r =>
+    !searchQuery ||
+    r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    r.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    r.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div className="min-h-screen">
-      <div className="max-w-5xl mx-auto px-6 md:px-10 py-12 md:py-20">
+    <div className="p-10 bg-slate-950 min-h-screen font-sans text-emerald-50">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-12">
-          <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground mb-3">
-            Developer hub
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-16">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-3">
+              <Book className="w-4 h-4 text-emerald-500" />
+              <span className="text-emerald-500/60 font-mono text-[10px] tracking-[0.3em] uppercase">LBC_Documentation_Hub</span>
+            </div>
+            <h1 className="text-5xl font-black tracking-tighter mb-2">Resource Library</h1>
+            <p className="text-emerald-100/30 text-lg">Build the future of decentralized intelligence.</p>
           </div>
-          <h1 className="font-serif text-4xl md:text-5xl tracking-tight leading-[1.05] mb-4">
-            Resource Explorer
-          </h1>
-          <p className="text-[15px] text-muted-foreground leading-relaxed max-w-2xl">
-            Documentation, SDKs, and developer tools organized across the LBC.Network ecosystem hierarchy.
-          </p>
-        </div>
 
-        {/* Filters */}
-        <div className="mb-10 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search resources..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
+          <div className="w-full md:w-96 relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500/40" />
+            <input
+              type="text"
+              placeholder="Search protocol, SDKs, security..."
+              className="w-full bg-emerald-500/5 border border-emerald-500/10 rounded-2xl py-4 pl-12 pr-6 text-sm focus:outline-none focus:border-emerald-500/40 transition-all placeholder:text-emerald-900 text-emerald-50"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
             />
           </div>
+        </header>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setSelectedType(null)}
-              className={cn(
-                "px-3 py-1.5 rounded-full text-xs font-medium transition-all",
-                !selectedType
-                  ? "bg-foreground text-background"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              )}
-            >
-              All
-            </button>
-            {Object.entries(TYPE_LABELS).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setSelectedType(selectedType === key ? null : key)}
-                className={cn(
-                  "px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
-                  selectedType === key
-                    ? "bg-accent border-accent text-accent-foreground"
-                    : "bg-card border-border hover:border-foreground/30"
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+        {/* Categories */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <CategoryCard icon={<Code className="text-emerald-400" />} title="SDKs & Tooling" count={4} />
+          <CategoryCard icon={<Terminal className="text-blue-400" />} title="API Reference" count={12} />
+          <CategoryCard icon={<Shield className="text-amber-400" />} title="Security Protocols" count={3} />
         </div>
 
-        {/* Resource Categories */}
-        <div className="space-y-8">
-          {filteredResources.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No resources found matching your criteria.</p>
-            </div>
-          ) : (
-            filteredResources.map((category) => (
-              <div key={category.category} className="rounded-2xl border border-border bg-card/40 overflow-hidden">
-                <div className="px-6 py-5 border-b border-border/60 bg-muted/30">
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="text-2xl">{category.icon}</span>
-                    <h2 className="font-serif text-xl tracking-tight">{category.category}</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{category.description}</p>
+        {/* Resource List */}
+        <div className="space-y-4">
+          <h3 className="text-[10px] font-mono font-bold text-emerald-500/40 uppercase tracking-widest mb-6">Featured_Resources</h3>
+          {filtered.map(res => (
+            <div key={res.id} className="group bg-slate-900/50 border border-white/[0.03] p-6 rounded-3xl hover:border-emerald-500/20 hover:bg-emerald-500/[0.02] transition-all flex items-center justify-between">
+              <div className="flex items-center gap-6">
+                <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-emerald-500/40 group-hover:text-emerald-500 group-hover:bg-emerald-500/10 transition-all">
+                  <FileCode size={24} />
                 </div>
-
-                <div className="divide-y divide-border/60">
-                  {category.items.map((item) => (
-                    <a
-                      key={item.name}
-                      href={item.url}
-                      className="px-6 py-4 flex items-center justify-between hover:bg-accent/50 transition-colors group"
-                    >
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <item.icon className="w-4 h-4 text-muted-foreground shrink-0" />
-                        <div className="min-w-0">
-                          <p className="font-medium text-foreground group-hover:text-foreground/90 truncate">
-                            {item.name}
-                          </p>
-                          <span className={cn(
-                            "inline-block text-xs font-medium px-2 py-1 rounded-full border mt-1.5",
-                            TYPE_COLORS[item.type]
-                          )}>
-                            {TYPE_LABELS[item.type]}
-                          </span>
-                        </div>
-                      </div>
-                      <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-foreground shrink-0 ml-4" />
-                    </a>
-                  ))}
+                <div>
+                  <div className="flex items-center gap-3 mb-1">
+                    <h4 className="text-lg font-bold text-white/90">{res.title}</h4>
+                    <span className="text-[8px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full font-mono uppercase font-bold">{res.status}</span>
+                  </div>
+                  <p className="text-sm text-white/30">{res.description}</p>
                 </div>
               </div>
-            ))
+              <div className="flex items-center gap-8">
+                <div className="text-right hidden md:block">
+                  <p className="text-[10px] text-white/20 font-mono uppercase tracking-widest">Version</p>
+                  <p className="text-xs font-bold text-white/60">{res.version}</p>
+                </div>
+                <button className="p-3 bg-white/5 rounded-xl text-white/20 group-hover:text-emerald-400 group-hover:bg-emerald-500/10 transition-all">
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            </div>
+          ))}
+          {filtered.length === 0 && (
+            <p className="text-center text-emerald-500/30 text-sm font-mono py-10">NO_RESOURCES_FOUND</p>
           )}
         </div>
 
-        {/* Quick Links */}
-        <div className="mt-14 pt-10 border-t border-border">
-          <h2 className="font-serif text-2xl tracking-tight mb-6">Quick Links</h2>
-          <div className="grid md:grid-cols-3 gap-4">
-            <a href="#" className="p-5 rounded-xl border border-border bg-card/40 hover:bg-accent/50 transition-colors flex items-center justify-between group">
-              <span className="font-medium">LBC.Network GitHub</span>
-              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </a>
-            <a href="#" className="p-5 rounded-xl border border-border bg-card/40 hover:bg-accent/50 transition-colors flex items-center justify-between group">
-              <span className="font-medium">Developer Community</span>
-              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </a>
-            <a href="#" className="p-5 rounded-xl border border-border bg-card/40 hover:bg-accent/50 transition-colors flex items-center justify-between group">
-              <span className="font-medium">Bug Reports & Issues</span>
-              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </a>
+        {/* Quick-Start Terminal */}
+        <div className="mt-16 p-8 bg-black border border-emerald-500/10 rounded-[2.5rem] relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-8 text-emerald-500/5 opacity-50 group-hover:opacity-100 transition-opacity">
+            <Cpu size={120} />
+          </div>
+          <div className="relative z-10">
+            <h2 className="text-2xl font-bold mb-4">Initialize the Protocol</h2>
+            <div className="flex flex-col md:flex-row gap-4 items-center">
+              <div className="flex-1 w-full bg-slate-950 p-4 rounded-xl font-mono text-sm text-emerald-400 border border-emerald-500/20">
+                <span className="text-emerald-900">$</span> npm install @lbc-protocol/sdk --core
+              </div>
+              <button className="w-full md:w-auto px-10 py-4 bg-emerald-500 text-black font-black rounded-xl hover:bg-emerald-400 transition-all">
+                VIEW_DOCS
+              </button>
+            </div>
           </div>
         </div>
       </div>
