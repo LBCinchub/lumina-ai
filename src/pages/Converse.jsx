@@ -227,23 +227,11 @@ export default function Converse() {
       }
 
       const content = result.data.content;
-      
-      // Stream the response in chunks
-      const chunkSize = Math.ceil(content.length / 10);
-      let displayed = '';
-      
-      for (let i = 0; i < content.length; i += chunkSize) {
-        displayed += content.slice(i, i + chunkSize);
-        setMessages(prev => {
-          const last = prev[prev.length - 1];
-          if (last?.role === 'assistant' && String(last.id).startsWith('streaming-')) {
-            return [...prev.slice(0, -1), { ...last, content: displayed }];
-          }
-          return prev;
-        });
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      
+
+      // Optimistically show assistant response immediately
+      const assistantMsg = { id: 'assistant-' + Date.now(), role: 'assistant', content, conversation_id: convoId };
+      setMessages(prev => [...prev.filter(m => m.id !== optimistic.id), { ...optimistic, id: optimistic.id }, assistantMsg]);
+
       // Sync to shared pool if in your context
       if (currentContext === 'yours') {
         try {
@@ -256,9 +244,11 @@ export default function Converse() {
         }
       }
 
-      // Reload messages from server to ensure consistency
-      await loadMessages(convoId);
-      loadConversations();
+      // Reload messages from server in background (backend saves async)
+      setTimeout(() => {
+        loadMessages(convoId);
+        loadConversations();
+      }, 1500);
     } catch (err) {
       console.error('Message send failed:', err);
       // Remove optimistic message and show error
