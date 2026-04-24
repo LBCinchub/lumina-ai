@@ -2,6 +2,7 @@ import React from 'react';
 import LBCInternalMonitor from '@/components/monitor/LBCInternalMonitor';
 import SecurityShield from '@/components/security/SecurityShield';
 import DeploymentTerminal from '@/components/dashboard/DeploymentTerminal';
+import AutonomousWorkspace from '@/components/dashboard/AutonomousWorkspace';
 import { Activity, LayoutGrid, Zap, Globe } from 'lucide-react';
 
 const LOG_ENTRIES = [
@@ -90,6 +91,9 @@ export default function Dashboard() {
               <h3 className="text-[10px] font-mono font-bold text-emerald-500/40 uppercase tracking-widest mb-4">Strategic_Roadmap</h3>
               <p className="text-emerald-100/20 text-sm">Visit <a href="/pulse" className="text-emerald-500 underline">/pulse</a> for the full FuturePulse dashboard.</p>
             </div>
+
+            {/* Autonomous Workspace */}
+            <AutonomousWorkspace />
 
             {/* Deployment Terminal */}
             <DeploymentTerminal />
