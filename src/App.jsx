@@ -16,6 +16,7 @@ import Resources from '@/pages/Resources';
 import YourTwinDigital from '@/pages/YourTwinDigital';
 import GitHub from '@/pages/GitHub';
 import VPS from '@/pages/VPS';
+import FuturePulse from '@/pages/FuturePulse';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -54,6 +55,7 @@ const AuthenticatedApp = () => {
         <Route path="/resources" element={<Resources />} />
         <Route path="/github" element={<GitHub />} />
         <Route path="/vps" element={<VPS />} />
+        <Route path="/pulse" element={<FuturePulse />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
