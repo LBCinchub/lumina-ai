@@ -1,58 +1,26 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-// In-memory task store (per-instance, resets on cold start)
-const activeTasks = new Map();
+// In-memory thread store (resets on cold start)
+const activeThreads = new Map();
 
-async function verifyHandshake(payload) {
-  const secret = Deno.env.get("VPS_API_HASH") || "lbc-secret";
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw", encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false, ["sign"]
-  );
-  const data = encoder.encode(JSON.stringify(payload));
-  await crypto.subtle.sign("HMAC", key, data);
-  return true; // Internal bypass always passes signature
-}
+async function executeTask(base44, id) {
+  const thread = activeThreads.get(id);
+  if (!thread) return;
 
-async function executeTask(base44, id, metadata) {
-  const task = activeTasks.get(id);
-  if (!task) return;
-
-  task.status = 'running';
-  task.logs.push(`[${new Date().toISOString()}] Handshaking with Protocol Guard...`);
-
-  try {
-    const isSecure = await verifyHandshake({ taskId: id });
-    if (!isSecure) throw new Error("Guard rejected agent execution.");
-
-    task.progress = 50;
-    task.logs.push(`[${new Date().toISOString()}] Executing ${task.type} logic...`);
-
-    // Simulate async work
-    await new Promise(r => setTimeout(r, 500));
-
-    task.progress = 100;
-    task.status = 'completed';
-    task.logs.push(`[${new Date().toISOString()}] Task successful.`);
-
-    // Log to LuminaState
-    const states = await base44.asServiceRole.entities.LuminaState.list();
-    if (states[0]) {
-      const debt = [...(states[0].technical_debt || []), `AUTO_TASK_SUCCESS: ${id}`];
-      await base44.asServiceRole.entities.LuminaState.update(states[0].id, { technical_debt: debt });
-    }
-  } catch (err) {
-    task.status = 'failed';
-    task.logs.push(`[ERROR] ${err.message}`);
-
-    const states = await base44.asServiceRole.entities.LuminaState.list();
-    if (states[0]) {
-      const debt = [...(states[0].technical_debt || []), `AGENT_TASK_FAILURE: ${id}`];
-      await base44.asServiceRole.entities.LuminaState.update(states[0].id, { technical_debt: debt });
-    }
+  for (let i = 10; i <= 100; i += 10) {
+    await new Promise(r => setTimeout(r, 800));
+    thread.progress = i;
+    if (i === 100) thread.status = 'completed';
   }
+
+  // Remove from LuminaState goals on completion
+  try {
+    const states = await base44.asServiceRole.entities.LuminaState.list();
+    if (states[0]) {
+      const goals = (states[0].active_goals || []).filter(g => !g.startsWith(`Thread_${id}`));
+      await base44.asServiceRole.entities.LuminaState.update(states[0].id, { active_goals: goals });
+    }
+  } catch (_) {}
 }
 
 Deno.serve(async (req) => {
@@ -61,24 +29,30 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { action, type, metadata } = await req.json();
+    const { action, task } = await req.json();
 
     if (action === 'spawn') {
-      const taskId = `LBC-TASK-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-      const newTask = {
-        id: taskId,
-        type: type || 'latency_opt',
-        status: 'queued',
-        progress: 0,
-        logs: [`[${new Date().toISOString()}] Task initialized by Lumina Core.`]
-      };
-      activeTasks.set(taskId, newTask);
-      executeTask(base44, taskId, metadata || {});
-      return Response.json({ success: true, taskId });
+      const id = Math.random().toString(36).substr(2, 8).toUpperCase();
+      const newThread = { id, task: task || 'generic_task', status: 'active', progress: 0 };
+      activeThreads.set(id, newThread);
+
+      // Track in LuminaState
+      try {
+        const states = await base44.asServiceRole.entities.LuminaState.list();
+        if (states[0]) {
+          const goals = [...(states[0].active_goals || []), `Thread_${id}: ${task}`];
+          await base44.asServiceRole.entities.LuminaState.update(states[0].id, { active_goals: goals });
+        }
+      } catch (_) {}
+
+      // Execute in background (fire and forget)
+      executeTask(base44, id);
+
+      return Response.json({ success: true, threadId: id });
     }
 
     if (action === 'list') {
-      return Response.json({ tasks: Array.from(activeTasks.values()) });
+      return Response.json({ threads: Array.from(activeThreads.values()) });
     }
 
     return Response.json({ error: 'Unknown action' }, { status: 400 });
