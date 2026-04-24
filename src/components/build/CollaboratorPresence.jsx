@@ -10,8 +10,8 @@ export default function CollaboratorPresence({ collaborators = [], currentUserEm
         <div
           key={c.id || i}
           title={c.user_name || c.user_email}
-          className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-background"
-          style={{ backgroundColor: c.color || '#6366f1', marginLeft: i > 0 ? '-6px' : '0' }}
+          className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-medium text-white border border-background"
+          style={{ backgroundColor: c.color || '#6366f1', marginLeft: i > 0 ? '-6px' : 0 }}
         >
           {(c.user_name || c.user_email || '?')[0].toUpperCase()}
         </div>
