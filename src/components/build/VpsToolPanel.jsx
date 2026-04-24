@@ -4,9 +4,9 @@ import { Power, RotateCw, AlertCircle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ACTIONS = [
-  { id: 'boot', label: 'Boot Server', icon: Power, color: 'bg-green-500' },
-  { id: 'reboot', label: 'Reboot', icon: RotateCw, color: 'bg-blue-500' },
-  { id: 'shutdown', label: 'Shutdown', icon: Power, color: 'bg-red-500' },
+  { id: 'boot', label: 'Boot Server', color: 'bg-green-500' },
+  { id: 'reboot', label: 'Reboot', color: 'bg-blue-500' },
+  { id: 'shutdown', label: 'Shutdown', color: 'bg-red-500' },
 ];
 
 export default function VpsToolPanel() {
@@ -40,15 +40,15 @@ export default function VpsToolPanel() {
       </div>
 
       <div className="grid grid-cols-1 gap-3">
-        {ACTIONS.map(({ id, label, icon: Icon, color }) => (
+        {ACTIONS.map(({ id, label, color }) => (
           <button
             key={id}
             onClick={() => executeAction(id)}
             disabled={loading}
             className="flex items-center gap-3 px-4 py-3 rounded-lg border border-border hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
           >
-            <div className={cn('w-8 h-8 rounded flex items-center justify-center text-white', color)}>
-              <Icon className="w-4 h-4" strokeWidth={1.75} />
+            <div className={cn('w-8 h-8 rounded flex items-center justify-center text-white text-xs font-bold', color)}>
+              {id[0].toUpperCase()}
             </div>
             <span className="text-sm font-medium">{label}</span>
           </button>

@@ -244,11 +244,8 @@ export default function Converse() {
         }
       }
 
-      // Reload messages from server in background (backend saves async)
-      setTimeout(() => {
-        loadMessages(convoId);
-        loadConversations();
-      }, 1500);
+      // Reload conversations list only (not messages — backend saves async, don't overwrite optimistic)
+      loadConversations();
     } catch (err) {
       console.error('Message send failed:', err);
       // Remove optimistic message and show error
