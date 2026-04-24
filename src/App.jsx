@@ -17,6 +17,8 @@ import YourTwinDigital from '@/pages/YourTwinDigital';
 import GitHub from '@/pages/GitHub';
 import VPS from '@/pages/VPS';
 import FuturePulse from '@/pages/FuturePulse';
+import LBCCommandCenter from '@/pages/LBCCommandCenter';
+import LBCDeploymentEngine from '@/pages/LBCDeploymentEngine';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -56,6 +58,8 @@ const AuthenticatedApp = () => {
         <Route path="/github" element={<GitHub />} />
         <Route path="/vps" element={<VPS />} />
         <Route path="/pulse" element={<FuturePulse />} />
+        <Route path="/lbc-command-center" element={<LBCCommandCenter />} />
+        <Route path="/lbc-deployment" element={<LBCDeploymentEngine />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

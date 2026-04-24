@@ -18,6 +18,8 @@ const navItems = [
   { to: '/github', label: 'GitHub', icon: Github },
   { to: '/vps', label: 'VPS', icon: Server },
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/lbc-command-center', label: 'LBC Hub', icon: LayoutDashboard },
+  { to: '/lbc-deployment', label: 'Deployment', icon: Code2 },
 ];
 
 export default function AppShell() {
