@@ -3,7 +3,7 @@ import VPSPanel from '@/components/vps/VPSPanel';
 
 export default function VpsToolPanel() {
   return (
-    <div className="flex-1 overflow-y-auto scrollbar-minimal p-5">
+    <div className="flex-1 overflow-y-auto scrollbar-minimal p-6">
       <VPSPanel />
     </div>
   );
