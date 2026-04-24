@@ -1,112 +1,73 @@
 import React, { useState } from 'react';
-import { Github, Copy, Check, AlertCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { base44 } from '@/api/base44Client';
+import { Github, Save, ToggleLeft, ToggleRight } from 'lucide-react';
 
 export default function GitHubSyncPanel({ project, onUpdate }) {
   const [repo, setRepo] = useState(project?.github_repo || '');
   const [path, setPath] = useState(project?.github_path || '');
   const [autoSync, setAutoSync] = useState(project?.github_auto_sync || false);
-  const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
-    try {
-      await onUpdate({
-        github_repo: repo,
-        github_path: path,
-        github_auto_sync: autoSync
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const copyPath = () => {
-    navigator.clipboard.writeText(`${repo}/${path}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    await onUpdate({ github_repo: repo, github_path: path, github_auto_sync: autoSync });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
   return (
-    <div className="flex-1 overflow-y-auto scrollbar-minimal p-6 space-y-6">
-      <div>
-        <h3 className="font-medium mb-1 flex items-center gap-2">
-          <Github className="w-4 h-4" />
-          GitHub Sync
-        </h3>
-        <p className="text-sm text-muted-foreground">Auto-sync project to GitHub repository.</p>
+    <div className="flex-1 overflow-y-auto p-6 max-w-xl">
+      <div className="flex items-center gap-2 mb-6">
+        <Github className="w-4 h-4 text-foreground/70" strokeWidth={1.75} />
+        <h2 className="font-serif text-lg tracking-tight">GitHub Sync</h2>
       </div>
 
       <div className="space-y-4">
         <div>
-          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2 block">
-            Repository (owner/repo)
-          </label>
+          <label className="text-xs text-muted-foreground mb-1 block">Repository (owner/repo)</label>
           <input
             type="text"
             value={repo}
-            onChange={(e) => setRepo(e.target.value)}
-            placeholder="myuser/myrepo"
-            className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:border-foreground/50"
+            onChange={e => setRepo(e.target.value)}
+            placeholder="e.g. mokhtar/lbc-hub"
+            className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm outline-none focus:border-foreground/30 transition-colors"
           />
         </div>
 
         <div>
-          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2 block">
-            File Path
-          </label>
+          <label className="text-xs text-muted-foreground mb-1 block">File path in repo</label>
           <input
             type="text"
             value={path}
-            onChange={(e) => setPath(e.target.value)}
-            placeholder="src/index.html"
-            className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:border-foreground/50"
+            onChange={e => setPath(e.target.value)}
+            placeholder="e.g. index.html"
+            className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm outline-none focus:border-foreground/30 transition-colors"
           />
         </div>
 
-        <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card/50">
-          <input
-            type="checkbox"
-            id="auto-sync"
-            checked={autoSync}
-            onChange={(e) => setAutoSync(e.target.checked)}
-            className="w-4 h-4 rounded cursor-pointer"
-          />
-          <label htmlFor="auto-sync" className="text-sm cursor-pointer flex-1">
-            Auto-sync on build
-          </label>
+        <div className="flex items-center justify-between py-3 border-t border-border/60">
+          <div>
+            <p className="text-sm font-medium">Auto-sync on build</p>
+            <p className="text-xs text-muted-foreground">Push to GitHub every time you build</p>
+          </div>
+          <button onClick={() => setAutoSync(v => !v)} className="text-foreground/70 hover:text-foreground transition-colors">
+            {autoSync
+              ? <ToggleRight className="w-7 h-7 text-foreground" />
+              : <ToggleLeft className="w-7 h-7" />
+            }
+          </button>
         </div>
 
-        {repo && path && (
-          <div className="p-3 rounded-lg bg-accent/50 border border-border flex items-center justify-between">
-            <code className="text-xs text-foreground/80 font-mono">{repo}/{path}</code>
-            <button
-              onClick={copyPath}
-              className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
-            >
-              {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-            </button>
-          </div>
-        )}
-
-        {!repo && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 rounded-lg bg-muted/30 border border-border">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>Configure repository to enable GitHub sync.</span>
-          </div>
-        )}
-      </div>
-
-      <div className="flex gap-2">
-        <Button
+        <button
           onClick={handleSave}
-          disabled={saving || !repo || !path}
-          className="flex-1"
+          disabled={saving}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
         >
-          {saving ? 'Saving…' : 'Save Config'}
-        </Button>
+          <Save className="w-3.5 h-3.5" />
+          {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Config'}
+        </button>
       </div>
     </div>
   );

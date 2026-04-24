@@ -1,42 +1,32 @@
 import React from 'react';
-import { cn } from '@/lib/utils';
 
-export default function CursorTracker({ collaborators, currentUserEmail }) {
-  const activeCursors = collaborators.filter(
-    c => c.user_email !== currentUserEmail && c.cursor_position
-  );
+export default function CursorTracker({ collaborators = [], currentUserEmail }) {
+  const others = collaborators.filter(c => c.user_email !== currentUserEmail && c.cursor_position);
 
-  if (activeCursors.length === 0) {
-    return null;
-  }
+  if (!others.length) return null;
 
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
-      {activeCursors.map(collab => (
-        <div key={collab.id} className="absolute">
-          {/* Cursor line */}
-          <div
-            className="absolute w-0.5 h-5 animate-pulse"
-            style={{
-              backgroundColor: collab.color,
-              left: `${collab.cursor_position?.column * 8 || 0}px`,
-              top: `${(collab.cursor_position?.line || 0) * 24}px`
-            }}
-          />
-          
-          {/* User label */}
-          <div
-            className="absolute text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap text-white shadow-lg"
-            style={{
-              backgroundColor: collab.color,
-              left: `${collab.cursor_position?.column * 8 || 0}px`,
-              top: `${(collab.cursor_position?.line || 0) * 24 - 20}px`
-            }}
+    <>
+      {others.map(c => (
+        <div
+          key={c.user_email}
+          className="absolute pointer-events-none z-50 transition-all duration-100"
+          style={{
+            top: `${c.cursor_position?.y || 0}px`,
+            left: `${c.cursor_position?.x || 0}px`,
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M0 0L0 12L3.5 8.5L6 14L7.5 13.5L5 8H9.5L0 0Z" fill={c.color || '#10b981'} />
+          </svg>
+          <span
+            className="absolute left-4 top-0 text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap"
+            style={{ backgroundColor: c.color || '#10b981', color: '#000' }}
           >
-            {collab.user_name}
-          </div>
+            {c.user_name || c.user_email?.split('@')[0]}
+          </span>
         </div>
       ))}
-    </div>
+    </>
   );
 }
