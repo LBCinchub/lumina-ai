@@ -44,6 +44,24 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, signature: sig });
     }
 
+    if (action === 'hardware_auth') {
+      const { serial, ip } = await req.json().catch(() => ({}));
+      const MASTER_SERIAL = "R52W507LWCR";
+      const MASTER_IP = "10.88.111.2";
+      const authorized = serial === MASTER_SERIAL && ip === MASTER_IP;
+
+      if (authorized) {
+        const states = await base44.asServiceRole.entities.LuminaState.list();
+        const state = states[0];
+        if (state) {
+          const goals = (state.active_goals || []).filter(g => g !== 'Hardware_Node_Registration');
+          await base44.asServiceRole.entities.LuminaState.update(state.id, { active_goals: goals });
+        }
+      }
+
+      return Response.json({ success: true, authorized, device: authorized ? "SM-X900_MASTER_NODE" : null });
+    }
+
     if (action === 'verify') {
       if (!payload || !signature) return Response.json({ error: 'payload and signature required' }, { status: 400 });
       const isValid = await verifyHandshake(payload, signature);
