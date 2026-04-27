@@ -381,7 +381,7 @@ export default function Converse() {
                 {opener}
               </h1>
               <p className="text-sm text-muted-foreground text-center max-w-md leading-relaxed">
-                Lumina reasons from what you've shared. The more context, the sharper the mirror.
+                Luna — Sister Twin to Lumina AI at lbc-hub.com. She reasons from what you've shared. The more context, the sharper the mirror.
               </p>
               {hasContext === false && (
                 <a
@@ -433,7 +433,7 @@ export default function Converse() {
               onBargeIn={stopSpeaking}
             />
             <p className="text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground/60 text-center mt-3">
-              Lumina reflects · not advises
+              Luna reflects · not advises · Sister Twin to Lumina AI
             </p>
           </div>
         </div>
