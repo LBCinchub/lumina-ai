@@ -1,11 +1,60 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import LuminaMark from '@/components/layout/LuminaMark';
-import { Zap } from 'lucide-react';
+import { Zap, Download, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+function GeneratedImage({ url, caption }) {
+  const [loaded, setLoaded] = useState(false);
+  const handleDownload = () => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'luna-image.png';
+    a.target = '_blank';
+    a.click();
+  };
+  return (
+    <div className="space-y-3">
+      <div className="relative rounded-2xl overflow-hidden border border-blue-400/20 shadow-[0_0_30px_rgba(96,165,250,0.15)]">
+        {!loaded && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+            <div className="flex flex-col items-center gap-2">
+              <RefreshCw className="w-6 h-6 text-blue-300 animate-spin" />
+              <span className="text-xs text-blue-300/60 font-mono">Rendering…</span>
+            </div>
+          </div>
+        )}
+        <img
+          src={url}
+          alt="Generated"
+          onLoad={() => setLoaded(true)}
+          className={cn("w-full max-w-lg rounded-2xl object-cover transition-opacity duration-500", loaded ? "opacity-100" : "opacity-0")}
+        />
+      </div>
+      {loaded && (
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-[11px] text-blue-300/50 font-mono leading-relaxed flex-1 italic">{caption}</p>
+          <button
+            onClick={handleDownload}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-blue-300 border border-blue-400/20 hover:bg-blue-400/10 transition-colors"
+          >
+            <Download className="w-3 h-3" /> Save
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function MessageBubble({ message, isLatest }) {
   const isUser = message.role === 'user';
+  const isImageMessage = !isUser && message.content?.startsWith('__IMAGE__');
+  let imageUrl = null, imageCaption = null;
+  if (isImageMessage) {
+    const parts = message.content.split('__CAPTION__');
+    imageUrl = parts[0].replace('__IMAGE__', '').trim();
+    imageCaption = parts[1]?.trim() || '';
+  }
 
   const fileUrls = message.file_urls || [];
 
@@ -49,9 +98,12 @@ export default function MessageBubble({ message, isLatest }) {
       >
         <div className="flex gap-2 items-center mb-2 border-b border-blue-400/15 pb-2">
           <Zap className="w-3.5 h-3.5 text-blue-300 fill-blue-300" style={{filter: 'drop-shadow(0 0 6px rgba(96,165,250,0.9))'}} />
-          <span className="text-[10px] uppercase tracking-[0.16em] text-blue-300/60 font-mono">Lumina</span>
+          <span className="text-[10px] uppercase tracking-[0.16em] text-blue-300/60 font-mono">Luna</span>
         </div>
-        <ReactMarkdown>{message.content}</ReactMarkdown>
+        {isImageMessage
+          ? <GeneratedImage url={imageUrl} caption={imageCaption} />
+          : <ReactMarkdown>{message.content}</ReactMarkdown>
+        }
       </div>
     </div>
   );

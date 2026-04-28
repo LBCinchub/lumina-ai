@@ -206,30 +206,28 @@ User: ${message}
 
 Respond as Lumina. Do not prefix with "Lumina:" — just write the response directly.`;
 
-    // Check if user is asking for image generation
-    const messageWords = message.toLowerCase();
-    const hasImageIntent = /\b(generate|create|draw|make|design|paint|imagine)\b.*\b(pic|picture|image|photo|visual|art|artwork|illustration)\b/i.test(message) ||
-                           /\b(generate|create|draw|make|design|paint|imagine)\s+(me\s+)?(a|an|some)?\s*\b(pic|picture|image|photo|visual|art|artwork|illustration|image of)\b/i.test(message);
+    // Detect image generation intent broadly
+    const hasImageIntent = /\b(generate|create|draw|make|design|paint|imagine|show|render|visualize|produce|sketch|illustrate|depict)\b/i.test(message) &&
+      /\b(image|picture|photo|pic|artwork|illustration|visual|art|painting|portrait|scene|landscape|logo|icon|poster|wallpaper|drawing|render|graphic)\b/i.test(message);
 
     let assistantContent;
 
     if (hasImageIntent) {
-      // Generate image
-      try {
-        const imgRes = await base44.integrations.Core.GenerateImage({
-          prompt: message
-        });
-        assistantContent = `**Your prompt:**\n"${message}"\n\n**Generated image:**\n\n![Generated image](${imgRes.url})\n\nLet me know if you'd like variations or adjustments!`;
-      } catch (imgErr) {
-        // Fallback to normal chat if image generation fails
-        const llmResponse = await base44.integrations.Core.InvokeLLM({
-          prompt: fullPrompt,
-          add_context_from_internet: true,
-          model: 'gemini_3_flash',
-          ...(file_urls && file_urls.length ? { file_urls } : {})
-        });
-        assistantContent = typeof llmResponse === 'string' ? llmResponse : (llmResponse?.content || String(llmResponse));
-      }
+      // First, use LLM to craft a rich, detailed image generation prompt
+      const promptEnhanceRes = await base44.integrations.Core.InvokeLLM({
+        prompt: `You are a world-class prompt engineer for AI image generation. 
+The user wants to generate an image. Their request: "${message}"
+
+Write a single, highly detailed image generation prompt (2-4 sentences) that will produce a stunning, professional-quality image. 
+Include: subject, style, lighting, mood, color palette, composition, quality keywords like "photorealistic", "8k", "cinematic", "masterpiece" etc.
+Return ONLY the prompt text, nothing else.`
+      });
+      const enhancedPrompt = (typeof promptEnhanceRes === 'string' ? promptEnhanceRes : String(promptEnhanceRes)).trim();
+
+      const imgRes = await base44.integrations.Core.GenerateImage({
+        prompt: enhancedPrompt
+      });
+      assistantContent = `__IMAGE__${imgRes.url}__CAPTION__${enhancedPrompt}`;
     } else {
       // Normal conversation
       const llmResponse = await base44.integrations.Core.InvokeLLM({

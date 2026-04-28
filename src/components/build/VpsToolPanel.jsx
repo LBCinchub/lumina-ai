@@ -1,84 +1,84 @@
 import React, { useState } from 'react';
-import { Server, Terminal, Copy, Check } from 'lucide-react';
+import { Server, Terminal, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
 
 export default function VpsToolPanel() {
-  const [copied, setCopied] = useState(false);
+  const [command, setCommand] = useState('');
+  const [output, setOutput] = useState('');
+  const [running, setRunning] = useState(false);
+  const [status, setStatus] = useState(null); // 'success' | 'error' | null
 
-  const copyCommand = (cmd) => {
-    navigator.clipboard.writeText(cmd);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const runCommand = async () => {
+    if (!command.trim() || running) return;
+    setRunning(true);
+    setOutput('');
+    setStatus(null);
+    try {
+      const res = await base44.functions.invoke('vpsControl', { command });
+      setOutput(res.data?.output || JSON.stringify(res.data, null, 2));
+      setStatus('success');
+    } catch (err) {
+      setOutput(err.message || 'Command failed');
+      setStatus('error');
+    } finally {
+      setRunning(false);
+    }
   };
+
+  const quickCommands = ['uptime', 'df -h', 'free -m', 'ps aux --sort=-%cpu | head -10'];
 
   return (
     <div className="flex-1 overflow-y-auto scrollbar-minimal p-6">
       <div className="max-w-2xl space-y-6">
-        <div className="flex items-center gap-2 mb-6">
+        <div className="flex items-center gap-2">
           <Server className="w-5 h-5 text-foreground/60" />
-          <h2 className="text-lg font-medium">VPS Deployment Tools</h2>
+          <h2 className="text-lg font-medium">VPS Tool Panel</h2>
         </div>
 
-        <div className="space-y-4">
-          <div className="p-4 rounded-lg border border-border bg-card">
-            <h3 className="text-sm font-medium text-foreground/80 mb-2">Deploy to VPS</h3>
-            <p className="text-xs text-muted-foreground mb-3">Push your project to a virtual private server for production deployment.</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 text-xs font-mono bg-muted/60 px-3 py-2 rounded text-foreground/80 truncate">
-                npm run deploy:vps
-              </code>
-              <button
-                onClick={() => copyCommand('npm run deploy:vps')}
-                className="p-2 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-              >
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-lg border border-border bg-card">
-            <h3 className="text-sm font-medium text-foreground/80 mb-2">SSH Access</h3>
-            <p className="text-xs text-muted-foreground mb-3">Connect to your server via SSH for direct control.</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 text-xs font-mono bg-muted/60 px-3 py-2 rounded text-foreground/80 truncate">
-                ssh -i ~/.ssh/vps_key user@your-vps-ip
-              </code>
-              <button
-                onClick={() => copyCommand('ssh -i ~/.ssh/vps_key user@your-vps-ip')}
-                className="p-2 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-              >
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-lg border border-border bg-card">
-            <h3 className="text-sm font-medium text-foreground/80 mb-2">View Logs</h3>
-            <p className="text-xs text-muted-foreground mb-3">Monitor your application logs in real-time.</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 text-xs font-mono bg-muted/60 px-3 py-2 rounded text-foreground/80 truncate">
-                npm run logs:vps
-              </code>
-              <button
-                onClick={() => copyCommand('npm run logs:vps')}
-                className="p-2 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-              >
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
+        <div className="flex flex-wrap gap-2">
+          {quickCommands.map(cmd => (
+            <button
+              key={cmd}
+              onClick={() => setCommand(cmd)}
+              className="px-3 py-1.5 rounded-lg border border-border bg-card text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors font-mono"
+            >
+              {cmd}
+            </button>
+          ))}
         </div>
 
-        <div className="p-4 rounded-lg bg-muted/40 border border-border/60">
-          <div className="flex gap-2 items-start">
-            <Terminal className="w-4 h-4 text-muted-foreground mt-0.5" />
-            <div>
-              <p className="text-xs font-medium text-foreground/70 mb-1">Getting Started</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Configure your VPS credentials in the project settings before deploying. Ensure you have SSH access set up and the deployment keys installed.
-              </p>
-            </div>
-          </div>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={command}
+            onChange={e => setCommand(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && runCommand()}
+            placeholder="Enter shell command…"
+            className="flex-1 px-3 py-2.5 rounded-lg border border-border bg-card text-sm font-mono focus:outline-none focus:border-foreground/30 transition-colors"
+          />
+          <button
+            onClick={runCommand}
+            disabled={!command.trim() || running}
+            className="flex items-center gap-2 px-4 py-2.5 bg-foreground text-background rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-all"
+          >
+            {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Terminal className="w-4 h-4" />}
+            Run
+          </button>
         </div>
+
+        {(output || running) && (
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-muted/40">
+              <Terminal className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground font-mono">Output</span>
+              {status === 'success' && <CheckCircle2 className="w-3.5 h-3.5 text-green-500 ml-auto" />}
+              {status === 'error' && <AlertCircle className="w-3.5 h-3.5 text-destructive ml-auto" />}
+            </div>
+            <pre className="p-4 text-xs font-mono text-foreground/80 whitespace-pre-wrap overflow-x-auto max-h-80 scrollbar-minimal">
+              {running ? 'Running…' : output}
+            </pre>
+          </div>
+        )}
       </div>
     </div>
   );
