@@ -137,6 +137,13 @@ Deno.serve(async (req) => {
       docs = await db.entities.Document.filter({ created_by: user.email, status: 'ready' }, '-created_date', 10);
     }
 
+    // Load active knowledge sources as primary retrieval layer
+    const knowledgeSources = await db.entities.KnowledgeSource.filter(
+      { created_by: user.email, status: 'ready', is_active: true },
+      '-created_date',
+      20
+    );
+
     // Load recent messages from this conversation
     const history = await db.entities.Message.filter(
       { conversation_id },
@@ -179,6 +186,15 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Build knowledge sources block
+    const knowledgeBlock = knowledgeSources.length > 0
+      ? knowledgeSources.map(ks => `--- Knowledge Source: "${ks.title}" [${ks.source_type}] ---\n${(ks.content || '').slice(0, 10000)}`).join('\n\n')
+      : null;
+
+    const knowledgeSection = knowledgeBlock
+      ? `\nKNOWLEDGE SOURCES (PRIMARY RETRIEVAL LAYER — consult these FIRST before general knowledge. Cite the source title when referencing):\n${knowledgeBlock}\n---\n`
+      : '';
+
     const docsSection = docsBlock
       ? `\nDOCUMENTS IN THE USER'S LIBRARY (use these as source material when relevant — cite the document title when referencing):\n${docsBlock}\n---\n`
       : '';
@@ -198,7 +214,7 @@ ${founderNote}
 PERSONAL CONTEXT ABOUT THIS USER:
 ${contextBlock}
 ---
-${docsSection}${convosSection}
+${knowledgeSection}${docsSection}${convosSection}
 CONVERSATION SO FAR:
 ${historyBlock}
 

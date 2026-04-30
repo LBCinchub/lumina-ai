@@ -1,0 +1,70 @@
+{
+  "name": "KnowledgeSource",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Display name of the knowledge source"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "file",
+        "url",
+        "text"
+      ],
+      "description": "Type of knowledge source"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL of the uploaded file (for file type)"
+    },
+    "url": {
+      "type": "string",
+      "description": "Web URL to fetch content from (for url type)"
+    },
+    "raw_text": {
+      "type": "string",
+      "description": "Pasted text content (for text type)"
+    },
+    "content": {
+      "type": "string",
+      "description": "Extracted/processed text content used for retrieval"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "processing",
+        "ready",
+        "error"
+      ],
+      "default": "processing",
+      "description": "Processing status"
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Error details if processing failed"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether this source is included in Luna's context"
+    },
+    "file_size": {
+      "type": "number",
+      "description": "File size in bytes (for file type)"
+    }
+  },
+  "required": [
+    "title",
+    "source_type"
+  ],
+  "rls": {
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

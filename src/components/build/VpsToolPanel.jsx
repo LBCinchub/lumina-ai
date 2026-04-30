@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Server, Terminal, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
+const QUICK_COMMANDS = ['uptime', 'df -h', 'free -m', 'ps aux --sort=-%cpu | head -10'];
+
 export default function VpsToolPanel() {
   const [command, setCommand] = useState('');
   const [output, setOutput] = useState('');
   const [running, setRunning] = useState(false);
-  const [status, setStatus] = useState(null); // 'success' | 'error' | null
+  const [status, setStatus] = useState(null);
 
   const runCommand = async () => {
     if (!command.trim() || running) return;
@@ -25,8 +27,6 @@ export default function VpsToolPanel() {
     }
   };
 
-  const quickCommands = ['uptime', 'df -h', 'free -m', 'ps aux --sort=-%cpu | head -10'];
-
   return (
     <div className="flex-1 overflow-y-auto scrollbar-minimal p-6">
       <div className="max-w-2xl space-y-6">
@@ -36,7 +36,7 @@ export default function VpsToolPanel() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {quickCommands.map(cmd => (
+          {QUICK_COMMANDS.map(cmd => (
             <button
               key={cmd}
               onClick={() => setCommand(cmd)}

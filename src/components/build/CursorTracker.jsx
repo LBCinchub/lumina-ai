@@ -1,45 +1,31 @@
 import React from 'react';
 
-const colorMap = {
-  0: 'bg-red-500',
-  1: 'bg-blue-500',
-  2: 'bg-green-500',
-  3: 'bg-purple-500',
-  4: 'bg-yellow-500',
-  5: 'bg-pink-500',
-};
-
 export default function CursorTracker({ collaborators, currentUserEmail }) {
-  if (!collaborators || collaborators.length === 0) {
-    return null;
-  }
-
-  const otherCollaborators = collaborators.filter(c => c.user_email !== currentUserEmail);
+  const others = (collaborators || []).filter(c => c.user_email !== currentUserEmail && c.cursor_position);
+  if (!others.length) return null;
 
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      {otherCollaborators.map((collab, idx) => {
-        const cursor = collab.cursor_position;
-        if (!cursor) return null;
-
-        const xPercent = (cursor.column / 100) * 100;
-        const yPercent = (cursor.line / 100) * 100;
-        const colorClass = colorMap[idx % 6];
-
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-10">
+      {others.map((c, i) => {
+        const { line = 0, column = 0 } = c.cursor_position || {};
+        const top = Math.min((line / 100) * 100, 95);
+        const left = Math.min((column / 120) * 100, 95);
         return (
-          <div key={collab.id} className="absolute">
+          <div
+            key={c.id || i}
+            className="absolute flex items-center gap-1 transition-all duration-300"
+            style={{ top: `${top}%`, left: `${left}%` }}
+          >
             <div
-              className={`w-1 h-6 ${colorClass} rounded-sm opacity-70 transition-all duration-150`}
-              style={{
-                left: `${xPercent}%`,
-                top: `${yPercent}%`,
-                transform: 'translateX(-50%)',
-              }}
+              className="w-2 h-4 rounded-sm opacity-80"
+              style={{ backgroundColor: c.color || '#6366f1' }}
+            />
+            <span
+              className="text-[9px] text-white px-1 py-0.5 rounded whitespace-nowrap"
+              style={{ backgroundColor: c.color || '#6366f1' }}
             >
-              <div className={`absolute top-0 left-0 text-[10px] font-semibold text-white ${colorClass} px-1.5 py-0.5 rounded whitespace-nowrap -translate-y-full -translate-x-1/2`}>
-                {collab.user_name}
-              </div>
-            </div>
+              {c.user_name || c.user_email?.split('@')[0] || '?'}
+            </span>
           </div>
         );
       })}
