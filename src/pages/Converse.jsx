@@ -43,6 +43,7 @@ export default function Converse() {
 
   const scrollRef = useRef(null);
   const activeIdRef = useRef(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(null); // null = checking
   const [voiceMode, setVoiceMode] = useState(false);
   const [listening, setListening] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -84,8 +85,13 @@ export default function Converse() {
   }, []);
 
   useEffect(() => {
-    loadConversations();
-    base44.entities.UserContext.list().then(ctxs => setHasContext(ctxs.length > 0));
+    base44.auth.isAuthenticated().then(authed => {
+      setIsAuthenticated(authed);
+      if (authed) {
+        loadConversations();
+        base44.entities.UserContext.list().then(ctxs => setHasContext(ctxs.length > 0));
+      }
+    });
   }, [loadConversations]);
 
   useEffect(() => {
@@ -248,8 +254,12 @@ export default function Converse() {
       loadConversations();
     } catch (err) {
       console.error('Message send failed:', err);
-      // Remove optimistic message and show error
       setMessages(prev => prev.filter(m => m.id !== optimistic.id));
+      // If session expired, redirect to login
+      if (err?.message?.includes('401') || err?.message?.toLowerCase().includes('auth') || err?.message?.toLowerCase().includes('unauthorized')) {
+        setIsAuthenticated(false);
+        return;
+      }
       setMessages(prev => [...prev, { 
         id: 'error-' + Date.now(), 
         role: 'assistant', 
@@ -291,6 +301,34 @@ export default function Converse() {
   };
 
   const showEmpty = !activeId && messages.length === 0;
+
+  // Auth gate — show sign-in screen for unauthenticated users (common on mobile)
+  if (isAuthenticated === false) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-h-screen px-6 text-center animate-fade-up">
+        <LuminaMark size={56} className="text-foreground/70 mb-8" />
+        <h1 className="font-serif text-3xl tracking-tight mb-3">Welcome to Luna</h1>
+        <p className="text-sm text-muted-foreground max-w-xs leading-relaxed mb-8">
+          Sign in to start a conversation. Luna remembers your context and grows with you.
+        </p>
+        <button
+          onClick={() => base44.auth.redirectToLogin()}
+          className="flex items-center gap-2 px-6 py-3 bg-foreground text-background rounded-full text-sm font-medium hover:opacity-90 transition-all"
+        >
+          Sign in to continue
+        </button>
+      </div>
+    );
+  }
+
+  // Still checking auth
+  if (isAuthenticated === null) {
+    return (
+      <div className="flex-1 flex items-center justify-center min-h-screen">
+        <div className="w-6 h-6 border-2 border-border border-t-foreground rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <>

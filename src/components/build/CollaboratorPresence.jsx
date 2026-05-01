@@ -1,8 +1,7 @@
 import React from 'react';
-import { cn } from '@/lib/utils';
 
 export default function CollaboratorPresence({ collaborators, currentUserEmail }) {
-  const others = collaborators.filter(c => c.user_email !== currentUserEmail);
+  const others = (collaborators || []).filter(c => c.user_email !== currentUserEmail);
   if (!others.length) return null;
 
   return (
