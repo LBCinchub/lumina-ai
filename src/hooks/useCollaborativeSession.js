@@ -1,57 +1,38 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 
-const SYNC_INTERVAL = 2000; // Sync every 2 seconds
-const INACTIVITY_TIMEOUT = 30000; // Remove user after 30s of inactivity
+const SYNC_INTERVAL = 8000;
 
-export function useCollaborativeSession(projectId, onCollaboratorsChange) {
-  const [collaborators, setCollaborators] = useState([]);
-  const syncTimerRef = useRef(null);
-  const inactivityTimerRef = useRef(null);
-  const lastSyncRef = useRef(0);
+export function useCollaborativeSession(projectId, setCollaborators) {
+  const intervalRef = useRef(null);
+  const projectIdRef = useRef(projectId);
 
-  const syncSession = useCallback(async (htmlContent, cursorPos, selection) => {
-    const now = Date.now();
-    
-    // Throttle syncs to avoid overwhelming the backend
-    if (now - lastSyncRef.current < 500) return;
-    lastSyncRef.current = now;
+  useEffect(() => { projectIdRef.current = projectId; }, [projectId]);
 
+  const syncSession = useCallback(async (htmlContent, cursorPosition, selection) => {
+    if (!projectIdRef.current) return;
     try {
-      const result = await base44.functions.invoke('syncCollaborativeEdit', {
-        project_id: projectId,
+      const res = await base44.functions.invoke('syncCollaborativeEdit', {
+        project_id: projectIdRef.current,
         html_content: htmlContent,
-        cursor_position: cursorPos,
-        selection: selection
+        cursor_position: cursorPosition,
+        selection
       });
-
-      if (result.data?.collaborators) {
-        setCollaborators(result.data.collaborators);
-        onCollaboratorsChange?.(result.data.collaborators);
+      if (res?.data?.collaborators) {
+        setCollaborators(res.data.collaborators);
       }
-    } catch (err) {
-      console.error('Failed to sync collaborative session:', err);
+    } catch (_) {}
+  }, [setCollaborators]);
+
+  useEffect(() => {
+    if (!projectId) {
+      setCollaborators([]);
+      return;
     }
-  }, [projectId, onCollaboratorsChange]);
+    intervalRef.current = setInterval(() => syncSession(null, null, null), SYNC_INTERVAL);
+    syncSession(null, null, null);
+    return () => clearInterval(intervalRef.current);
+  }, [projectId, syncSession, setCollaborators]);
 
-  // Periodic sync to maintain presence
-  useEffect(() => {
-    syncTimerRef.current = setInterval(() => {
-      syncSession(null, null, null);
-    }, SYNC_INTERVAL);
-
-    return () => {
-      if (syncTimerRef.current) clearInterval(syncTimerRef.current);
-    };
-  }, [syncSession]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (syncTimerRef.current) clearInterval(syncTimerRef.current);
-      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-    };
-  }, []);
-
-  return { collaborators, syncSession };
+  return { syncSession };
 }

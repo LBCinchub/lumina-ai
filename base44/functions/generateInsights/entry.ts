@@ -9,14 +9,16 @@ Deno.serve(async (req) => {
     const contexts = await base44.entities.UserContext.filter({ created_by: user.email });
     const ctx = contexts[0];
 
-    // Get user's conversations first, then their messages
+    // Get user's recent conversations
     const conversations = await base44.asServiceRole.entities.Conversation.filter({ created_by: user.email }, '-last_message_at', 10);
-    const convoIds = conversations.map(c => c.id);
 
-    // Get recent user messages across all their conversations
-    const recentMessages = convoIds.length > 0
-      ? await base44.asServiceRole.entities.Message.filter({ conversation_id: convoIds[0], role: 'user' }, '-created_date', 30)
-      : [];
+    // Pull recent user messages from ALL recent conversations
+    const messageArrays = await Promise.all(
+      conversations.map(c =>
+        base44.asServiceRole.entities.Message.filter({ conversation_id: c.id, role: 'user' }, '-created_date', 10)
+      )
+    );
+    const recentMessages = messageArrays.flat().slice(0, 40);
 
     const contextText = ctx ? [
       ctx.identity && `Identity: ${ctx.identity}`,

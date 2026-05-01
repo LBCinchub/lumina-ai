@@ -1,32 +1,31 @@
 import React from 'react';
 
-export default function CursorTracker({ collaborators, currentUserEmail }) {
+export default function CursorTracker({ collaborators = [], currentUserEmail }) {
   const others = collaborators.filter(c => c.user_email !== currentUserEmail && c.cursor_position);
-  if (others.length === 0) return null;
 
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden z-20">
-      {others.map(c => {
+    <>
+      {others.map((c, i) => {
         const pos = c.cursor_position;
         if (!pos?.x || !pos?.y) return null;
         return (
           <div
-            key={c.user_email}
-            className="absolute transition-all duration-150"
+            key={c.user_email || i}
+            className="absolute pointer-events-none z-50 transition-all duration-100"
             style={{ left: pos.x, top: pos.y }}
           >
-            <svg width="12" height="16" viewBox="0 0 12 16" fill="none">
-              <path d="M0 0L0 13L3.5 9.5L6 14L7.5 13.5L5 8.5L9 8.5L0 0Z" fill={c.color || '#4ECDC4'} />
+            <svg width="12" height="16" viewBox="0 0 12 16" fill={c.color || '#6366f1'}>
+              <path d="M0 0 L0 14 L4 10 L8 16 L10 15 L6 9 L12 9 Z" />
             </svg>
             <span
-              className="absolute left-3 top-0 text-[10px] font-medium text-white px-1.5 py-0.5 rounded whitespace-nowrap"
-              style={{ backgroundColor: c.color || '#4ECDC4' }}
+              className="ml-2 text-[10px] text-white px-1.5 py-0.5 rounded whitespace-nowrap"
+              style={{ backgroundColor: c.color || '#6366f1' }}
             >
               {c.user_name || c.user_email}
             </span>
           </div>
         );
       })}
-    </div>
+    </>
   );
 }
