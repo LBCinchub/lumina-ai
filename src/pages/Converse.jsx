@@ -309,7 +309,7 @@ export default function Converse() {
         <LuminaMark size={56} className="text-foreground/70 mb-8" />
         <h1 className="font-serif text-3xl tracking-tight mb-3">Welcome to Luna</h1>
         <p className="text-sm text-muted-foreground max-w-xs leading-relaxed mb-8">
-          Sign in to start a conversation. Luna remembers your context and grows with you.
+          Sign in to start a conversation. Lumina Ultra remembers your context and grows with you.
         </p>
         <button
           onClick={() => base44.auth.redirectToLogin()}
@@ -419,7 +419,7 @@ export default function Converse() {
                 {opener}
               </h1>
               <p className="text-sm text-muted-foreground text-center max-w-md leading-relaxed">
-                Luna — Sister Twin to Lumina AI at lbc-hub.com. She reasons from what you've shared. The more context, the sharper the mirror.
+                Lumina Ultra — Sister Twin to Lumina AI at lbc-hub.com. She reasons from what you've shared. The more context, the sharper the mirror.
               </p>
               {hasContext === false && (
                 <a
@@ -471,7 +471,7 @@ export default function Converse() {
               onBargeIn={stopSpeaking}
             />
             <p className="text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground/60 text-center mt-3">
-              Luna reflects · not advises · Sister Twin to Lumina AI
+              Lumina Ultra reflects · not advises · Sister Twin to Lumina AI
             </p>
           </div>
         </div>

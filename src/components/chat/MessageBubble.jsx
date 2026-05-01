@@ -98,7 +98,7 @@ export default function MessageBubble({ message, isLatest }) {
       >
         <div className="flex gap-2 items-center mb-2 border-b border-blue-400/15 pb-2">
           <Zap className="w-3.5 h-3.5 text-blue-300 fill-blue-300" style={{filter: 'drop-shadow(0 0 6px rgba(96,165,250,0.9))'}} />
-          <span className="text-[10px] uppercase tracking-[0.16em] text-blue-300/60 font-mono">Luna</span>
+          <span className="text-[10px] uppercase tracking-[0.16em] text-blue-300/60 font-mono">Lumina Ultra</span>
         </div>
         {isImageMessage
           ? <GeneratedImage url={imageUrl} caption={imageCaption} />
