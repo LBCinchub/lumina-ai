@@ -11,6 +11,7 @@ import GitHubSyncPanel from '@/components/build/GitHubSyncPanel.jsx';
 import HistorySidebar from '@/components/build/HistorySidebar.jsx';
 import CollaboratorPresence from '@/components/build/CollaboratorPresence.jsx';
 import CursorTracker from '@/components/build/CursorTracker.jsx';
+import CollaborativeCodeEditor from '@/components/build/CollaborativeCodeEditor.jsx';
 import LuminaMark from '@/components/layout/LuminaMark';
 import { useCollaborativeSession } from '@/hooks/useCollaborativeSession';
 import { cn } from '@/lib/utils';
@@ -682,21 +683,23 @@ Respond as Lumina. Describe the visual design clearly and concisely for image ge
             </div>
           )
         ) : (
-          <div className="flex-1 overflow-y-auto scrollbar-minimal p-5">
-            {latestImageUrl ? (
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-medium mb-3">Generated Design</h3>
-                  <img 
-                    src={latestImageUrl} 
-                    alt="Design" 
-                    className="w-full rounded-lg shadow-sm border border-border"
-                  />
-                </div>
-              </div>
+          <div className="flex-1 overflow-hidden flex flex-col">
+            {latestHTML ? (
+              <CollaborativeCodeEditor
+                code={latestHTML}
+                projectId={activeProjectId}
+                collaborators={collaborators}
+                currentUser={user}
+                onCodeChange={(newCode) => {
+                  setLatestHTML(newCode);
+                  if (activeProjectId) {
+                    base44.entities.BuildProject.update(activeProjectId, { html: newCode, last_built_at: new Date().toISOString() }).catch(() => {});
+                  }
+                }}
+              />
             ) : (
               <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                No design yet. Ask Lumina to build something.
+                No code yet. Ask Lumina to build something.
               </div>
             )}
           </div>

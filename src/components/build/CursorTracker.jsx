@@ -1,32 +1,32 @@
 import React from 'react';
 
-export default function CursorTracker({ collaborators = [], currentUserEmail }) {
+export default function CursorTracker({ collaborators, currentUserEmail }) {
   const others = collaborators.filter(c => c.user_email !== currentUserEmail && c.cursor_position);
   if (others.length === 0) return null;
 
   return (
-    <>
-      {others.map((c, i) => (
-        <div
-          key={c.id || i}
-          className="absolute pointer-events-none z-10 transition-all duration-150"
-          style={{
-            left: `${(c.cursor_position?.column || 0) / 120 * 100}%`,
-            top: `${(c.cursor_position?.line || 0) * 20}px`,
-          }}
-        >
+    <div className="pointer-events-none absolute inset-0 overflow-hidden z-20">
+      {others.map(c => {
+        const pos = c.cursor_position;
+        if (!pos?.x || !pos?.y) return null;
+        return (
           <div
-            className="w-2 h-4 rounded-sm opacity-70"
-            style={{ background: c.color || '#6366f1' }}
-          />
-          <div
-            className="text-[9px] font-medium text-white px-1 py-0.5 rounded whitespace-nowrap mt-0.5"
-            style={{ background: c.color || '#6366f1' }}
+            key={c.user_email}
+            className="absolute transition-all duration-150"
+            style={{ left: pos.x, top: pos.y }}
           >
-            {c.user_name || c.user_email?.split('@')[0]}
+            <svg width="12" height="16" viewBox="0 0 12 16" fill="none">
+              <path d="M0 0L0 13L3.5 9.5L6 14L7.5 13.5L5 8.5L9 8.5L0 0Z" fill={c.color || '#4ECDC4'} />
+            </svg>
+            <span
+              className="absolute left-3 top-0 text-[10px] font-medium text-white px-1.5 py-0.5 rounded whitespace-nowrap"
+              style={{ backgroundColor: c.color || '#4ECDC4' }}
+            >
+              {c.user_name || c.user_email}
+            </span>
           </div>
-        </div>
-      ))}
-    </>
+        );
+      })}
+    </div>
   );
 }

@@ -1,89 +1,78 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Server, Terminal, RefreshCw, Loader2 } from 'lucide-react';
+import { Server, Terminal, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const COMMANDS = [
+  { label: 'Status', cmd: 'status' },
+  { label: 'Restart', cmd: 'restart' },
+  { label: 'Logs', cmd: 'logs' },
+  { label: 'Deploy', cmd: 'deploy' },
+];
 
 export default function VpsToolPanel() {
-  const [logs, setLogs] = useState([]);
-  const [command, setCommand] = useState('');
+  const [output, setOutput] = useState([]);
   const [running, setRunning] = useState(false);
-  const [vpsInfo, setVpsInfo] = useState(null);
 
-  useEffect(() => {
-    base44.functions.invoke('vpsControl', { action: 'status' })
-      .then(res => setVpsInfo(res.data))
-      .catch(() => {});
-  }, []);
-
-  const runCommand = async () => {
-    if (!command.trim() || running) return;
+  const run = async (cmd) => {
+    if (running) return;
     setRunning(true);
-    const cmd = command.trim();
-    setCommand('');
-    setLogs(prev => [...prev, { type: 'input', text: `$ ${cmd}` }]);
+    setOutput(prev => [...prev, { type: 'cmd', text: `$ ${cmd}` }]);
     try {
-      const res = await base44.functions.invoke('vpsControl', { action: 'exec', command: cmd });
-      const output = res.data?.output || res.data?.result || JSON.stringify(res.data);
-      setLogs(prev => [...prev, { type: 'output', text: output }]);
+      const res = await base44.functions.invoke('vpsControl', { command: cmd });
+      const text = res?.data?.output || res?.data?.message || JSON.stringify(res?.data || {});
+      setOutput(prev => [...prev, { type: 'ok', text }]);
     } catch (err) {
-      setLogs(prev => [...prev, { type: 'error', text: err.message }]);
+      setOutput(prev => [...prev, { type: 'err', text: err.message || 'Command failed' }]);
     } finally {
       setRunning(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-green-400 font-mono text-xs">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
-        <Server className="w-3.5 h-3.5 text-green-500" />
-        <span className="text-green-500/70 uppercase tracking-widest text-[10px]">VPS Terminal</span>
-        {vpsInfo?.connected && (
-          <span className="ml-auto flex items-center gap-1 text-[10px] text-green-400/60">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            Connected
-          </span>
-        )}
+    <div className="flex flex-col h-full bg-[#0d0d0d] text-[#cdd6f4] font-mono text-[13px]">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-[#181825] shrink-0">
+        <Server className="w-4 h-4 text-white/40" strokeWidth={1.5} />
+        <span className="text-xs text-white/40 uppercase tracking-[0.12em]">VPS Control Panel</span>
       </div>
 
-      {/* Log output */}
-      <div className="flex-1 overflow-y-auto scrollbar-minimal p-4 space-y-1">
-        {logs.length === 0 && (
-          <p className="text-slate-600">Ready. Enter a command below.</p>
+      <div className="flex gap-2 px-4 py-3 border-b border-white/10 shrink-0 flex-wrap">
+        {COMMANDS.map(({ label, cmd }) => (
+          <button
+            key={cmd}
+            onClick={() => run(cmd)}
+            disabled={running}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-xs border transition-all",
+              "border-white/10 text-white/60 hover:text-white hover:border-white/30",
+              "disabled:opacity-40 disabled:cursor-not-allowed"
+            )}
+          >
+            {label}
+          </button>
+        ))}
+        {running && <Loader2 className="w-4 h-4 animate-spin text-white/30 self-center ml-1" />}
+      </div>
+
+      <div className="flex-1 overflow-y-auto scrollbar-minimal px-4 py-3 space-y-1">
+        {output.length === 0 && (
+          <div className="flex items-center gap-2 text-white/20 mt-4">
+            <Terminal className="w-4 h-4" />
+            <span>Select a command to run…</span>
+          </div>
         )}
-        {logs.map((log, i) => (
-          <div key={i} className={
-            log.type === 'input' ? 'text-green-300' :
-            log.type === 'error' ? 'text-red-400' :
-            'text-slate-400'
-          }>
-            <pre className="whitespace-pre-wrap break-all">{log.text}</pre>
+        {output.map((line, i) => (
+          <div key={i} className={cn(
+            "flex items-start gap-2",
+            line.type === 'cmd' && "text-[#cba6f7]",
+            line.type === 'ok' && "text-[#a6e3a1]",
+            line.type === 'err' && "text-[#f38ba8]"
+          )}>
+            {line.type === 'ok' && <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" />}
+            {line.type === 'err' && <XCircle className="w-3 h-3 mt-0.5 shrink-0" />}
+            <pre className="whitespace-pre-wrap break-all text-[12px] leading-relaxed">{line.text}</pre>
           </div>
         ))}
-        {running && (
-          <div className="flex items-center gap-2 text-slate-500">
-            <Loader2 className="w-3 h-3 animate-spin" /> Running…
-          </div>
-        )}
-      </div>
-
-      {/* Input */}
-      <div className="shrink-0 border-t border-slate-800 px-4 py-3 flex items-center gap-2">
-        <span className="text-green-500">$</span>
-        <input
-          value={command}
-          onChange={e => setCommand(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && runCommand()}
-          placeholder="Enter command…"
-          disabled={running}
-          className="flex-1 bg-transparent outline-none text-green-300 placeholder:text-slate-700"
-        />
-        <button
-          onClick={runCommand}
-          disabled={!command.trim() || running}
-          className="p-1.5 rounded hover:bg-slate-800 text-green-500 disabled:opacity-30 transition-colors"
-        >
-          <Terminal className="w-3.5 h-3.5" />
-        </button>
       </div>
     </div>
   );

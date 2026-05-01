@@ -1,0 +1,53 @@
+{
+  "name": "CodeComment",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Reference to BuildProject"
+    },
+    "line_number": {
+      "type": "number",
+      "description": "Line number the comment is anchored to"
+    },
+    "content": {
+      "type": "string",
+      "description": "Comment text"
+    },
+    "author_email": {
+      "type": "string",
+      "description": "Author email"
+    },
+    "author_name": {
+      "type": "string",
+      "description": "Author display name"
+    },
+    "author_color": {
+      "type": "string",
+      "description": "Author color for avatar"
+    },
+    "resolved": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether comment is resolved"
+    },
+    "parent_id": {
+      "type": "string",
+      "description": "Parent comment ID for thread replies"
+    }
+  },
+  "required": [
+    "project_id",
+    "line_number",
+    "content",
+    "author_email"
+  ],
+  "rls": {
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

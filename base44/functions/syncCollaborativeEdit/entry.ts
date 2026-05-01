@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { project_id, html_content, cursor_position, selection } = await req.json();
+    const { project_id, html_content, cursor_position, selection, cursor_line } = await req.json();
 
     if (!project_id) {
       return Response.json({ error: 'Missing project_id' }, { status: 400 });
@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
       project_id,
       user_email: user.email,
       user_name: user.full_name,
-      cursor_position: cursor_position || null,
+      cursor_position: cursor_position ? { ...cursor_position, line: cursor_line || cursor_position.line } : (cursor_line ? { line: cursor_line } : null),
       selection: selection || null,
       last_active_at: new Date().toISOString()
     };
