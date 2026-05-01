@@ -1,84 +1,89 @@
-import React, { useState } from 'react';
-import { Server, Terminal, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-
-const QUICK_COMMANDS = ['uptime', 'df -h', 'free -m', 'ps aux --sort=-%cpu | head -10'];
+import { Server, Terminal, RefreshCw, Loader2 } from 'lucide-react';
 
 export default function VpsToolPanel() {
+  const [logs, setLogs] = useState([]);
   const [command, setCommand] = useState('');
-  const [output, setOutput] = useState('');
   const [running, setRunning] = useState(false);
-  const [status, setStatus] = useState(null);
+  const [vpsInfo, setVpsInfo] = useState(null);
+
+  useEffect(() => {
+    base44.functions.invoke('vpsControl', { action: 'status' })
+      .then(res => setVpsInfo(res.data))
+      .catch(() => {});
+  }, []);
 
   const runCommand = async () => {
     if (!command.trim() || running) return;
     setRunning(true);
-    setOutput('');
-    setStatus(null);
+    const cmd = command.trim();
+    setCommand('');
+    setLogs(prev => [...prev, { type: 'input', text: `$ ${cmd}` }]);
     try {
-      const res = await base44.functions.invoke('vpsControl', { command });
-      setOutput(res.data?.output || JSON.stringify(res.data, null, 2));
-      setStatus('success');
+      const res = await base44.functions.invoke('vpsControl', { action: 'exec', command: cmd });
+      const output = res.data?.output || res.data?.result || JSON.stringify(res.data);
+      setLogs(prev => [...prev, { type: 'output', text: output }]);
     } catch (err) {
-      setOutput(err.message || 'Command failed');
-      setStatus('error');
+      setLogs(prev => [...prev, { type: 'error', text: err.message }]);
     } finally {
       setRunning(false);
     }
   };
 
   return (
-    <div className="flex-1 overflow-y-auto scrollbar-minimal p-6">
-      <div className="max-w-2xl space-y-6">
-        <div className="flex items-center gap-2">
-          <Server className="w-5 h-5 text-foreground/60" />
-          <h2 className="text-lg font-medium">VPS Tool Panel</h2>
-        </div>
+    <div className="flex flex-col h-full bg-slate-950 text-green-400 font-mono text-xs">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
+        <Server className="w-3.5 h-3.5 text-green-500" />
+        <span className="text-green-500/70 uppercase tracking-widest text-[10px]">VPS Terminal</span>
+        {vpsInfo?.connected && (
+          <span className="ml-auto flex items-center gap-1 text-[10px] text-green-400/60">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            Connected
+          </span>
+        )}
+      </div>
 
-        <div className="flex flex-wrap gap-2">
-          {QUICK_COMMANDS.map(cmd => (
-            <button
-              key={cmd}
-              onClick={() => setCommand(cmd)}
-              className="px-3 py-1.5 rounded-lg border border-border bg-card text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors font-mono"
-            >
-              {cmd}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={command}
-            onChange={e => setCommand(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && runCommand()}
-            placeholder="Enter shell command…"
-            className="flex-1 px-3 py-2.5 rounded-lg border border-border bg-card text-sm font-mono focus:outline-none focus:border-foreground/30 transition-colors"
-          />
-          <button
-            onClick={runCommand}
-            disabled={!command.trim() || running}
-            className="flex items-center gap-2 px-4 py-2.5 bg-foreground text-background rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-all"
-          >
-            {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Terminal className="w-4 h-4" />}
-            Run
-          </button>
-        </div>
-
-        {(output || running) && (
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-muted/40">
-              <Terminal className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground font-mono">Output</span>
-              {status === 'success' && <CheckCircle2 className="w-3.5 h-3.5 text-green-500 ml-auto" />}
-              {status === 'error' && <AlertCircle className="w-3.5 h-3.5 text-destructive ml-auto" />}
-            </div>
-            <pre className="p-4 text-xs font-mono text-foreground/80 whitespace-pre-wrap overflow-x-auto max-h-80 scrollbar-minimal">
-              {running ? 'Running…' : output}
-            </pre>
+      {/* Log output */}
+      <div className="flex-1 overflow-y-auto scrollbar-minimal p-4 space-y-1">
+        {logs.length === 0 && (
+          <p className="text-slate-600">Ready. Enter a command below.</p>
+        )}
+        {logs.map((log, i) => (
+          <div key={i} className={
+            log.type === 'input' ? 'text-green-300' :
+            log.type === 'error' ? 'text-red-400' :
+            'text-slate-400'
+          }>
+            <pre className="whitespace-pre-wrap break-all">{log.text}</pre>
+          </div>
+        ))}
+        {running && (
+          <div className="flex items-center gap-2 text-slate-500">
+            <Loader2 className="w-3 h-3 animate-spin" /> Running…
           </div>
         )}
+      </div>
+
+      {/* Input */}
+      <div className="shrink-0 border-t border-slate-800 px-4 py-3 flex items-center gap-2">
+        <span className="text-green-500">$</span>
+        <input
+          value={command}
+          onChange={e => setCommand(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && runCommand()}
+          placeholder="Enter command…"
+          disabled={running}
+          className="flex-1 bg-transparent outline-none text-green-300 placeholder:text-slate-700"
+        />
+        <button
+          onClick={runCommand}
+          disabled={!command.trim() || running}
+          className="p-1.5 rounded hover:bg-slate-800 text-green-500 disabled:opacity-30 transition-colors"
+        >
+          <Terminal className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );

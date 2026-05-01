@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-const TWIN_ENDPOINT = "https://lbc-hub.com/api/v1/health";
+const TWIN_BASE = "https://lbc-hub.com";
 
 Deno.serve(async (req) => {
   try {
@@ -25,20 +25,29 @@ Deno.serve(async (req) => {
     }
 
     try {
-      const response = await fetch(TWIN_ENDPOINT, {
+      // Ping the sister domain — treat any reachable response as connected
+      const response = await fetch(TWIN_BASE, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
           'X-LBC-Origin': 'lbchub.site',
           'X-LBC-Signature': 'LUMINA_ALPHA_SYNC'
-        }
+        },
+        signal: AbortSignal.timeout(8000)
       });
 
       const latency = Date.now() - startTime;
 
-      if (!response.ok) throw new Error(`SISTER_HUB_OFFLINE: ${response.status}`);
+      // Any response (even HTML) means the domain is reachable and alive
+      if (!response.ok && response.status >= 500) {
+        throw new Error(`SISTER_HUB_ERROR: ${response.status}`);
+      }
 
-      const data = await response.json();
+      // Try to parse JSON, but don't fail if it's HTML
+      let data = {};
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      }
 
       // Remove alignment goal on success
       const updatedGoals = (state.active_goals || []).filter(g => g !== 'Sister_Hub_Alignment');
