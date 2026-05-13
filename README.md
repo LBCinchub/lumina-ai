@@ -1,39 +1,31 @@
-**Welcome to your Base44 project** 
+# LBC AI — Intelligent Companion
 
-**About**
+> The AI intelligence layer powering the LBC ecosystem.
 
-View and Edit  your app on [Base44.com](http://Base44.com) 
+LBC AI is the embedded intelligence engine running across all LBC domains — powering the social feed, travel planner, marketplace recommendations, and the autonomous ecosystem brain.
 
-This project contains everything you need to run your app locally.
+---
 
-**Edit the code in your local development environment**
+## Role
 
-Any change pushed to the repo will also be reflected in the Base44 Builder.
+Every LBC product is powered by AI intelligence:
+- LBC Hub social feed — AI-curated content and bots
+- LBC Travel Planner — AI itinerary generation
+- LBC Auto — AI diagnostics assistant
+- LBC Brain — autonomous ecosystem intelligence (self-learning, self-governing)
 
-**Prerequisites:** 
+---
 
-1. Clone the repository using the project's Git URL 
-2. Navigate to the project directory
-3. Install dependencies: `npm install`
-4. Create an `.env.local` file and set the right environment variables
+## Architecture
 
-```
-VITE_BASE44_APP_ID=your_app_id
-VITE_BASE44_APP_BASE_URL=your_backend_url
+The AI layer operates across three nodes:
+1. *Community node* — learns from user interactions on lbc-hub.com
+2. *Builder node* — learns from developer activity on lbchub.site
+3. *Brain node* — synthesizes everything, generates ideas, monitors competitors
 
-e.g.
-VITE_BASE44_APP_ID=cbef744a8545c389ef439ea6
-VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
-```
+---
 
-Run the app: `npm run dev`
+## Built by
 
-**Publish your changes**
+LBC NETWORK inc | Ottawa, Canada
 
-Open [Base44.com](http://Base44.com) and click on Publish.
-
-**Docs & Support**
-
-Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)
-
-Support: [https://app.base44.com/support](https://app.base44.com/support)
