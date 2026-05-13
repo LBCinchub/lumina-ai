@@ -1,25 +1,37 @@
 import React from 'react';
-import { cn } from '@/lib/utils';
+import { Users } from 'lucide-react';
 
-export default function CollaboratorPresence({ collaborators = [], currentUserEmail }) {
+export default function CollaboratorPresence({ collaborators, currentUserEmail }) {
   const others = collaborators.filter(c => c.user_email !== currentUserEmail);
+
   if (others.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-1.5 ml-2">
-      {others.slice(0, 5).map((c, i) => (
-        <div
-          key={c.user_email || i}
-          className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-medium text-white shrink-0"
-          style={{ backgroundColor: c.color || '#6366f1' }}
-          title={c.user_name || c.user_email}
-        >
-          {(c.user_name || c.user_email || '?')[0].toUpperCase()}
-        </div>
-      ))}
-      {others.length > 5 && (
-        <span className="text-[10px] text-muted-foreground">+{others.length - 5}</span>
-      )}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <Users style={{ width: '16px', height: '16px', color: '#64748B' }} />
+      <div style={{ display: 'flex', gap: '4px' }}>
+        {others.map((c, i) => (
+          <div
+            key={i}
+            style={{
+              width: '28px',
+              height: '28px',
+              borderRadius: '50%',
+              background: c.color || '#00FFA3',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '11px',
+              fontWeight: '600',
+              color: '#060609',
+              title: c.user_name || c.user_email,
+            }}
+          >
+            {(c.user_name || c.user_email).charAt(0).toUpperCase()}
+          </div>
+        ))}
+      </div>
+      <span style={{ fontSize: '11px', color: '#64748B' }}>{others.length} online</span>
     </div>
   );
 }
