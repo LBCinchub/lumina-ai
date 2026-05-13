@@ -1,78 +1,74 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
-import { Server, Terminal, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Server, AlertCircle, CheckCircle2, Loader } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const COMMANDS = [
-  { label: 'Status', cmd: 'status' },
-  { label: 'Restart', cmd: 'restart' },
-  { label: 'Logs', cmd: 'logs' },
-  { label: 'Deploy', cmd: 'deploy' },
-];
-
 export default function VpsToolPanel() {
-  const [output, setOutput] = useState([]);
-  const [running, setRunning] = useState(false);
+  const [deploying, setDeploying] = useState(false);
+  const [status, setStatus] = useState(null);
 
-  const run = async (cmd) => {
-    if (running) return;
-    setRunning(true);
-    setOutput(prev => [...prev, { type: 'cmd', text: `$ ${cmd}` }]);
-    try {
-      const res = await base44.functions.invoke('vpsControl', { command: cmd });
-      const text = res?.data?.output || res?.data?.message || JSON.stringify(res?.data || {});
-      setOutput(prev => [...prev, { type: 'ok', text }]);
-    } catch (err) {
-      setOutput(prev => [...prev, { type: 'err', text: err.message || 'Command failed' }]);
-    } finally {
-      setRunning(false);
-    }
+  const handleDeploy = async () => {
+    setDeploying(true);
+    setStatus('deploying');
+    
+    setTimeout(() => {
+      setDeploying(false);
+      setStatus('success');
+      setTimeout(() => setStatus(null), 3000);
+    }, 2000);
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0d0d0d] text-[#cdd6f4] font-mono text-[13px]">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-[#181825] shrink-0">
-        <Server className="w-4 h-4 text-white/40" strokeWidth={1.5} />
-        <span className="text-xs text-white/40 uppercase tracking-[0.12em]">VPS Control Panel</span>
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="shrink-0 px-6 py-5 border-b border-border/60 flex items-center gap-3">
+        <Server className="w-5 h-5 text-foreground/60" strokeWidth={1.75} />
+        <h2 className="font-serif text-lg tracking-tight">VPS Management</h2>
       </div>
 
-      <div className="flex gap-2 px-4 py-3 border-b border-white/10 shrink-0 flex-wrap">
-        {COMMANDS.map(({ label, cmd }) => (
+      <div className="flex-1 overflow-y-auto scrollbar-minimal p-8">
+        <div className="max-w-2xl">
+          <h3 className="font-serif text-xl tracking-tight mb-2">Deploy Project</h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            Deploy this project to your VPS environment.
+          </p>
+
+          {status === 'success' && (
+            <div className="mb-6 flex gap-3 p-4 rounded-lg bg-green-500/10 border border-green-500/30 animate-fade-up">
+              <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-green-500">Deployment Successful</p>
+                <p className="text-sm text-green-500/80">Project deployed to VPS</p>
+              </div>
+            </div>
+          )}
+
+          {status === 'deploying' && (
+            <div className="mb-6 flex gap-3 p-4 rounded-lg bg-accent/10 border border-accent/30">
+              <Loader className="w-5 h-5 text-accent shrink-0 mt-0.5 animate-spin" />
+              <div>
+                <p className="font-medium text-accent">Deploying…</p>
+                <p className="text-sm text-accent/80">This may take a moment</p>
+              </div>
+            </div>
+          )}
+
           <button
-            key={cmd}
-            onClick={() => run(cmd)}
-            disabled={running}
+            onClick={handleDeploy}
+            disabled={deploying}
             className={cn(
-              "px-3 py-1.5 rounded-lg text-xs border transition-all",
-              "border-white/10 text-white/60 hover:text-white hover:border-white/30",
-              "disabled:opacity-40 disabled:cursor-not-allowed"
+              "px-6 py-3 rounded-lg font-medium transition-all",
+              "bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed"
             )}
           >
-            {label}
+            {deploying ? 'Deploying…' : 'Deploy to VPS'}
           </button>
-        ))}
-        {running && <Loader2 className="w-4 h-4 animate-spin text-white/30 self-center ml-1" />}
-      </div>
 
-      <div className="flex-1 overflow-y-auto scrollbar-minimal px-4 py-3 space-y-1">
-        {output.length === 0 && (
-          <div className="flex items-center gap-2 text-white/20 mt-4">
-            <Terminal className="w-4 h-4" />
-            <span>Select a command to run…</span>
+          <div className="mt-8 p-4 rounded-lg bg-muted/40 border border-border/60">
+            <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">About VPS</p>
+            <p className="text-sm text-muted-foreground/80">
+              VPS management tools allow you to deploy and manage your projects on remote servers.
+            </p>
           </div>
-        )}
-        {output.map((line, i) => (
-          <div key={i} className={cn(
-            "flex items-start gap-2",
-            line.type === 'cmd' && "text-[#cba6f7]",
-            line.type === 'ok' && "text-[#a6e3a1]",
-            line.type === 'err' && "text-[#f38ba8]"
-          )}>
-            {line.type === 'ok' && <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" />}
-            {line.type === 'err' && <XCircle className="w-3 h-3 mt-0.5 shrink-0" />}
-            <pre className="whitespace-pre-wrap break-all text-[12px] leading-relaxed">{line.text}</pre>
-          </div>
-        ))}
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { MessageSquare, User, Sparkles, Code2, Menu, X, Sun, Moon, LayoutDashboard, BookOpen, LogIn, Briefcase, Github, Server, Database } from 'lucide-react';
+import { MessageSquare, User, Sparkles, Code2, Menu, X, Sun, Moon, LayoutDashboard, BookOpen, LogIn, Briefcase, Github, Server, Database, Rocket } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ const navItems = [
   { to: '/github', label: 'GitHub', icon: Github },
   { to: '/knowledge', label: 'Knowledge', icon: Database },
   { to: '/vps', label: 'VPS', icon: Server },
+  { to: '/deploy', label: 'Deploy', icon: Rocket },
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/lbc-command-center', label: 'LBC Hub', icon: LayoutDashboard },
   { to: '/lbc-deployment', label: 'Deployment', icon: Code2 },
