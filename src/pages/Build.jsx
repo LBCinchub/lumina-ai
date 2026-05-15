@@ -3,11 +3,8 @@ import { base44 } from '@/api/base44Client';
 import {
   Code2, ArrowUp, Copy, Check, ChevronDown, ChevronUp,
   Monitor, Eye, Plus, Trash2, FolderOpen, Github, History,
-  RefreshCw, ExternalLink, Maximize2, Loader, Zap
+  RefreshCw, ExternalLink, Download, Loader, Zap
 } from 'lucide-react';
-import VpsToolPanel from '@/components/build/VpsToolPanel.jsx';
-import GitHubSyncPanel from '@/components/build/GitHubSyncPanel.jsx';
-import HistorySidebar from '@/components/build/HistorySidebar.jsx';
 import CollaborativeCodeEditor from '@/components/build/CollaborativeCodeEditor.jsx';
 import LuminaMark from '@/components/layout/LuminaMark';
 import { useCollaborativeSession } from '@/hooks/useCollaborativeSession';
@@ -117,16 +114,6 @@ function ChatMessage({ msg }) {
 }
 
 function PreviewPane({ html, latestImageUrl, loading, deviceMode }) {
-  const iframeRef = useRef(null);
-  
-  useEffect(() => {
-    if (!iframeRef.current || !html) return;
-    const doc = iframeRef.current.contentDocument || iframeRef.current.contentWindow.document;
-    doc.open();
-    doc.write(html);
-    doc.close();
-  }, [html]);
-
   const widthMap = { desktop: '100%', tablet: '768px', mobile: '390px' };
   const width = widthMap[deviceMode] || '100%';
   const isMobile = deviceMode === 'mobile';
@@ -143,7 +130,7 @@ function PreviewPane({ html, latestImageUrl, loading, deviceMode }) {
 
   return (
     <div className={cn(
-      "flex-1 flex flex-col items-center justify-center overflow-auto",
+      "flex-1 flex flex-col items-center justify-center overflow-auto relative",
       isMobile || isTablet ? "bg-muted/20 p-4" : "p-0"
     )}>
       {loading && (
@@ -155,14 +142,14 @@ function PreviewPane({ html, latestImageUrl, loading, deviceMode }) {
         <img src={latestImageUrl} alt="Design" className="max-w-full h-auto rounded-lg shadow-lg" />
       ) : (
         <iframe
-          ref={iframeRef}
+          srcDoc={html}
           className={cn(
             "border-0",
             isMobile || isTablet ? "rounded-lg shadow-xl" : ""
           )}
           style={{ width, height: isMobile || isTablet ? 'auto' : '100%' }}
           title="Live preview"
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts allow-same-origin allow-same-origin-popups"
         />
       )}
     </div>
@@ -183,6 +170,7 @@ export default function Build() {
   const [deviceMode, setDeviceMode] = useState('desktop');
   const [showCode, setShowCode] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [pushingCode, setPushingCode] = useState(false);
 
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
@@ -362,6 +350,41 @@ Respond as Lumina. Describe the visual design clearly and concisely for image ge
     } finally {
       setSending(false);
       setPreviewLoading(false);
+    }
+  };
+
+  const downloadHTML = () => {
+    if (!latestHTML) return;
+    const link = document.createElement('a');
+    link.href = 'data:text/html;charset=utf-8,' + encodeURIComponent(latestHTML);
+    link.download = `${activeProject?.title || 'app'}.html`;
+    link.click();
+  };
+
+  const pushToGithub = async () => {
+    if (!activeProject?.github_repo || !activeProject?.github_path || !latestHTML) return;
+    setPushingCode(true);
+    try {
+      await base44.functions.invoke('luminaPushCode', {
+        repo: activeProject.github_repo,
+        path: activeProject.github_path,
+        content: latestHTML,
+        message: `build: update via Build IDE - ${new Date().toLocaleString()}`
+      });
+      // Show success feedback
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: '✅ Pushed to GitHub successfully!', 
+        id: Date.now() + 1 
+      }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `❌ GitHub push failed: ${err.message}`, 
+        id: Date.now() + 1 
+      }]);
+    } finally {
+      setPushingCode(false);
     }
   };
 
@@ -593,6 +616,14 @@ Respond as Lumina. Describe the visual design clearly and concisely for image ge
               <RefreshCw className="w-3.5 h-3.5" strokeWidth={1.75} />
             </button>
             <button
+              onClick={downloadHTML}
+              disabled={!latestHTML}
+              className="p-1.5 rounded-md hover:bg-accent/40 text-muted-foreground/70 hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Download HTML"
+            >
+              <Download className="w-3.5 h-3.5" strokeWidth={1.75} />
+            </button>
+            <button
               onClick={() => latestHTML && window.open('data:text/html,' + encodeURIComponent(latestHTML), '_blank')}
               disabled={!latestHTML}
               className="p-1.5 rounded-md hover:bg-accent/40 text-muted-foreground/70 hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
@@ -600,6 +631,16 @@ Respond as Lumina. Describe the visual design clearly and concisely for image ge
             >
               <ExternalLink className="w-3.5 h-3.5" strokeWidth={1.75} />
             </button>
+            {activeProject?.github_repo && (
+              <button
+                onClick={pushToGithub}
+                disabled={!latestHTML || pushingCode}
+                className="p-1.5 rounded-md hover:bg-accent/40 text-muted-foreground/70 hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Push to GitHub"
+              >
+                <Github className={cn("w-3.5 h-3.5", pushingCode && "animate-spin")} strokeWidth={1.75} />
+              </button>
+            )}
           </div>
         </div>
 
