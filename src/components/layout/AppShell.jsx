@@ -52,7 +52,7 @@ export default function AppShell() {
       <aside className="hidden md:flex w-60 shrink-0 border-r border-border bg-sidebar flex-col">
         <div className="px-6 py-6 flex items-center gap-2.5">
           <LuminaMark size={24} className="text-foreground" />
-          <span className="font-serif text-xl tracking-tight">Lumina Ultra</span>
+          <span className="font-serif text-xl tracking-tight">LBC Ultra</span>
         </div>
 
         <nav className="px-3 flex-1 flex flex-col gap-0.5">
@@ -76,7 +76,7 @@ export default function AppShell() {
         <div className="p-4 border-t border-sidebar-border space-y-2">
           {/* LBC.Network branding */}
           <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/50 mb-3">
-            by <span className="font-medium text-muted-foreground/70">LBC.Network</span>
+            Powered by <span className="font-medium text-muted-foreground/70">Lumina Ultra</span>
           </div>
 
           <div className="flex items-center justify-between -mx-1">
@@ -123,7 +123,7 @@ export default function AppShell() {
         <div className="flex items-center justify-between px-4 h-14">
           <a href="/" className="flex items-center gap-2">
             <LuminaMark size={20} className="text-foreground" />
-          <span className="font-serif text-lg tracking-tight">Lumina Ultra</span>
+          <span className="font-serif text-lg tracking-tight">LBC Ultra</span>
 
           </a>
           <button

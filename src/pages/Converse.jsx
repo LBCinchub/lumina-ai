@@ -307,9 +307,9 @@ export default function Converse() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-screen px-6 text-center animate-fade-up">
         <LuminaMark size={56} className="text-foreground/70 mb-8" />
-        <h1 className="font-serif text-3xl tracking-tight mb-3">Welcome to Luna</h1>
+        <h1 className="font-serif text-3xl tracking-tight mb-3">Welcome to LBC Ultra</h1>
         <p className="text-sm text-muted-foreground max-w-xs leading-relaxed mb-8">
-          Sign in to start a conversation. Lumina Ultra remembers your context and grows with you.
+          Sign in to start. Powered by Lumina Ultra — the builder intelligence of LBC Network.
         </p>
         <button
           onClick={() => base44.auth.redirectToLogin()}
@@ -419,7 +419,7 @@ export default function Converse() {
                 {opener}
               </h1>
               <p className="text-sm text-muted-foreground text-center max-w-md leading-relaxed">
-                Lumina Ultra — Sister Twin to Lumina AI at lbc-hub.com. She reasons from what you've shared. The more context, the sharper the mirror.
+                LBC Ultra — powered by Lumina Ultra intelligence. Sister Twin to Lumina AI at lbc-hub.com. Converse, build, deploy, and grow.
               </p>
               {hasContext === false && (
                 <a
@@ -471,7 +471,7 @@ export default function Converse() {
               onBargeIn={stopSpeaking}
             />
             <p className="text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground/60 text-center mt-3">
-              Lumina Ultra reflects · not advises · Sister Twin to Lumina AI
+              LBC Ultra powered by Lumina Ultra · Reflects · not advises
             </p>
           </div>
         </div>
