@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import JSZip from 'jszip';
 import { base44 } from '@/api/base44Client';
 import {
   Code2, ArrowUp, Copy, Check, ChevronDown, ChevronUp,
@@ -361,6 +362,22 @@ Respond as Lumina. Describe the visual design clearly and concisely for image ge
     link.click();
   };
 
+  const downloadZip = async () => {
+    if (!latestHTML && !latestImageUrl) return;
+    const zip = new JSZip();
+    const projectName = activeProject?.title || 'project';
+    if (latestHTML) zip.file('index.html', latestHTML);
+    if (messages.length > 0) zip.file('chat-history.json', JSON.stringify(messages, null, 2));
+    const readme = `# ${projectName}\n\nBuilt with LBC Ultra powered by Lumina Ultra.\nExported: ${new Date().toLocaleString()}\n`;
+    zip.file('README.md', readme);
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${projectName.replace(/\s+/g, '-')}.zip`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
   const pushToGithub = async () => {
     if (!activeProject?.github_repo || !activeProject?.github_path || !latestHTML) return;
     setPushingCode(true);
@@ -616,10 +633,10 @@ Respond as Lumina. Describe the visual design clearly and concisely for image ge
               <RefreshCw className="w-3.5 h-3.5" strokeWidth={1.75} />
             </button>
             <button
-              onClick={downloadHTML}
-              disabled={!latestHTML}
+              onClick={downloadZip}
+              disabled={!latestHTML && !latestImageUrl}
               className="p-1.5 rounded-md hover:bg-accent/40 text-muted-foreground/70 hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              title="Download HTML"
+              title="Download ZIP archive"
             >
               <Download className="w-3.5 h-3.5" strokeWidth={1.75} />
             </button>
