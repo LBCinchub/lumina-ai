@@ -1,0 +1,56 @@
+{
+  "name": "AiSecurityEvent",
+  "type": "object",
+  "properties": {
+    "event_type": {
+      "type": "string",
+      "description": "Type of security event (e.g. auth_denied, confirmation_invalid, secret_missing, allowlist_violation)"
+    },
+    "actor_email": {
+      "type": "string",
+      "description": "Server-derived email of the actor, if known"
+    },
+    "resource_type": {
+      "type": "string",
+      "description": "Type of resource involved"
+    },
+    "resource_id": {
+      "type": "string",
+      "description": "Identifier of the resource involved"
+    },
+    "outcome": {
+      "type": "string",
+      "description": "Outcome of the event (blocked, allowed, failed)"
+    },
+    "metadata": {
+      "type": "string",
+      "description": "Redacted, free-form metadata about the event"
+    }
+  },
+  "required": [
+    "event_type",
+    "outcome"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

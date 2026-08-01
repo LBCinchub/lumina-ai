@@ -7,6 +7,7 @@ import {
   RefreshCw, ExternalLink, Download, Loader, Zap
 } from 'lucide-react';
 import CollaborativeCodeEditor from '@/components/build/CollaborativeCodeEditor.jsx';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import LuminaMark from '@/components/layout/LuminaMark';
 import { useCollaborativeSession } from '@/hooks/useCollaborativeSession';
 import { cn } from '@/lib/utils';
@@ -172,6 +173,7 @@ export default function Build() {
   const [showCode, setShowCode] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [pushingCode, setPushingCode] = useState(false);
+  const [pushConfirm, setPushConfirm] = useState(null);
 
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
@@ -382,24 +384,47 @@ Respond as Lumina. Describe the visual design clearly and concisely for image ge
     if (!activeProject?.github_repo || !activeProject?.github_path || !latestHTML) return;
     setPushingCode(true);
     try {
-      await base44.functions.invoke('luminaPushCode', {
+      const res = await base44.functions.invoke('luminaPushCode', {
         repo: activeProject.github_repo,
         path: activeProject.github_path,
         content: latestHTML,
         message: `build: update via Build IDE - ${new Date().toLocaleString()}`
       });
-      // Show success feedback
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: '✅ Pushed to GitHub successfully!', 
-        id: Date.now() + 1 
-      }]);
+      const data = res?.data || res;
+      if (data?.requires_confirmation) {
+        setPushConfirm({ preview: data.preview, token: data.confirmation_token });
+      } else if (data?.success) {
+        setMessages(prev => [...prev, { role: 'assistant', content: '✅ Pushed to GitHub successfully!', id: Date.now() + 1 }]);
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: `❌ GitHub push failed: ${data?.error || 'unknown'}`, id: Date.now() + 1 }]);
+      }
     } catch (err) {
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: `❌ GitHub push failed: ${err.message}`, 
-        id: Date.now() + 1 
-      }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: `❌ GitHub push failed: ${err.message}`, id: Date.now() + 1 }]);
+    } finally {
+      setPushingCode(false);
+    }
+  };
+
+  const confirmPush = async () => {
+    if (!pushConfirm) return;
+    setPushingCode(true);
+    try {
+      const res = await base44.functions.invoke('luminaPushCode', {
+        repo: pushConfirm.preview.repo,
+        path: pushConfirm.preview.path,
+        content: latestHTML,
+        message: pushConfirm.preview.message,
+        confirmation_token: pushConfirm.token
+      });
+      const data = res?.data || res;
+      if (data?.success) {
+        setMessages(prev => [...prev, { role: 'assistant', content: '✅ Pushed to GitHub successfully!', id: Date.now() + 1 }]);
+        setPushConfirm(null);
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: `❌ GitHub push failed: ${data?.error || 'unknown'}`, id: Date.now() + 1 }]);
+      }
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'assistant', content: `❌ GitHub push failed: ${err.message}`, id: Date.now() + 1 }]);
     } finally {
       setPushingCode(false);
     }
@@ -668,6 +693,29 @@ Respond as Lumina. Describe the visual design clearly and concisely for image ge
           deviceMode={deviceMode}
         />
       </div>
+
+      {pushConfirm && (
+        <Dialog open={!!pushConfirm} onOpenChange={(o) => !o && setPushConfirm(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Confirm GitHub push</DialogTitle>
+            </DialogHeader>
+            <div className="text-[12px] text-muted-foreground space-y-1.5">
+              <div>Repo: <span className="text-foreground">{pushConfirm.preview.repo}</span></div>
+              <div>Branch: <span className="text-foreground">{pushConfirm.preview.branch}</span></div>
+              <div>Path: <span className="text-foreground">{pushConfirm.preview.path}</span></div>
+              <div>Size: <span className="text-foreground">{pushConfirm.preview.size_bytes} bytes</span></div>
+              <div>Message: <span className="text-foreground">{pushConfirm.preview.message}</span></div>
+            </div>
+            <DialogFooter className="gap-2">
+              <button onClick={() => setPushConfirm(null)} className="px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground">Cancel</button>
+              <button onClick={confirmPush} disabled={pushingCode} className="px-3 py-1.5 rounded-md text-xs bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50">
+                {pushingCode ? 'Pushing…' : 'Confirm push'}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

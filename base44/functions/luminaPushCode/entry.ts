@@ -1,60 +1,89 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
+import {
+  requireFounderOrAdmin, errorResponse, sha256Hex,
+  isAllowedRepo, isSafePath, isSafeBranch, withinSize, redact,
+  issueConfirmation, verifyConfirmation, writeAudit, executeGitHubCommit,
+} from '../../shared/security.ts';
 
-const CONNECTOR_ID = '69e9a63841ece86c3a6ac789';
+const ACTION_TYPE = 'github_push';
 
-Deno.serve(async (req) => {
+export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const { user, error } = await requireFounderOrAdmin(base44);
+    if (error) return errorResponse(error);
 
-    const { repo, path, content, message, branch = 'main' } = await req.json();
-    if (!path || !content || !message || !repo) {
-      return Response.json({ error: 'Missing required fields: path, content, message, repo' }, { status: 400 });
+    const { repo, path, content, message, branch = 'main', confirmation_token } = await req.json();
+
+    if (!repo || !path || !content || !message) {
+      return Response.json({ error: 'Missing required fields: repo, path, content, message' }, { status: 400 });
     }
 
-    const { accessToken } = await base44.asServiceRole.connectors.getCurrentAppUserConnection(CONNECTOR_ID);
+    const db = base44.asServiceRole;
 
-    const encodedContent = btoa(unescape(encodeURIComponent(content)));
+    if (!isAllowedRepo(repo)) {
+      await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: String(repo), status: 'denied', resultSummary: 'repo not in allowlist', requestHash: null });
+      return Response.json({ error: 'Repository not allowed' }, { status: 403 });
+    }
+    if (!isSafePath(path)) {
+      await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: `${repo}:${branch}:${path}`, status: 'denied', resultSummary: 'path rejected', requestHash: null });
+      return Response.json({ error: 'Path not allowed' }, { status: 403 });
+    }
+    if (!isSafeBranch(branch)) {
+      await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: `${repo}:${branch}:${path}`, status: 'denied', resultSummary: 'branch rejected', requestHash: null });
+      return Response.json({ error: 'Branch not allowed' }, { status: 400 });
+    }
+    if (!withinSize(content)) {
+      await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: `${repo}:${branch}:${path}`, status: 'denied', resultSummary: 'content too large', requestHash: null });
+      return Response.json({ error: 'Content too large' }, { status: 413 });
+    }
 
-    // Check if file exists to get its SHA
-    let sha = null;
-    try {
-      const existing = await fetch(`https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Accept': 'application/vnd.github+json',
-        }
+    const contentHash = await sha256Hex(content);
+    const target = `${repo}:${branch}:${path}`;
+    const requestHash = contentHash.slice(0, 12);
+
+    if (!confirmation_token) {
+      const preview = {
+        repo, branch, path,
+        size_bytes: content.length,
+        content_hash: requestHash,
+        message,
+      };
+      const token = await issueConfirmation(db, {
+        actorEmail: user.email, actionType: ACTION_TYPE, target, payloadHash: contentHash,
       });
-      if (existing.ok) {
-        const data = await existing.json();
-        sha = data.sha;
-      }
-    } catch (_) {}
+      await writeAudit(db, {
+        actorEmail: user.email, actionType: ACTION_TYPE, target, status: 'pending',
+        resultSummary: 'confirmation issued', requestHash,
+      });
+      return Response.json({ requires_confirmation: true, preview, confirmation_token: token });
+    }
 
-    const body = { message, content: encodedContent, branch };
-    if (sha) body.sha = sha;
+    const verified = await verifyConfirmation(db, {
+      token: confirmation_token, actorEmail: user.email, actionType: ACTION_TYPE, target, payloadHash: contentHash,
+    });
+    if (!verified.ok) {
+      await writeAudit(db, {
+        actorEmail: user.email, actionType: ACTION_TYPE, target, status: 'denied',
+        resultSummary: `confirmation ${verified.reason}`, requestHash,
+      });
+      return Response.json({ error: 'Confirmation invalid or expired' }, { status: 403 });
+    }
 
-    const res = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/vnd.github+json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body)
+    const result = await executeGitHubCommit(base44, { repo, path, content, message, branch });
+
+    await writeAudit(db, {
+      actorEmail: user.email, actionType: ACTION_TYPE, target,
+      status: result.ok ? 'success' : 'failed',
+      resultSummary: result.ok ? `commit ${(result.commit || '').slice(0, 12)}` : redact(result.error),
+      confirmationId: verified.confirmationId || null, requestHash,
     });
 
-    const result = await res.json();
-    if (!res.ok) return Response.json({ error: result.message || 'GitHub API error' }, { status: res.status });
-
-    return Response.json({
-      success: true,
-      commit: result.commit?.sha,
-      url: result.content?.html_url,
-      message: `Pushed to ${repo}/${path}`
-    });
+    if (!result.ok) {
+      return Response.json({ error: 'GitHub push failed' }, { status: result.status });
+    }
+    return Response.json({ success: true, commit: result.commit, url: result.url });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: 'GitHub push failed' }, { status: 500 });
   }
-});
+}

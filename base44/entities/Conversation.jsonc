@@ -3,33 +3,28 @@
   "type": "object",
   "properties": {
     "title": {
-      "type": "string"
-    },
-    "messages": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "role": {
-            "type": "string",
-            "enum": [
-              "user",
-              "assistant"
-            ]
-          },
-          "content": {
-            "type": "string"
-          },
-          "timestamp": {
-            "type": "string"
-          }
-        }
-      }
+      "type": "string",
+      "description": "Short title summarizing the conversation"
     },
     "last_message_at": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "description": "Timestamp of the most recent message"
+    },
+    "summary": {
+      "type": "string",
+      "description": "A brief summary of what was discussed"
     }
   },
-  "required": []
+  "required": [
+    "title"
+  ],
+  "rls": {
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  }
 }

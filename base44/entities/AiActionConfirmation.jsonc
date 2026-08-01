@@ -1,0 +1,83 @@
+{
+  "name": "AiActionConfirmation",
+  "type": "object",
+  "properties": {
+    "actor_email": {
+      "type": "string",
+      "description": "Server-derived email of the actor requesting the confirmation"
+    },
+    "action_type": {
+      "type": "string",
+      "description": "Type of privileged action this token authorizes"
+    },
+    "target": {
+      "type": "string",
+      "description": "Bound target of the action"
+    },
+    "payload_hash": {
+      "type": "string",
+      "description": "SHA-256 hash of the bound payload content"
+    },
+    "token_hash": {
+      "type": "string",
+      "description": "SHA-256 hash of the issued bearer token (plaintext never stored)"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the token expires"
+    },
+    "used_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the token was consumed, if used"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "used",
+        "expired",
+        "invalid"
+      ],
+      "default": "pending",
+      "description": "Current lifecycle state of the confirmation"
+    }
+  },
+  "required": [
+    "actor_email",
+    "action_type",
+    "token_hash",
+    "expires_at",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "data.actor_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

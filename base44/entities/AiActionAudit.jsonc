@@ -1,0 +1,75 @@
+{
+  "name": "AiActionAudit",
+  "type": "object",
+  "properties": {
+    "actor_email": {
+      "type": "string",
+      "description": "Server-derived email of the user who triggered the action"
+    },
+    "action_type": {
+      "type": "string",
+      "description": "Type of privileged action (e.g. github_push, deploy, vps_mutation)"
+    },
+    "target": {
+      "type": "string",
+      "description": "Target of the action (repo:branch:path, node id, host, etc.)"
+    },
+    "request_hash": {
+      "type": "string",
+      "description": "Short hash of the request payload for correlation (not the full payload)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "denied",
+        "success",
+        "failed",
+        "error"
+      ],
+      "description": "Outcome of the action"
+    },
+    "result_summary": {
+      "type": "string",
+      "description": "Brief redacted summary of the result"
+    },
+    "confirmation_id": {
+      "type": "string",
+      "description": "Reference to the AiActionConfirmation used, if any"
+    }
+  },
+  "required": [
+    "actor_email",
+    "action_type",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "data.actor_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
