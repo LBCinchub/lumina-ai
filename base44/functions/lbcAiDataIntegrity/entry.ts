@@ -367,12 +367,13 @@ export default async function(req) {
       }
 
       // Quarantine true orphans / anonymous_legacy / conflicts (idempotent dedup by record_id).
+      // Anonymous-legacy records are intentionally skipped (left in place, not
+      // quarantined) per owner direction. Only true orphans + conflicts are
+      // quarantined.
       const candidates = [
         ...mClass.orphan.map(id => ({ entity_type: "Message", record_id: id, reason: "orphan_conversation" })),
-        ...mClass.anonymous_legacy.map(id => ({ entity_type: "Message", record_id: id, reason: "anonymous_legacy" })),
         ...mClass.conflict.map(id => ({ entity_type: "Message", record_id: id, reason: "owner_email_conflict" })),
         ...sClass.orphan.map(id => ({ entity_type: "SharedConversation", record_id: id, reason: "orphan_conversation" })),
-        ...sClass.anonymous_legacy.map(id => ({ entity_type: "SharedConversation", record_id: id, reason: "anonymous_legacy" })),
         ...sClass.conflict.map(id => ({ entity_type: "SharedConversation", record_id: id, reason: "owner_email_conflict" })),
       ];
       let existingQ = [];
