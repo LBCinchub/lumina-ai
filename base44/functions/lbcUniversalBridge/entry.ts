@@ -1,4 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { secrets } from "base44:runtime";
+import { requireFounderOrAdmin, errorResponse } from '../../shared/security.ts';
 
 const MOTHER_NODE_URL = 'https://lbc.network';
 
@@ -10,7 +12,7 @@ async function hmacHex(secret, data) {
     false, ["sign"]
   );
   const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join('');
 }
 
 async function generateFamilyToken(userId, targetDomain, secret) {
@@ -43,10 +45,12 @@ async function verifyFamilyToken(token, currentDomain, secret) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const { error } = await requireFounderOrAdmin(base44);
+    if (error) return errorResponse(error);
 
-    const secret = Deno.env.get("VPS_API_HASH") || "lbc-secret";
+    const secret = secrets.get("VPS_API_HASH");
+    if (!secret) return Response.json({ error: 'Service unavailable' }, { status: 503 });
+
     const { action, userId, targetDomain, currentDomain, token } = await req.json();
 
     if (action === 'generate') {
@@ -63,6 +67,6 @@ Deno.serve(async (req) => {
 
     return Response.json({ error: 'Unknown action' }, { status: 400 });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: 'Something went wrong' }, { status: 500 });
   }
 });

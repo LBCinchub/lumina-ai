@@ -17,6 +17,10 @@
     "content": {
       "type": "string",
       "description": "The message body"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Server-derived owner email from the verified parent Conversation. Browser cannot set/override."
     }
   },
   "required": [
@@ -26,10 +30,34 @@
   ],
   "rls": {
     "read": {
-      "created_by": "{{user.email}}"
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "write": {
-      "created_by": "{{user.email}}"
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     }
   }
 }

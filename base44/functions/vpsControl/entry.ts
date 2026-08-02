@@ -1,24 +1,22 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { requireFounderOrAdmin, errorResponse } from '../../shared/security.ts';
+import { getVpsCreds } from '../../shared/vps.ts';
 
 const VPS_BASE = 'https://vpspanel.web-hosting.com/api/index.php';
-const VPS_ID = '3403130354u2y3z284846415'; // from the URL in the screenshot
+const VPS_ID = '3403130354u2y3z284846415';
 
-function vpsUrl(action, extra = '') {
-  const key = Deno.env.get('VPS_API_KEY');
-  const hash = Deno.env.get('VPS_API_HASH');
-  return `${VPS_BASE}?key=${key}&hash=${hash}&action=${action}&vserverid=${VPS_ID}${extra}`;
+function vpsUrl(creds, action, extra = '') {
+  return `${VPS_BASE}?key=${creds.key}&hash=${creds.hash}&action=${action}&vserverid=${VPS_ID}${extra}`;
 }
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const { error } = await requireFounderOrAdmin(base44);
+    if (error) return errorResponse(error);
 
-    // Only Mokhtar (founder) can control the VPS
-    if (user.email !== 'mokhtartareksamara@gmail.com' && user.role !== 'admin') {
-      return Response.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const creds = getVpsCreds();
+    if (!creds) return Response.json({ error: 'Service unavailable' }, { status: 503 });
 
     const { action } = await req.json();
 
@@ -27,7 +25,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: `Invalid action. Allowed: ${allowedActions.join(', ')}` }, { status: 400 });
     }
 
-    const url = vpsUrl(action);
+    const url = vpsUrl(creds, action);
     const res = await fetch(url);
     const text = await res.text();
 
@@ -46,6 +44,6 @@ Deno.serve(async (req) => {
 
     return Response.json({ success: true, action, result: data, raw: text });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: 'Something went wrong' }, { status: 500 });
   }
 });

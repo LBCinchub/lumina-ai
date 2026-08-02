@@ -1,30 +1,20 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { requireFounderOrAdmin, errorResponse } from '../../shared/security.ts';
+import { signVpsPayload } from '../../shared/vps.ts';
 
 const MOTHER_NODE_URL = "https://api.lbc.network/v1/deploy";
-
-async function signRequest(payload) {
-  const secret = Deno.env.get("VPS_API_HASH") || "lbc-secret";
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw", encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false, ["sign"]
-  );
-  const data = encoder.encode(JSON.stringify(payload));
-  const sig = await crypto.subtle.sign("HMAC", key, data);
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const { error } = await requireFounderOrAdmin(base44);
+    if (error) return errorResponse(error);
 
     const { buildArtifact } = await req.json();
     const timestamp = Date.now();
 
-    const signature = await signRequest({ ...buildArtifact, timestamp, origin: "lbchub.site" });
+    const signature = await signVpsPayload({ ...buildArtifact, timestamp, origin: "lbchub.site" });
+    if (!signature) return Response.json({ error: 'Service unavailable' }, { status: 503 });
 
     const response = await fetch(MOTHER_NODE_URL, {
       method: 'POST',
@@ -55,6 +45,6 @@ Deno.serve(async (req) => {
 
     return Response.json({ success: true, deploymentId: `LBC-${timestamp}` });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: 'Something went wrong' }, { status: 500 });
   }
 });

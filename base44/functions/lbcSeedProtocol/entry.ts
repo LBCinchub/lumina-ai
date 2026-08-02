@@ -1,27 +1,18 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-
-async function signRequest(payload) {
-  const secret = Deno.env.get("VPS_API_HASH") || "lbc-secret";
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw", encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false, ["sign"]
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(JSON.stringify(payload)));
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
+import { requireFounderOrAdmin, errorResponse } from '../../shared/security.ts';
+import { signVpsPayload } from '../../shared/vps.ts';
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    const { error } = await requireFounderOrAdmin(base44);
+    if (error) return errorResponse(error);
 
     const { ip } = await req.json();
     if (!ip) return Response.json({ error: 'Missing target IP' }, { status: 400 });
 
-    const signature = await signRequest({ action: "NODE_INITIALIZATION", target: ip });
+    const signature = await signVpsPayload({ action: "NODE_INITIALIZATION", target: ip });
+    if (!signature) return Response.json({ error: 'Service unavailable' }, { status: 503 });
 
     // Simulated provisioning (hooks into VPS infrastructure)
     const nodeId = `LBC-NODE-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
@@ -36,6 +27,6 @@ Deno.serve(async (req) => {
 
     return Response.json({ status: "NODE_LIVE", nodeId, signature });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: 'Something went wrong' }, { status: 500 });
   }
 });

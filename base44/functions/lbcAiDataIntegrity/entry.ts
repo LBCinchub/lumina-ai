@@ -1,76 +1,147 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
-import { requireFounderOrAdmin, errorResponse } from '../../shared/security.ts';
+import { requireFounderOrAdmin, errorResponse, sha256Hex } from '../../shared/security.ts';
 
 // Owner/admin-only data-integrity tool for LBC AI.
-// Actions: dry_run (read-only counts), apply_verified (backfill owner_email,
-// quarantine orphans/anon/conflicts; idempotent), status (latest runs).
-// Never deletes records. Never assigns anonymous/orphan records to a human.
-// No message content is stored in audit rows.
+// Actions: dry_run (read-only), apply_verified (backfill owner_email + quarantine),
+// status (latest runs).
+//
+// HARD RULES:
+//  - Never deletes records.
+//  - Backfills owner_email only from a verified parent Conversation with a HUMAN owner.
+//  - True orphans / true anonymous-or-service owners / conflicts -> quarantine.
+//  - owner_metadata_unavailable (parent exists but has no resolvable owner) BLOCKS apply;
+//    it is never quarantined as anonymous.
+//  - apply_verified is bound to a fresh completed dry_run from THIS code version,
+//    with pagination complete, fixture checks passing, no metadata-unavailable,
+//    and the exact confirmation phrase. It reclassifies before writes and aborts
+//    on any drift in totals or owner mapping.
+//  - No message content is stored in audit rows; fixture checks are booleans only.
 
+const CODE_VERSION = "lbc_ai_integrity_v2_20260802";
 const CONFIRM_PHRASE = "REPAIR_VERIFIED_LBC_AI_DATA";
-const PAGE_SIZE = 500;
-const ANON_TOKENS = ["anonymous", "system", "service"];
+const BATCH = 5000; // platform max per request
 
-function isHumanOwner(v) {
-  if (!v || typeof v !== "string") return false;
+// Fixture conversations used to validate owner resolution (booleans only, no PII).
+const FIXTURES = [
+  { id: "6a400735ed9c0b8c2b42ebd4", key: "fixture_6a400735_human" },
+  { id: "6a13be31ab1dfe8d5ca391f4", key: "fixture_6a13be31_human" },
+];
+
+// Resolve the kind of owner a parent's created_by represents.
+function ownerKind(v) {
+  if (!v || typeof v !== "string") return "missing";
   const lower = v.toLowerCase();
-  if (ANON_TOKENS.some(t => lower === t || lower.startsWith(t))) return false;
-  return v.includes("@");
+  if (lower === "anonymous") return "anonymous";
+  if (lower.startsWith("service") || lower.includes("no-reply.base44.com")) return "service";
+  if (v.includes("@")) return "human";
+  return "anonymous"; // non-empty, non-email -> treat as anonymous
 }
 
-// Paginate every record of an entity via created_date cursor (no skip offset drift).
+// Complete pagination via supported list(sort, limit, skip). De-dupes IDs and
+// reports pages scanned + whether the safety cap was reached.
 async function listAll(db, entityName) {
   const all = [];
   const seen = new Set();
-  let cursor = null;
-  let guard = 0;
-  while (guard < 500) {
-    guard++;
+  let skip = 0;
+  let pages = 0;
+  let capped = false;
+  while (pages < 100) {
+    pages++;
     let batch;
-    if (cursor) {
-      batch = await db.entities[entityName].filter({ created_date: { $lt: cursor } }, "-created_date", PAGE_SIZE);
-    } else {
-      batch = await db.entities[entityName].list("-created_date", PAGE_SIZE);
+    try {
+      batch = await db.entities[entityName].list("-created_date", BATCH, skip);
+    } catch (_) {
+      break;
     }
     if (!batch || batch.length === 0) break;
-    const fresh = batch.filter(b => b && b.id && !seen.has(b.id));
-    if (fresh.length === 0) break;
-    for (const b of fresh) { seen.add(b.id); all.push(b); }
-    cursor = batch[batch.length - 1].created_date;
-    if (batch.length < PAGE_SIZE) break;
+    for (const b of batch) {
+      if (b && b.id && !seen.has(b.id)) { seen.add(b.id); all.push(b); }
+    }
+    skip += batch.length;
+    if (batch.length < BATCH) break;
   }
-  return all;
+  if (pages >= 100) capped = true;
+  return { records: all, pages_scanned: pages, capped };
 }
 
-function classifyMessages(messages, convoById) {
-  const r = { backfillable: [], already_ok: [], orphan: [], anonymous_owner: [], conflict: [], total: messages.length };
-  for (const m of messages) {
+function classify(records, convoById) {
+  const r = {
+    backfillable: [], already_ok: [], orphan: [],
+    anonymous_or_service_owner: [], owner_metadata_unavailable: [], conflict: [],
+    total: records.length,
+  };
+  for (const m of records) {
     const parent = convoById[m.conversation_id];
     if (!parent) { r.orphan.push(m.id); continue; }
-    const owner = parent.created_by;
-    if (!isHumanOwner(owner)) { r.anonymous_owner.push(m.id); continue; }
-    if (m.owner_email && m.owner_email === owner) { r.already_ok.push(m.id); continue; }
-    if (m.owner_email && m.owner_email !== owner) { r.conflict.push(m.id); continue; }
-    r.backfillable.push({ id: m.id, owner_email: owner });
+    const kind = ownerKind(parent.created_by);
+    if (kind === "missing") { r.owner_metadata_unavailable.push(m.id); continue; }
+    if (kind === "human") {
+      const owner = parent.created_by;
+      if (m.owner_email && m.owner_email === owner) { r.already_ok.push(m.id); continue; }
+      if (m.owner_email && m.owner_email !== owner) { r.conflict.push(m.id); continue; }
+      r.backfillable.push({ id: m.id, owner_email: owner });
+      continue;
+    }
+    // anonymous or service
+    r.anonymous_or_service_owner.push(m.id);
   }
   return r;
 }
 
-function classifyShared(shared, convoById) {
-  const r = { backfillable: [], already_ok: [], orphan: [], anonymous_owner: [], conflict: [], title_copy: [], total: shared.length };
-  for (const s of shared) {
+function classifyShared(records, convoById) {
+  const r = {
+    backfillable: [], already_ok: [], orphan: [],
+    anonymous_or_service_owner: [], owner_metadata_unavailable: [], conflict: [],
+    title_copy: [], total: records.length,
+  };
+  for (const s of records) {
     const parent = convoById[s.conversation_id];
     if (!parent) { r.orphan.push(s.id); continue; }
-    const owner = parent.created_by;
-    if (!isHumanOwner(owner)) { r.anonymous_owner.push(s.id); continue; }
-    if (s.owner_email && s.owner_email === owner) { r.already_ok.push(s.id); }
-    else if (s.owner_email && s.owner_email !== owner) { r.conflict.push(s.id); }
-    else { r.backfillable.push({ id: s.id, owner_email: owner }); }
-    if ((!s.title || s.title === "Synced conversation") && parent.title) {
-      r.title_copy.push({ id: s.id, title: parent.title });
+    const kind = ownerKind(parent.created_by);
+    if (kind === "missing") { r.owner_metadata_unavailable.push(s.id); continue; }
+    if (kind === "human") {
+      const owner = parent.created_by;
+      if (s.owner_email && s.owner_email === owner) { r.already_ok.push(s.id); }
+      else if (s.owner_email && s.owner_email !== owner) { r.conflict.push(s.id); }
+      else { r.backfillable.push({ id: s.id, owner_email: owner }); }
+      if ((!s.title || s.title === "Synced conversation") && parent.title) {
+        r.title_copy.push({ id: s.id, title: parent.title });
+      }
+      continue;
     }
+    r.anonymous_or_service_owner.push(s.id);
   }
   return r;
+}
+
+async function backfillFingerprint(items) {
+  const sorted = [...items].map(b => `${b.id}|${b.owner_email}`).sort().join("\n");
+  return await sha256Hex(sorted);
+}
+
+async function fixtureChecks(db) {
+  const out = {};
+  for (const f of FIXTURES) {
+    let rec = null;
+    try {
+      const res = await db.entities.Conversation.filter({ id: f.id });
+      rec = res && res[0];
+    } catch (_) { rec = null; }
+    out[f.key] = !!(rec && ownerKind(rec.created_by) === "human");
+  }
+  return out;
+}
+
+function countsOf(c) {
+  return {
+    total: c.total,
+    backfillable: c.backfillable.length,
+    already_ok: c.already_ok.length,
+    orphan: c.orphan.length,
+    anonymous_or_service_owner: c.anonymous_or_service_owner.length,
+    owner_metadata_unavailable: c.owner_metadata_unavailable.length,
+    conflict: c.conflict.length,
+  };
 }
 
 export default async function(req) {
@@ -89,6 +160,7 @@ export default async function(req) {
       let openQuarantine = 0;
       try { openQuarantine = (await db.entities.AiDataQuarantine.filter({ resolved: false })).length; } catch (_) {}
       return Response.json({
+        code_version: CODE_VERSION,
         latest_runs: runs.map(r => ({
           id: r.id, action: r.action, status: r.status,
           started_at: r.started_at, finished_at: r.finished_at, summary: r.summary,
@@ -103,82 +175,121 @@ export default async function(req) {
         started_at: new Date().toISOString(),
       });
 
-      const conversations = await listAll(db, "Conversation");
+      const convos = await listAll(db, "Conversation");
       const convoById = {};
-      for (const c of conversations) convoById[c.id] = c;
+      for (const c of convos.records) convoById[c.id] = c;
 
       const messages = await listAll(db, "Message");
       const shared = await listAll(db, "SharedConversation");
-      const mClass = classifyMessages(messages, convoById);
-      const sClass = classifyShared(shared, convoById);
+      const mClass = classify(messages.records, convoById);
+      const sClass = classifyShared(shared.records, convoById);
 
-      const totals = {
-        conversations: conversations.length,
-        messages: {
-          total: mClass.total,
-          backfillable: mClass.backfillable.length,
-          already_ok: mClass.already_ok.length,
-          orphan: mClass.orphan.length,
-          anonymous_owner: mClass.anonymous_owner.length,
-          conflict: mClass.conflict.length,
-        },
-        shared: {
-          total: sClass.total,
-          backfillable: sClass.backfillable.length,
-          already_ok: sClass.already_ok.length,
-          orphan: sClass.orphan.length,
-          anonymous_owner: sClass.anonymous_owner.length,
-          conflict: sClass.conflict.length,
-          title_copy: sClass.title_copy.length,
-        },
+      const fixtures = await fixtureChecks(db);
+      const hasMetadataUnavailable =
+        mClass.owner_metadata_unavailable.length > 0 || sClass.owner_metadata_unavailable.length > 0;
+
+      const fingerprint = await backfillFingerprint([
+        ...mClass.backfillable,
+        ...sClass.backfillable,
+      ]);
+
+      const blob = {
+        code_version: CODE_VERSION,
+        pages_scanned: { conversations: convos.pages_scanned, messages: messages.pages_scanned, shared: shared.pages_scanned },
+        capped: { conversations: convos.capped, messages: messages.capped, shared: shared.capped },
+        conversations_total: convos.records.length,
+        messages: countsOf(mClass),
+        shared: { ...countsOf(sClass), title_copy: sClass.title_copy.length },
+        fixture_checks: fixtures,
+        has_metadata_unavailable: hasMetadataUnavailable,
+        backfill_fingerprint: fingerprint,
       };
 
       await db.entities.AiDataRepairRun.update(run.id, {
         status: "completed",
         finished_at: new Date().toISOString(),
-        totals: JSON.stringify(totals),
-        summary: `dry_run: ${mClass.backfillable.length} messages + ${sClass.backfillable.length} shared backfillable; ${mClass.orphan.length + sClass.orphan.length} orphans; ${mClass.anonymous_owner.length + sClass.anonymous_owner.length} anon/service; ${mClass.conflict.length + sClass.conflict.length} conflict`,
+        totals: JSON.stringify(blob),
+        summary: `dry_run v${CODE_VERSION}: msgs backfillable=${mClass.backfillable.length} anon/service=${mClass.anonymous_or_service_owner.length} orphan=${mClass.orphan.length} meta_unavail=${mClass.owner_metadata_unavailable.length}; shared backfillable=${sClass.backfillable.length}; fixtures=${Object.values(fixtures).join("/")}; capped=${messages.capped || shared.capped || convos.capped}`,
       });
 
-      return Response.json({ action: "dry_run", run_id: run.id, totals });
+      return Response.json({
+        action: "dry_run",
+        run_id: run.id,
+        code_version: CODE_VERSION,
+        pages_scanned: blob.pages_scanned,
+        capped: blob.capped,
+        conversations_total: blob.conversations_total,
+        messages: blob.messages,
+        shared: blob.shared,
+        fixture_checks: blob.fixture_checks,
+        has_metadata_unavailable: blob.has_metadata_unavailable,
+        apply_blocked: blob.capped.messages || blob.capped.shared || blob.capped.conversations || hasMetadataUnavailable || !Object.values(fixtures).every(Boolean),
+      });
     }
 
     if (action === "apply_verified") {
       if (body.confirmation_phrase !== CONFIRM_PHRASE) {
         return Response.json({ error: "Confirmation phrase required" }, { status: 400 });
       }
+      if (!body.dry_run_id) {
+        return Response.json({ error: "dry_run_id required" }, { status: 400 });
+      }
 
-      const run = await db.entities.AiDataRepairRun.create({
+      // Load and validate the bound dry-run.
+      let runRows = [];
+      try { runRows = await db.entities.AiDataRepairRun.filter({ id: body.dry_run_id }); } catch (_) {}
+      const run = runRows && runRows[0];
+      if (!run) return Response.json({ error: "dry-run not found" }, { status: 404 });
+      if (run.action !== "dry_run") return Response.json({ error: "Not a dry-run record" }, { status: 400 });
+      if (run.status !== "completed") return Response.json({ error: "dry-run not completed" }, { status: 409 });
+      if ((run.summary || "").includes("| APPLIED")) return Response.json({ error: "dry-run already applied" }, { status: 409 });
+
+      let stashed = null;
+      try { stashed = JSON.parse(run.totals); } catch (_) {}
+      if (!stashed) return Response.json({ error: "dry-run metadata missing" }, { status: 409 });
+      if (stashed.code_version !== CODE_VERSION) {
+        return Response.json({ error: "Stale dry-run (code version mismatch) — rerun dry_run" }, { status: 409 });
+      }
+      if (stashed.capped.messages || stashed.capped.shared || stashed.capped.conversations) {
+        return Response.json({ error: "Pagination incomplete — rerun dry_run" }, { status: 409 });
+      }
+      if (stashed.has_metadata_unavailable) {
+        return Response.json({ error: "owner_metadata_unavailable present — fix required before apply" }, { status: 409 });
+      }
+      if (!Object.values(stashed.fixture_checks).every(Boolean)) {
+        return Response.json({ error: "Fixture checks failed — rerun dry_run" }, { status: 409 });
+      }
+
+      // Reclassify fresh and compare to the stashed dry-run classification.
+      const convos = await listAll(db, "Conversation");
+      const convoById = {};
+      for (const c of convos.records) convoById[c.id] = c;
+      const messages = await listAll(db, "Message");
+      const shared = await listAll(db, "SharedConversation");
+      const mClass = classify(messages.records, convoById);
+      const sClass = classifyShared(shared.records, convoById);
+      const freshFingerprint = await backfillFingerprint([...mClass.backfillable, ...sClass.backfillable]);
+      const freshMsgCounts = countsOf(mClass);
+      const freshSharedCounts = countsOf(sClass);
+
+      const drifted =
+        JSON.stringify(freshMsgCounts) !== JSON.stringify(stashed.messages) ||
+        JSON.stringify({ ...freshSharedCounts, title_copy: sClass.title_copy.length }) !== JSON.stringify(stashed.shared) ||
+        freshFingerprint !== stashed.backfill_fingerprint;
+      if (drifted) {
+        return Response.json({
+          error: "Classification drifted between dry-run and apply — rerun dry_run",
+          action: "apply_verified",
+        }, { status: 409 });
+      }
+
+      const applyRun = await db.entities.AiDataRepairRun.create({
         action: "apply_verified", actor_email: user.email, status: "running",
         started_at: new Date().toISOString(),
       });
 
-      const conversations = await listAll(db, "Conversation");
-      const convoById = {};
-      for (const c of conversations) convoById[c.id] = c;
+      let updatedMessages = 0, updatedShared = 0, titlesCopied = 0, quarantined = 0;
 
-      const messages = await listAll(db, "Message");
-      const shared = await listAll(db, "SharedConversation");
-      const mClass = classifyMessages(messages, convoById);
-      const sClass = classifyShared(shared, convoById);
-
-      const before = {
-        messages: {
-          total: mClass.total, backfillable: mClass.backfillable.length,
-          already_ok: mClass.already_ok.length, orphan: mClass.orphan.length,
-          anonymous_owner: mClass.anonymous_owner.length, conflict: mClass.conflict.length,
-        },
-        shared: {
-          total: sClass.total, backfillable: sClass.backfillable.length,
-          already_ok: sClass.already_ok.length, orphan: sClass.orphan.length,
-          anonymous_owner: sClass.anonymous_owner.length, conflict: sClass.conflict.length,
-          title_copy: sClass.title_copy.length,
-        },
-      };
-
-      let updatedMessages = 0, updatedShared = 0, titlesCopied = 0;
-
-      // Backfill Message.owner_email (idempotent: only records lacking owner_email are backfillable)
       if (mClass.backfillable.length > 0) {
         await db.entities.Message.bulkUpdate(
           mClass.backfillable.map(b => ({ id: b.id, owner_email: b.owner_email }))
@@ -186,7 +297,6 @@ export default async function(req) {
         updatedMessages = mClass.backfillable.length;
       }
 
-      // Backfill SharedConversation.owner_email + generic title copy (merged per record)
       const sharedPatch = new Map();
       for (const b of sClass.backfillable) sharedPatch.set(b.id, { id: b.id, owner_email: b.owner_email });
       for (const t of sClass.title_copy) {
@@ -200,20 +310,19 @@ export default async function(req) {
         titlesCopied = [...sharedPatch.values()].filter(p => p.title).length;
       }
 
-      // Quarantine orphans / anonymous / conflicts (idempotent: skip already-quarantined record_ids)
-      const quarantineCandidates = [
+      // Quarantine true orphans / anonymous-or-service / conflicts (idempotent dedup by record_id).
+      const candidates = [
         ...mClass.orphan.map(id => ({ entity_type: "Message", record_id: id, reason: "orphan_conversation" })),
-        ...mClass.anonymous_owner.map(id => ({ entity_type: "Message", record_id: id, reason: "anonymous_or_service_owner" })),
+        ...mClass.anonymous_or_service_owner.map(id => ({ entity_type: "Message", record_id: id, reason: "anonymous_or_service_owner" })),
         ...mClass.conflict.map(id => ({ entity_type: "Message", record_id: id, reason: "owner_email_conflict" })),
         ...sClass.orphan.map(id => ({ entity_type: "SharedConversation", record_id: id, reason: "orphan_conversation" })),
-        ...sClass.anonymous_owner.map(id => ({ entity_type: "SharedConversation", record_id: id, reason: "anonymous_or_service_owner" })),
+        ...sClass.anonymous_or_service_owner.map(id => ({ entity_type: "SharedConversation", record_id: id, reason: "anonymous_or_service_owner" })),
         ...sClass.conflict.map(id => ({ entity_type: "SharedConversation", record_id: id, reason: "owner_email_conflict" })),
       ];
       let existingQ = [];
       try { existingQ = await db.entities.AiDataQuarantine.filter({}); } catch (_) {}
       const existingIds = new Set(existingQ.map(q => q.record_id));
-      let quarantined = 0;
-      for (const q of quarantineCandidates) {
+      for (const q of candidates) {
         if (existingIds.has(q.record_id)) continue;
         try {
           await db.entities.AiDataQuarantine.create({
@@ -223,21 +332,23 @@ export default async function(req) {
         } catch (_) {}
       }
 
-      const after = {
-        messages_updated: updatedMessages,
-        shared_updated: updatedShared,
-        titles_copied: titlesCopied,
-        quarantined,
-      };
+      const after = { messages_updated: updatedMessages, shared_updated: updatedShared, titles_copied: titlesCopied, quarantined };
 
-      await db.entities.AiDataRepairRun.update(run.id, {
+      await db.entities.AiDataRepairRun.update(applyRun.id, {
         status: "completed",
         finished_at: new Date().toISOString(),
-        totals: JSON.stringify({ before, after }),
-        summary: `apply_verified: +${updatedMessages} msg owner_email, +${updatedShared} shared owner_email, +${titlesCopied} titles, +${quarantined} quarantined`,
+        totals: JSON.stringify({ applied_to_dry_run: run.id, after }),
+        summary: `apply_verified v${CODE_VERSION}: +${updatedMessages} msg owner_email, +${updatedShared} shared owner_email, +${titlesCopied} titles, +${quarantined} quarantined`,
       });
 
-      return Response.json({ action: "apply_verified", run_id: run.id, before, after });
+      // Mark the bound dry-run as consumed so it cannot authorize a second apply.
+      try {
+        await db.entities.AiDataRepairRun.update(run.id, {
+          summary: `${run.summary || ""} | APPLIED ${new Date().toISOString()}`,
+        });
+      } catch (_) {}
+
+      return Response.json({ action: "apply_verified", run_id: applyRun.id, applied_to_dry_run: run.id, after });
     }
 
     return Response.json({ error: "Unknown action" }, { status: 400 });
