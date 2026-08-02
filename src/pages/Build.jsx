@@ -6,7 +6,6 @@ import {
   Monitor, Eye, Plus, Trash2, FolderOpen, Github, History,
   RefreshCw, ExternalLink, Download, Loader, Zap
 } from 'lucide-react';
-import CollaborativeCodeEditor from '@/components/build/CollaborativeCodeEditor.jsx';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import LuminaMark from '@/components/layout/LuminaMark';
 import { useCollaborativeSession } from '@/hooks/useCollaborativeSession';
@@ -516,17 +515,18 @@ Respond as Lumina. Describe the visual design clearly and concisely for image ge
 
         {showCode && latestHTML ? (
           <div className="flex-1 overflow-hidden">
-            <CollaborativeCodeEditor
-              code={latestHTML}
-              projectId={activeProjectId}
-              collaborators={[]}
-              currentUser={user}
-              onCodeChange={(newCode) => {
+            <textarea
+              value={latestHTML}
+              spellCheck={false}
+              onChange={(e) => {
+                const newCode = e.target.value;
                 setLatestHTML(newCode);
                 if (activeProjectId) {
                   base44.entities.BuildProject.update(activeProjectId, { html: newCode, last_built_at: new Date().toISOString() }).catch(() => {});
                 }
               }}
+              className="w-full h-full resize-none outline-none bg-background text-foreground/80 text-[12px] font-mono leading-relaxed p-4 scrollbar-minimal"
+              style={{ fontFamily: "'Share Tech Mono', 'Courier New', monospace" }}
             />
           </div>
         ) : (
