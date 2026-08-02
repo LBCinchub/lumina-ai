@@ -14,6 +14,10 @@
     "summary": {
       "type": "string",
       "description": "A brief summary of what was discussed"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Server-derived canonical owner email, set only from authenticated server context on create. Legacy rows derive from authoritative system ownership metadata."
     }
   },
   "required": [
@@ -21,7 +25,14 @@
   ],
   "rls": {
     "read": {
-      "created_by": "{{user.email}}"
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
     },
     "write": {
       "created_by": "{{user.email}}"
