@@ -346,12 +346,12 @@ export default async function(req) {
 
       let updatedMessages = 0, updatedShared = 0, titlesCopied = 0, quarantined = 0;
 
-      if (mClass.backfillable.length > 0) {
-        await db.entities.Message.bulkUpdate(
-          mClass.backfillable.map(b => ({ id: b.id, owner_email: b.owner_email }))
-        );
-        updatedMessages = mClass.backfillable.length;
+      const msgPatches = mClass.backfillable.map(b => ({ id: b.id, owner_email: b.owner_email }));
+      for (let i = 0; i < msgPatches.length; i += 500) {
+        const slice = msgPatches.slice(i, i + 500);
+        if (slice.length > 0) await db.entities.Message.bulkUpdate(slice);
       }
+      updatedMessages = msgPatches.length;
 
       const sharedPatch = new Map();
       for (const b of sClass.backfillable) sharedPatch.set(b.id, { id: b.id, owner_email: b.owner_email });
