@@ -255,38 +255,15 @@ export default function Build() {
       setInput('');
 
       const history = newMessages
-        .map(m => `${m.role === 'user' ? 'User' : 'Lumina'}: ${m.content}`)
+        .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
         .join('\n\n');
 
-      const prompt = `You are Lumina — an expert product designer and UI/UX specialist. Your role is to visualize and design beautiful interfaces.
-
-When someone asks you to build something, describe what the design would look like as a detailed visual prompt. Focus on:
-- Layout and structure
-- Colors, typography, and visual hierarchy
-- Key UI elements and their positioning
-- Overall aesthetic and mood
-- Specific details that make it unique
-
-Respond with a detailed image description (2-3 sentences) that captures the complete visual design.
-
-CONVERSATION SO FAR:
-${history}
-
-Respond as Lumina. Describe the visual design clearly and concisely for image generation.`;
-
-      const res = await base44.integrations.Core.InvokeLLM({
-        prompt,
-        add_context_from_internet: true,
-        model: 'gemini_3_1_pro'
+      const buildRes = await base44.functions.invoke('orchestrateBuild', {
+        step: 'design', message: trimmed, history
       });
-
-      const content = typeof res === 'string' ? res : (res?.content || String(res));
-      
-      const imageRes = await base44.integrations.Core.GenerateImage({
-        prompt: content
-      });
-      
-      const imageUrl = imageRes?.url;
+      const buildData = buildRes?.data || buildRes || {};
+      const content = buildData.content || '';
+      const imageUrl = buildData.image_url || null;
       const assistantMsg = { 
         role: 'assistant', 
         content: imageUrl ? `Here's the design:\n\n![Design](${imageUrl})\n\n${content}` : content, 
@@ -306,10 +283,9 @@ Respond as Lumina. Describe the visual design clearly and concisely for image ge
       let title = null;
       if (messages.length === 0) {
         try {
-          const titleRes = await base44.integrations.Core.InvokeLLM({
-            prompt: `Write a 3-5 word title (no quotes, no punctuation at the end, sentence case) that captures what this build request is about:\n\n"${trimmed}"\n\nTitle:`
-          });
-          title = (typeof titleRes === 'string' ? titleRes : '').trim().replace(/^["']|["']$/g, '').slice(0, 60);
+          const titleRes = await base44.functions.invoke('orchestrateBuild', { step: 'title', message: trimmed });
+          const titleData = titleRes?.data || titleRes || {};
+          title = (titleData.title || '').trim().slice(0, 60) || null;
         } catch (_) {
           title = trimmed.slice(0, 40);
           if (trimmed.length > 40) title += '…';

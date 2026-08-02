@@ -161,9 +161,6 @@ export default function Converse() {
     if (!text && !attachments.length) return;
     if (isSendingRef.current) return;
 
-    console.log('[Converse] Submitting message:', { text, attachments });
-
-    // If Lumina is speaking, interrupt her immediately
     if (speaking) stopSpeaking();
 
     let convoId = activeIdRef.current || activeId;
@@ -176,10 +173,9 @@ export default function Converse() {
       // Generate smart title from first message
       let title = 'New conversation';
       try {
-        const titleRes = await base44.integrations.Core.InvokeLLM({
-          prompt: `Write a 3-5 word title (no quotes, no punctuation at the end, sentence case) that captures what the user wants to discuss:\n\n"${displayText}"\n\nTitle:`
-        });
-        title = (typeof titleRes === 'string' ? titleRes : '').trim().replace(/^["']|["']$/g, '').slice(0, 60);
+        const titleRes = await base44.functions.invoke('orchestrateBuild', { step: 'title', message: displayText });
+        const titleData = titleRes?.data || titleRes || {};
+        title = (titleData.title || '').trim().slice(0, 60) || 'New conversation';
       } catch (_) {
         title = displayText.slice(0, 40);
         if (displayText.length > 40) title += '…';
@@ -253,7 +249,6 @@ export default function Converse() {
       // Reload conversations list only (not messages — backend saves async, don't overwrite optimistic)
       loadConversations();
     } catch (err) {
-      console.error('Message send failed:', err);
       setMessages(prev => prev.filter(m => m.id !== optimistic.id));
       // If session expired, redirect to login
       if (err?.message?.includes('401') || err?.message?.toLowerCase().includes('auth') || err?.message?.toLowerCase().includes('unauthorized')) {
@@ -307,9 +302,9 @@ export default function Converse() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-screen px-6 text-center animate-fade-up">
         <LuminaMark size={56} className="text-foreground/70 mb-8" />
-        <h1 className="font-serif text-3xl tracking-tight mb-3">Welcome to LBC Ultra</h1>
+        <h1 className="font-serif text-3xl tracking-tight mb-3">Welcome to LBC AI</h1>
         <p className="text-sm text-muted-foreground max-w-xs leading-relaxed mb-8">
-          Sign in to start. Powered by Lumina Ultra — the builder intelligence of LBC Network.
+          Sign in to start a conversation.
         </p>
         <button
           onClick={() => base44.auth.redirectToLogin()}
@@ -419,11 +414,11 @@ export default function Converse() {
                 {opener}
               </h1>
               <p className="text-sm text-muted-foreground text-center max-w-md leading-relaxed">
-                LBC Ultra — powered by Lumina Ultra intelligence. Sister Twin to Lumina AI at lbc-hub.com. Converse, build, deploy, and grow.
+                Converse, build, and grow with LBC AI.
               </p>
               {hasContext === false && (
                 <a
-                  href="/context"
+                  href="/knowledge"
                   className="mt-6 text-xs uppercase tracking-[0.14em] text-foreground/70 hover:text-foreground border-b border-foreground/30 hover:border-foreground pb-0.5"
                 >
                   Build your context
@@ -461,7 +456,6 @@ export default function Converse() {
               value={input}
               onChange={setInput}
               onSubmit={(text, attachments) => {
-                console.log('[Converse] Composer submitted:', { text, attachments });
                 handleSubmit(text, attachments);
               }}
               disabled={isSending}
@@ -471,7 +465,7 @@ export default function Converse() {
               onBargeIn={stopSpeaking}
             />
             <p className="text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground/60 text-center mt-3">
-              LBC Ultra powered by Lumina Ultra · Reflects · not advises
+              LBC AI · Reflects · not advises
             </p>
           </div>
         </div>

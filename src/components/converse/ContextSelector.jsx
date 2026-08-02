@@ -26,7 +26,7 @@ export default function ContextSelector({ onContextChange }) {
       setDocuments(docs);
       setConversations(convos);
     } catch (err) {
-      console.error('Failed to load context items:', err);
+      // context load failed — leave lists empty
     } finally {
       setLoading(false);
     }
