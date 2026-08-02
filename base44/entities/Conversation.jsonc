@@ -17,7 +17,15 @@
     },
     "owner_email": {
       "type": "string",
-      "description": "Server-derived canonical owner email, set only from authenticated server context on create. Legacy rows derive from authoritative system ownership metadata."
+      "description": "Canonical owner email, stamped externally by owner tools for human_verified parents. Not set for anonymous_legacy."
+    },
+    "ownership_state": {
+      "type": "string",
+      "enum": [
+        "human_verified",
+        "anonymous_legacy"
+      ],
+      "description": "Externally-stamped ownership classification. human_verified requires a normalized non-service owner_email; anonymous_legacy has no owner_email and is quarantinable as legacy anonymous. Stamped by owner tools outside this app runtime; never guessed or auto-stamped here."
     }
   },
   "required": [
