@@ -181,11 +181,11 @@ export default function Converse() {
         if (displayText.length > 40) title += '…';
       }
       
-      const convo = await base44.entities.Conversation.create({
-        title: title || 'New conversation',
-        last_message_at: new Date().toISOString()
-      });
-      convoId = convo.id;
+      // Server-side creation: owner_email + ownership_state are derived from
+      // the authenticated session inside createConversation — never set here.
+      const createRes = await base44.functions.invoke('createConversation', { title: title || 'New conversation' });
+      const createdConvo = createRes?.data || createRes || {};
+      convoId = createdConvo.id;
       activeIdRef.current = convoId;
       setActiveId(convoId);
       setSearchParams({ c: convoId }, { replace: true });

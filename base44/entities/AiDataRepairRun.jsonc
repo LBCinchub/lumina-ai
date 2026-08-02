@@ -9,7 +9,9 @@
         "apply_verified",
         "status",
         "stamp_dry_run",
-        "stamp_apply"
+        "stamp_apply",
+        "post_baseline_drift_dry_run",
+        "post_baseline_drift_apply"
       ],
       "description": "Action performed"
     },

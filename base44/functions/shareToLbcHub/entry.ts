@@ -17,6 +17,7 @@ Deno.serve(async (req) => {
     }
 
     // Create a SharedConversation record
+    // Standalone share: derive owner from the authenticated session (no parent).
     const sharedConvo = await base44.asServiceRole.entities.SharedConversation.create({
       conversation_id: `shared-${Date.now()}`,
       platform_origin: 'lbchub.site',
@@ -24,7 +25,8 @@ Deno.serve(async (req) => {
       summary: (messages[0]?.content || '').slice(0, 200),
       messages,
       last_message_at: new Date().toISOString(),
-      is_accessible_to_sister: true
+      is_accessible_to_sister: true,
+      owner_email: user.email
     });
 
     return Response.json({

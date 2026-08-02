@@ -26,6 +26,14 @@ Deno.serve(async (req) => {
       return Response.json({ shared: existing[0], synced: true });
     }
 
+    // Derive owner from the authoritative parent Conversation (server-side).
+    // Never trust browser-supplied ownership fields.
+    let ownerEmail = null;
+    try {
+      const parent = await base44.asServiceRole.entities.Conversation.filter({ id: conversationId });
+      if (parent[0] && parent[0].owner_email) ownerEmail = parent[0].owner_email;
+    } catch (_) {}
+
     // If conversation doesn't exist in shared pool, create it
     const shared = await base44.asServiceRole.entities.SharedConversation.create({
       conversation_id: conversationId,
@@ -34,7 +42,8 @@ Deno.serve(async (req) => {
       summary: body.summary || '',
       messages: body.messages || [],
       last_message_at: new Date().toISOString(),
-      is_accessible_to_sister: true
+      is_accessible_to_sister: true,
+      owner_email: ownerEmail
     });
 
     return Response.json({ shared, synced: true });
