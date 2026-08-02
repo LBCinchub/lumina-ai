@@ -162,7 +162,7 @@ const Composer = forwardRef(function Composer(
                 value={value}
                 onChange={(e) => onChangeRef.current(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={uploading ? "Uploading…" : listening ? "Listening…" : luminaSpeaking ? "Lumina is speaking…" : placeholder}
+                placeholder={uploading ? "Uploading…" : listening ? "Listening…" : luminaSpeaking ? "Assistant is speaking…" : placeholder}
                 rows={1}
                 disabled={disabled}
                 className={cn(

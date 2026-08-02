@@ -284,7 +284,7 @@ export default function KnowledgeSources() {
                 <h1 className="font-serif text-2xl tracking-tight">Knowledge Sources</h1>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Luna uses these as a primary retrieval layer — she reads them before answering to ground her reasoning in your material.
+                These are used as a primary retrieval layer — read before answering to ground responses in your material.
               </p>
             </div>
             <button
@@ -298,7 +298,7 @@ export default function KnowledgeSources() {
           {/* Stats bar */}
           {total > 0 && (
             <div className="flex items-center gap-4 px-4 py-3 rounded-xl bg-accent/40 border border-border text-xs text-muted-foreground">
-              <span><strong className="text-foreground">{ready}</strong> active source{ready !== 1 ? 's' : ''} in Luna's context</span>
+              <span><strong className="text-foreground">{ready}</strong> active source{ready !== 1 ? 's' : ''} in context</span>
               <span className="text-border">·</span>
               <span>{total} total</span>
             </div>
@@ -314,7 +314,7 @@ export default function KnowledgeSources() {
               <BookOpen className="w-10 h-10 text-muted-foreground/30 mb-4" strokeWidth={1} />
               <p className="text-sm font-medium mb-1">No knowledge sources yet</p>
               <p className="text-xs text-muted-foreground mb-6 max-w-xs leading-relaxed">
-                Upload PDFs, link articles, or paste text — Luna will use them as reference material in every conversation.
+                Upload PDFs, link articles, or paste text — these are used as reference material in every conversation.
               </p>
               <button
                 onClick={() => setShowAdd(true)}

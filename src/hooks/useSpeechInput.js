@@ -81,9 +81,6 @@ export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn }) {
     };
 
     rec.onerror = (e) => {
-      if (e.error !== 'no-speech' && e.error !== 'aborted') {
-        console.warn('Speech recognition error:', e.error);
-      }
       setListening(false);
       recognitionRef.current = null;
       // Auto-restart on no-speech so we keep listening

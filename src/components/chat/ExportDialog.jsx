@@ -31,8 +31,8 @@ export default function ExportDialog({ open, onOpenChange, title, messages, onDo
         onOpenChange(false);
         setSent(false);
       }, 2000);
-    } catch (err) {
-      console.error('Error sharing to lbc-hub:', err);
+    } catch {
+      // share failed — keep dialog open
     } finally {
       setSending(false);
     }

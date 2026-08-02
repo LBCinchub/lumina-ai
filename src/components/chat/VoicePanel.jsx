@@ -38,8 +38,8 @@ export default function VoicePanel({ voiceMode, speaking, listening, onToggle })
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
             {voiceMode
-              ? speaking ? 'Lumina is speaking…' : listening ? 'Listening…' : 'Waiting…'
-              : 'Speak · Lumina responds aloud'}
+              ? speaking ? 'Assistant is speaking…' : listening ? 'Listening…' : 'Waiting…'
+              : 'Speak · responses read aloud'}
           </div>
         </div>
         {voiceMode && (

@@ -28,7 +28,7 @@ export default function LBCCommandCenter() {
             Welcome back, <span className="font-semibold text-indigo-400">{user?.full_name || 'Architect'}</span>
           </h1>
           <p className="text-slate-500 max-w-md">
-            LBC Protocol is operating at nominal parameters. All family nodes are synchronized.
+            LBC Protocol is operating at nominal parameters. All nodes are synchronized.
           </p>
         </div>
         <div className="flex gap-4">
@@ -74,12 +74,12 @@ export default function LBCCommandCenter() {
         <div className="space-y-6">
           <div className="p-6 bg-slate-900/80 border border-slate-800 rounded-3xl backdrop-blur-xl">
             <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-              <Server className="w-4 h-4" /> Family Topology
+              <Server className="w-4 h-4" /> Node Topology
             </h3>
             <div className="space-y-3">
               <NodeStatus name="lbc.network (Mother)" status="online" latency="0.4ms" />
               <NodeStatus name="lbchub.io (Protocol)" status="online" latency="0.8ms" />
-              <NodeStatus name="lbc-hub.com (Sister)" status="online" latency="1.1ms" />
+              <NodeStatus name="lbc-hub.com" status="online" latency="1.1ms" />
               <NodeStatus name="lbchub.site (Home)" status="online" latency="Local" />
             </div>
           </div>

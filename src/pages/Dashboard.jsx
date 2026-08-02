@@ -8,7 +8,7 @@ import { Activity, LayoutGrid, Zap, Globe } from 'lucide-react';
 const LOG_ENTRIES = [
   { time: "23:10:12", msg: "ProtocolGuard successfully initialized.", type: "success" },
   { time: "23:09:55", msg: "MasterDashboard route carved by Base44 agent.", type: "info" },
-  { time: "23:08:21", msg: "SisterSync handshake: lbc-hub.com acknowledged.", type: "success" },
+  { time: "23:08:21", msg: "Sync handshake acknowledged.", type: "success" },
   { time: "23:04:15", msg: "InsightEngine detected technical debt in VpsToolPanel.", type: "warning" },
 ];
 
@@ -50,7 +50,7 @@ export default function Dashboard() {
             <div className="bg-blue-500/5 border border-blue-500/10 px-4 py-2 rounded-xl flex items-center gap-3">
               <Zap className="w-4 h-4 text-blue-400" />
               <div className="text-left">
-                <p className="text-[8px] font-mono text-blue-700 uppercase leading-none mb-1">Sister_Latency</p>
+                <p className="text-[8px] font-mono text-blue-700 uppercase leading-none mb-1">Net_Latency</p>
                 <p className="text-xs font-bold leading-none">12ms</p>
               </div>
             </div>
@@ -89,7 +89,7 @@ export default function Dashboard() {
             {/* Placeholder for FuturePulse content */}
             <div className="flex-1 bg-slate-900 border border-emerald-500/10 rounded-3xl p-6">
               <h3 className="text-[10px] font-mono font-bold text-emerald-500/40 uppercase tracking-widest mb-4">Strategic_Roadmap</h3>
-              <p className="text-emerald-100/20 text-sm">Visit <a href="/pulse" className="text-emerald-500 underline">/pulse</a> for the full FuturePulse dashboard.</p>
+              <p className="text-emerald-100/20 text-sm">Strategic roadmap view.</p>
             </div>
 
             {/* Autonomous Workspace */}

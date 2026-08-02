@@ -55,7 +55,7 @@ export default function LiveCallOverlay({ speaking, listening, isSending, onEnd 
       </div>
 
       {/* Name */}
-      <p className="font-serif text-2xl tracking-tight text-foreground mb-2">Lumina</p>
+      <p className="font-serif text-2xl tracking-tight text-foreground mb-2">LBC AI</p>
 
       {/* Status */}
       <div className="flex items-center gap-2 mb-14">

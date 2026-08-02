@@ -3,7 +3,7 @@ import JSZip from 'jszip';
 import { base44 } from '@/api/base44Client';
 import {
   Code2, ArrowUp, Copy, Check, ChevronDown, ChevronUp,
-  Monitor, Eye, Plus, Trash2, FolderOpen, Github, History,
+  Monitor, Eye, Plus, Trash2, FolderOpen, Github,
   RefreshCw, ExternalLink, Download, Loader, Zap
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -345,7 +345,7 @@ export default function Build() {
     const projectName = activeProject?.title || 'project';
     if (latestHTML) zip.file('index.html', latestHTML);
     if (messages.length > 0) zip.file('chat-history.json', JSON.stringify(messages, null, 2));
-    const readme = `# ${projectName}\n\nBuilt with LBC Ultra powered by Lumina Ultra.\nExported: ${new Date().toLocaleString()}\n`;
+    const readme = `# ${projectName}\n\nBuilt with LBC AI.\nExported: ${new Date().toLocaleString()}\n`;
     zip.file('README.md', readme);
     const blob = await zip.generateAsync({ type: 'blob' });
     const link = document.createElement('a');

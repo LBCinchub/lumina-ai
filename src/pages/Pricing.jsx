@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Check, Copy, ExternalLink, Zap } from 'lucide-react';
+import { Check, Copy, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -18,7 +18,7 @@ export default function Pricing() {
         const subs = await base44.entities.UserSubscription.list();
         setSubscription(subs[0] || null);
       } catch (err) {
-        console.error('Failed to load subscription:', err);
+        // subscription load failed — leave as null
       } finally {
         setLoading(false);
       }
@@ -45,7 +45,7 @@ export default function Pricing() {
             Plans
           </div>
           <h1 className="font-serif text-4xl md:text-5xl tracking-tight leading-[1.05] mb-4">
-            Unlock Lumina's full power.
+            Unlock LBC AI's full power.
           </h1>
           <p className="text-[15px] text-muted-foreground max-w-xl mx-auto">
             Start free with 3 requests per month. Subscribe to Solana for unlimited access.
@@ -170,7 +170,7 @@ export default function Pricing() {
 
             <div className="pt-4 border-t border-border">
               <p className="text-xs text-muted-foreground">
-                After sending, reply with your transaction hash or email <code className="text-foreground/60">mokhtartareksamara@gmail.com</code> to activate your subscription.
+                After sending, reply with your transaction hash to activate your subscription.
               </p>
             </div>
           </div>
