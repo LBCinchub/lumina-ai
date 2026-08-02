@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Server, AlertCircle, CheckCircle2, Loader } from 'lucide-react';
+import { Server, CheckCircle2, Loader } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function VpsToolPanel() {

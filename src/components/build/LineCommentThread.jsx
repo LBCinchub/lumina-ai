@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { MessageSquare, Send, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 
 function CommentBubble({ comment, onReply, onResolve, currentUserEmail, authorColor }) {

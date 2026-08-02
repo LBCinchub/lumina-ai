@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Server, AlertCircle, CheckCircle2, Loader2, Eye, EyeOff } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 export default function VPSConnectionForm({ onConnect }) {
   const [serverName, setServerName] = useState('');

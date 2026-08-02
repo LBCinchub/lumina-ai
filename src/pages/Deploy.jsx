@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Rocket, History, Settings, AlertCircle, Check } from 'lucide-react';
+import { Rocket, History, Settings } from 'lucide-react';
 import DeploymentTrigger from '@/components/deploy/DeploymentTrigger';
 import DeploymentHistory from '@/components/deploy/DeploymentHistory';
 import EnvironmentConfig from '@/components/deploy/EnvironmentConfig';

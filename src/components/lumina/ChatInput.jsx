@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Send, Mic } from "lucide-react";
+import { Send } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function ChatInput({ onSend, disabled }) {

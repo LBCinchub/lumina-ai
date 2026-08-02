@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Clock, GitBranch, RotateCcw, Loader } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 export default function HistorySidebar({ projectId, onRevert, onBranch }) {
   const [history, setHistory] = useState([]);

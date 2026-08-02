@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { Server, RefreshCw, Power, RotateCcw, Square, Loader2, CheckCircle2, AlertCircle, Activity } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Server, RefreshCw, Power, RotateCcw, Square, Loader2, AlertCircle, Activity } from 'lucide-react';
 
 const ACTIONS = [
   { id: 'info', label: 'Refresh Info', icon: RefreshCw, variant: 'outline', safe: true },

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { Github, GitBranch, CheckCircle2, AlertCircle, Loader2, Code, Upload, RefreshCw } from 'lucide-react';
+import { Github, GitBranch, CheckCircle2, AlertCircle, Loader2, Upload, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const CONNECTOR_ID = '69e9a63841ece86c3a6ac789';

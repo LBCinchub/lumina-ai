@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { GitPullRequest, ExternalLink, RefreshCw, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 
 function PRCard({ pr }) {

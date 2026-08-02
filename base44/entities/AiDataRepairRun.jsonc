@@ -7,7 +7,9 @@
       "enum": [
         "dry_run",
         "apply_verified",
-        "status"
+        "status",
+        "stamp_dry_run",
+        "stamp_apply"
       ],
       "description": "Action performed"
     },

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { FileText, MessageSquare, ChevronDown, X, Check } from 'lucide-react';
+import { FileText, MessageSquare, ChevronDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
