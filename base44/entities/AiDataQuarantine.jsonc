@@ -1,0 +1,59 @@
+{
+  "name": "AiDataQuarantine",
+  "type": "object",
+  "properties": {
+    "entity_type": {
+      "type": "string",
+      "description": "Message | SharedConversation | etc."
+    },
+    "record_id": {
+      "type": "string",
+      "description": "ID of the quarantined record"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Why it was quarantined (orphan, anonymous owner, conflict, etc.)"
+    },
+    "parent_id": {
+      "type": "string",
+      "description": "Related parent id if any"
+    },
+    "detected_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the quarantine was detected"
+    },
+    "resolved": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether an owner has resolved the quarantine"
+    }
+  },
+  "required": [
+    "entity_type",
+    "record_id",
+    "reason"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

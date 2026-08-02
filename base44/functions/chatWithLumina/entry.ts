@@ -122,10 +122,13 @@ export default async function(req) {
     );
 
     // Save the user's message (service role; conversation_id already validated as owned).
+    // owner_email derived from the authenticated owner so RLS (data.owner_email == user.email)
+    // surfaces this message in the user-scoped frontend read, regardless of created_by.
     await db.entities.Message.create({
       conversation_id,
       role: 'user',
-      content: message
+      content: message,
+      owner_email: user.email
     });
 
     // --- Assemble prompt.
@@ -229,7 +232,7 @@ Return ONLY the prompt text, nothing else.`
     // --- Persist assistant message + conversation metadata in the background.
     (async () => {
       try {
-        await db.entities.Message.create({ conversation_id, role: 'assistant', content: assistantContent });
+        await db.entities.Message.create({ conversation_id, role: 'assistant', content: assistantContent, owner_email: user.email });
       } catch (_) {}
 
       try {

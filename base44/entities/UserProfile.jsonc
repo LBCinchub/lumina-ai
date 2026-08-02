@@ -1,0 +1,36 @@
+{
+  "name": "UserProfile",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string",
+      "description": "Professional role or title"
+    },
+    "focus_areas": {
+      "type": "string",
+      "description": "Key areas of focus, goals, projects"
+    },
+    "values": {
+      "type": "string",
+      "description": "Core values and principles"
+    },
+    "context": {
+      "type": "string",
+      "description": "Additional personal/professional context Lumina should know"
+    },
+    "communication_style": {
+      "type": "string",
+      "enum": [
+        "direct",
+        "collaborative",
+        "analytical",
+        "visionary"
+      ],
+      "default": "direct"
+    }
+  },
+  "required": []
+}

@@ -4,7 +4,7 @@
   "properties": {
     "version": {
       "type": "string",
-      "description": "Current Lumina version identifier"
+      "description": "Current internal version identifier"
     },
     "last_refactor": {
       "type": "string",
@@ -16,7 +16,7 @@
       "items": {
         "type": "string"
       },
-      "description": "Lumina's current active goals"
+      "description": "Internal active goals"
     },
     "technical_debt": {
       "type": "array",
@@ -26,5 +26,27 @@
       "description": "Logged self-corrections and known issues"
     }
   },
-  "required": []
+  "required": [],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
 }

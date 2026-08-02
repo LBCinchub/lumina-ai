@@ -1,0 +1,74 @@
+{
+  "name": "AiDataRepairRun",
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "dry_run",
+        "apply_verified",
+        "status"
+      ],
+      "description": "Action performed"
+    },
+    "actor_email": {
+      "type": "string",
+      "description": "Server-derived actor email"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "running",
+        "completed",
+        "failed"
+      ],
+      "default": "running",
+      "description": "Run status"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the run started"
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the run finished"
+    },
+    "totals": {
+      "type": "string",
+      "description": "JSON snapshot of before/after counts by entity (no message content)"
+    },
+    "summary": {
+      "type": "string",
+      "description": "Redacted summary of the run"
+    }
+  },
+  "required": [
+    "action",
+    "actor_email",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

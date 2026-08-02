@@ -38,11 +38,42 @@
       "type": "boolean",
       "default": true,
       "description": "Whether the sister platform can access this conversation"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Server-derived owner email from the verified parent Conversation"
     }
   },
   "required": [
     "conversation_id",
     "platform_origin",
     "title"
-  ]
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by_id": "{{user.id}}"
+        }
+      ]
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
 }

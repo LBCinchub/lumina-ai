@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import ContextField from '@/components/context/ContextField';
 import DocumentLibrary from '@/components/context/DocumentLibrary';
-import LBCFamilyTree from '@/components/context/LBCFamilyTree';
 import { Button } from '@/components/ui/button';
 import { Check, Loader2 } from 'lucide-react';
 
@@ -11,7 +10,7 @@ const FIELDS = [
     key: 'identity',
     label: 'Identity',
     hint: 'Who you are. Background, role, the shape of your work.',
-    placeholder: 'Founder building at the intersection of…',
+    placeholder: 'Builder working at the intersection of…',
     rows: 4
   },
   {
@@ -38,7 +37,7 @@ const FIELDS = [
   {
     key: 'communication_style',
     label: 'Communication style',
-    hint: 'How you want Lumina to speak with you.',
+    hint: 'How you want LBC AI to speak with you.',
     placeholder: 'Direct. Strategic. No hedging. Short paragraphs over lists when possible…',
     rows: 3
   },
@@ -73,11 +72,6 @@ export default function Context() {
     setSavedAt(null);
   };
 
-  const setFounderIdentity = async () => {
-    setCtx(prev => ({ ...prev, identity: 'I am Mokhtar Tarek Samara, the founder of Lumina. Email: mokhtartareksamara@gmail.com' }));
-    setSavedAt(null);
-  };
-
   const handleSave = async () => {
     setSaving(true);
     const payload = FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: ctx[f.key] || '' }), {});
@@ -101,31 +95,19 @@ export default function Context() {
   return (
     <div className="min-h-screen">
       <div className="max-w-3xl mx-auto px-6 md:px-10 py-12 md:py-20">
-        <div className="mb-12 md:mb-16 flex items-start justify-between">
-          <div className="flex-1">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground mb-3">
-              Living memory
-            </div>
-            <h1 className="font-serif text-4xl md:text-5xl tracking-tight leading-[1.05] mb-4">
-              The context that shapes every conversation.
-            </h1>
+        <div className="mb-12 md:mb-16">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground mb-3">
+            Living memory
           </div>
-          <Button
-            onClick={setFounderIdentity}
-            size="sm"
-            variant="outline"
-            className="rounded-full px-3 py-1 text-xs ml-4 whitespace-nowrap"
-          >
-            Set as founder
-          </Button>
+          <h1 className="font-serif text-4xl md:text-5xl tracking-tight leading-[1.05] mb-4">
+            The context that shapes every conversation.
+          </h1>
         </div>
 
         <p className="text-[15px] text-muted-foreground leading-relaxed max-w-xl mb-8">
-          What you share here becomes the ground Lumina reasons from. No conversation starts from zero.
+          What you share here becomes the ground LBC AI reasons from. No conversation starts from zero.
           Write plainly. Update whenever something shifts.
         </p>
-
-        <LBCFamilyTree />
 
         <div className="mt-12 pt-10 border-t border-border">
           <div className="mb-6">
@@ -134,7 +116,7 @@ export default function Context() {
             </div>
             <h2 className="font-serif text-2xl tracking-tight mb-2">Personal Details</h2>
             <p className="text-[14px] text-muted-foreground leading-relaxed">
-              Define who you are, what drives you, and how Lumina should engage with you.
+              Define who you are, what drives you, and how LBC AI should engage with you.
             </p>
           </div>
         </div>
@@ -161,7 +143,7 @@ export default function Context() {
             </div>
             <h2 className="font-serif text-2xl tracking-tight mb-2">Source documents</h2>
             <p className="text-[14px] text-muted-foreground leading-relaxed">
-              Upload PDFs — reports, notes, briefs, research. Lumina will read them and reference them when answering.
+              Upload PDFs — reports, notes, briefs, research. LBC AI will read them and reference them when answering.
             </p>
           </div>
           <DocumentLibrary />
