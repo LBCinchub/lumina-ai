@@ -84,6 +84,22 @@ function normState(v) {
   return (v === "human_verified" || v === "anonymous_legacy") ? v : null;
 }
 
+// Safely resolve the actual Base44 SDK record identity from any supported
+// runtime shape. The SDK normally exposes `id` as a top-level field, but some
+// nested/legacy shapes carry it as `_id` or under a `data` envelope. Only the
+// identity string is read — never record content, emails, titles, or messages.
+function recordId(record) {
+  if (!record || typeof record !== "object") return null;
+  if (typeof record.id === "string" && record.id) return record.id;
+  if (typeof record._id === "string" && record._id) return record._id;
+  const data = record.data;
+  if (data && typeof data === "object") {
+    if (typeof data.id === "string" && data.id) return data.id;
+    if (typeof data._id === "string" && data._id) return data._id;
+  }
+  return null;
+}
+
 // (A) Expand compact groups into a normalized manifest. Owner emails are
 // assigned server-side from GROUP_TO_EMAIL; anonymous -> anonymous_legacy.
 // Returns { manifest, issues, counts, source }.
@@ -317,7 +333,12 @@ export default async function(req) {
     try { page = await db.entities.Conversation.list('-created_date', SCAN_LIMIT, 0); } catch (_) { page = []; }
     const capped = Array.isArray(page) && page.length >= SCAN_LIMIT;
     const convoById = {};
-    for (const c of page) convoById[c.id] = c;
+    let unkeyedRecords = 0;
+    for (const c of page) {
+      const rid = recordId(c);
+      if (rid) convoById[rid] = c;
+      else unkeyedRecords++;
+    }
     const totalConversations = page.length;
 
     const missingIds = ids.filter(id => !convoById[id]);
@@ -348,9 +369,10 @@ export default async function(req) {
       no_extras: extraIds.length === 0,
       no_conflicts: conflicts.length === 0,
       not_capped: !capped,
+      no_unkeyed: unkeyedRecords === 0,
     };
 
-    const apply_blocked = capped || totalConversations !== EXPECTED.records
+    const apply_blocked = capped || unkeyedRecords > 0 || totalConversations !== EXPECTED.records
       || missingIds.length > 0 || extraIds.length > 0 || conflicts.length > 0;
 
     if (action === "dry_run") {
@@ -364,6 +386,7 @@ export default async function(req) {
         totals: { records: manifest.length, human_verified: fixtures.human_verified ? EXPECTED.human_verified : (groupCounts ? groupCounts.mokhtar + groupCounts.haj + groupCounts.belal + groupCounts.bouhaikal : 0), anonymous_legacy: groupCounts ? groupCounts.anonymous : 0 },
         group_counts: groupCounts,
         total_conversations: totalConversations,
+        unkeyed_records: unkeyedRecords,
         missing_ids: missingIds,
         extra_ids: extraIds,
         already_stamped: already.length,
@@ -378,7 +401,7 @@ export default async function(req) {
         status: "completed",
         finished_at: new Date().toISOString(),
         totals: JSON.stringify(blob),
-        summary: `stamp_dry_run v${CODE_VERSION}: src=${built.source} total=${totalConversations} hv=${blob.totals.human_verified} al=${blob.totals.anonymous_legacy} already=${already.length} needs=${needs.length} conflicts=${conflicts.length} missing=${missingIds.length} extra=${extraIds.length} capped=${capped} apply_blocked=${apply_blocked} fp=${manifestHash}`,
+        summary: `stamp_dry_run v${CODE_VERSION}: src=${built.source} total=${totalConversations} hv=${blob.totals.human_verified} al=${blob.totals.anonymous_legacy} already=${already.length} needs=${needs.length} conflicts=${conflicts.length} missing=${missingIds.length} extra=${extraIds.length} unkeyed=${unkeyedRecords} capped=${capped} apply_blocked=${apply_blocked} fp=${manifestHash}`,
       });
       await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: "dry_run", status: "success", resultSummary: `src=${built.source} fp=${manifestHash} apply_blocked=${apply_blocked}`, requestHash: manifestHash });
       return Response.json({
@@ -389,6 +412,7 @@ export default async function(req) {
         totals: blob.totals,
         group_counts: groupCounts,
         total_conversations: totalConversations,
+        unkeyed_records: unkeyedRecords,
         already_stamped: already.length,
         needs_stamp: needs.length,
         conflicts,
@@ -460,6 +484,10 @@ export default async function(req) {
     if (capped) {
       await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: "apply", status: "denied", resultSummary: "scan capped", requestHash: manifestHash });
       return Response.json({ error: "Scan capped — cannot confirm complete coverage" }, { status: 409 });
+    }
+    if (unkeyedRecords > 0) {
+      await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: "apply", status: "denied", resultSummary: `unkeyable records: ${unkeyedRecords}`, requestHash: manifestHash });
+      return Response.json({ error: "Scan produced unkeyable records — cannot confirm complete coverage", unkeyed_records: unkeyedRecords }, { status: 409 });
     }
     if (totalConversations !== EXPECTED.records) {
       await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: "apply", status: "denied", resultSummary: `total conversations ${totalConversations} != ${EXPECTED.records}`, requestHash: manifestHash });
