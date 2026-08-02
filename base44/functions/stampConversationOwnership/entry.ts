@@ -9,44 +9,63 @@ import {
 // Conversation.ownership_state so the lbcAiDataIntegrity dry_run can resolve
 // every parent and backfill child Messages / SharedConversations.
 //
-// Accepts POST JSON: { action: "dry_run"|"apply",
-//   records: [{ id, owner_email?, ownership_state }], confirmation_phrase?,
-//   dry_run_id?, manifest_fingerprint? }
+// Accepts TWO input shapes, both normalized to the same manifest:
+//  (A) compact groups:
+//        { action, groups: { mokhtar:[ids], haj:[ids], belal:[ids],
+//          bouhaikal:[ids], anonymous:[ids] }, dry_run_id?,
+//          manifest_fingerprint?, confirmation_phrase? }
+//  (B) full records (kept for backward compatibility):
+//        { action, records: [{ id, owner_email?, ownership_state }], ... }
+//
+// Owner emails are fixed SERVER-SIDE per group key (the browser cannot choose
+// them): mokhtar->mokhtartareksamara@gmail.com, haj->hajwheels@gmail.com,
+// belal->belalautoservices@gmail.com, bouhaikal->bouhaikalhajara@gmail.com.
+// anonymous -> ownership_state "anonymous_legacy" with no owner_email.
+//
+// Exact group counts 48/1/9/7/15 (80 unique ids) are required for every
+// accepted manifest, regardless of input shape.
+//
+// Existence is verified via Conversation.list('-created_date', 5000, 0)
+// pagination (NOT Conversation.filter({id:{$in}}), which is unsupported), then
+// submitted ids are selected in memory. Reject when the scan is capped, total
+// Conversations != 80, any submitted id is missing, any current Conversation
+// is not represented by the manifest, or any existing conflicting stamp.
 //
 // HARD RULES:
-//  - requireFounderOrAdmin server-side; every denied/failed/success attempt is
-//    audited (AiActionAudit) and a SecurityEvent is written on auth denial.
-//  - records must contain exactly 80 unique existing Conversation IDs.
-//  - exactly 65 records must be ownership_state:"human_verified" with a
-//    normalized non-service owner_email from the migration allowlist.
-//  - exactly 15 records must be ownership_state:"anonymous_legacy" with no
-//    owner_email.
-//  - every ID must exist. Reject missing, duplicate, unknown owner, bad state,
-//    human-without-email, anonymous-with-email, and any existing conflicting
-//    stamp.
-//  - dry_run makes zero writes and returns totals, conflicts, missing IDs,
-//    normalized manifest fingerprint/hash, code_version, apply_blocked.
+//  - requireFounderOrAdmin server-side; every denied/failed/success attempt
+//    is audited (AiActionAudit) and a SecurityEvent is written on auth denial.
+//  - dry_run makes ZERO writes and returns run_id, manifest_fingerprint,
+//    current_state_fingerprint, counts, fixture booleans, and apply_blocked.
 //  - apply requires the exact phrase STAMP_VERIFIED_LBC_AI_PARENTS, the exact
-//    dry_run_id and manifest fingerprint from a fresh successful dry run,
-//    unchanged current state, zero conflicts, and complete 80/65/15 totals.
-//  - apply ONLY sets Conversation.owner_email and Conversation.ownership_state.
-//    It never edits content, titles, summaries, messages, or timestamps
-//    intentionally and never deletes.
+//    dry_run_id and manifest_fingerprint from a fresh successful dry run,
+//    unchanged current state (drift revalidation), zero conflicts/missing/
+//    extras, total Conversations == 80, and not capped.
+//  - apply ONLY sets Conversation.owner_email and Conversation.ownership_state
+//    via bulkUpdate. It never edits content, titles, summaries, messages, or
+//    timestamps and never deletes.
 //  - Audit/repair rows store counts + hash only; no message content or secrets.
-//  - Idempotent rerun returns already_stamped counts; a conflicting rerun aborts.
+//  - Idempotent rerun returns already_stamped counts; a conflicting rerun
+//    aborts without writes.
 
-const CODE_VERSION = "stamp_conversation_ownership_v1_20260802";
+const CODE_VERSION = "stamp_conversation_ownership_v2_20260802";
 const CONFIRM_PHRASE = "STAMP_VERIFIED_LBC_AI_PARENTS";
 const ACTION_TYPE = "stamp_conversation_ownership";
 
 const EXPECTED = { records: 80, human_verified: 65, anonymous_legacy: 15 };
 
-const HUMAN_OWNER_ALLOWLIST = new Set([
-  "mokhtartareksamara@gmail.com",
-  "hajwheels@gmail.com",
-  "belalautoservices@gmail.com",
-  "bouhaikalhajara@gmail.com",
-]);
+// Fixed migration distribution. mokhtar+haj+belal+bouhaikal = 65 human_verified,
+// anonymous = 15 anonymous_legacy, total = 80 parents.
+const GROUP_FIXTURE = { mokhtar: 48, haj: 1, belal: 9, bouhaikal: 7, anonymous: 15 };
+
+const GROUP_TO_EMAIL = {
+  mokhtar: "mokhtartareksamara@gmail.com",
+  haj: "hajwheels@gmail.com",
+  belal: "belalautoservices@gmail.com",
+  bouhaikal: "bouhaikalhajara@gmail.com",
+};
+
+const HUMAN_OWNER_ALLOWLIST = new Set(Object.values(GROUP_TO_EMAIL));
+const SCAN_LIMIT = 5000;
 
 function isHumanEmail(v) {
   if (!v || typeof v !== "string") return false;
@@ -65,12 +84,59 @@ function normState(v) {
   return (v === "human_verified" || v === "anonymous_legacy") ? v : null;
 }
 
-// Validate + normalize the submitted records into a clean manifest.
-// Returns { manifest, manifestString, issues, counts, detail }.
+// (A) Expand compact groups into a normalized manifest. Owner emails are
+// assigned server-side from GROUP_TO_EMAIL; anonymous -> anonymous_legacy.
+// Returns { manifest, issues, counts, source }.
+function expandGroups(groups) {
+  const issues = [];
+  const source = "groups";
+  if (!groups || typeof groups !== "object" || Array.isArray(groups)) {
+    return { manifest: null, issues: ["groups must be an object"], counts: null, source };
+  }
+  const groupKeys = ["mokhtar", "haj", "belal", "bouhaikal", "anonymous"];
+  const manifest = [];
+  const seen = new Set();
+  const dupIds = [];
+  const counts = { mokhtar: 0, haj: 0, belal: 0, bouhaikal: 0, anonymous: 0 };
+
+  for (const key of groupKeys) {
+    const arr = groups[key];
+    if (!Array.isArray(arr)) {
+      issues.push(`group '${key}' must be an array`);
+      continue;
+    }
+    counts[key] = arr.length;
+    if (arr.length !== GROUP_FIXTURE[key]) {
+      issues.push(`group '${key}' must have ${GROUP_FIXTURE[key]} ids, got ${arr.length}`);
+    }
+    const isAnon = key === "anonymous";
+    const owner_email = isAnon ? "" : GROUP_TO_EMAIL[key];
+    const ownership_state = isAnon ? "anonymous_legacy" : "human_verified";
+    for (const id of arr) {
+      if (!id || typeof id !== "string") { issues.push(`group '${key}' has a non-string id`); continue; }
+      if (seen.has(id)) { if (!dupIds.includes(id)) dupIds.push(id); continue; }
+      seen.add(id);
+      manifest.push({ id, ownership_state, owner_email });
+    }
+  }
+
+  if (dupIds.length) issues.push(`duplicate ids across groups: ${dupIds.length}`);
+
+  return {
+    manifest: issues.length ? null : manifest,
+    issues,
+    counts: { ...counts, records: manifest.length },
+    source,
+  };
+}
+
+// (B) Validate full-record input into a normalized manifest (existing format).
+// Returns { manifest, manifestString, issues, counts, detail, source }.
 function validateRecords(records) {
   const issues = [];
+  const source = "records";
   if (!Array.isArray(records)) {
-    return { manifest: null, manifestString: null, issues: ["records must be an array"], counts: null, detail: null };
+    return { manifest: null, manifestString: null, issues: ["records must be an array"], counts: null, detail: null, source };
   }
   if (records.length !== EXPECTED.records) {
     issues.push(`records length must be ${EXPECTED.records}, got ${records.length}`);
@@ -84,7 +150,7 @@ function validateRecords(records) {
 
   for (const r of records) {
     if (!r || !r.id || typeof r.id !== "string") { issues.push("each record needs a string id"); continue; }
-    if (seen.has(r.id)) { dupIds.push(r.id); continue; }
+    if (seen.has(r.id)) { if (!dupIds.includes(r.id)) dupIds.push(r.id); continue; }
     seen.add(r.id);
     const st = normState(r.ownership_state);
     if (!st) { badState.push(r.id); continue; }
@@ -110,17 +176,47 @@ function validateRecords(records) {
   if (anonWithEmail.length) issues.push(`anonymous_legacy carrying an email on ${anonWithEmail.length} record(s)`);
   if (badAllowlist.length) issues.push(`owner not in migration allowlist on ${badAllowlist.length} record(s)`);
 
-  const manifestString = manifest
-    .map(m => `${m.id}|${m.ownership_state}|${m.owner_email}`)
-    .sort().join("\n");
-
   return {
     manifest: issues.length ? null : manifest,
-    manifestString: issues.length ? null : manifestString,
     issues,
     counts: { records: records.length, human_verified: hv, anonymous_legacy: al },
     detail: { badState, humanNoEmail, anonWithEmail, badAllowlist, dupIds },
+    source,
   };
+}
+
+// Derive per-group counts from any normalized manifest (by owner_email /
+// ownership_state). Used for the unified fixture check on both input paths.
+function deriveGroupCounts(manifest) {
+  const g = { mokhtar: 0, haj: 0, belal: 0, bouhaikal: 0, anonymous: 0 };
+  for (const m of manifest) {
+    if (m.ownership_state === "anonymous_legacy") { g.anonymous++; continue; }
+    if (m.owner_email === GROUP_TO_EMAIL.mokhtar) g.mokhtar++;
+    else if (m.owner_email === GROUP_TO_EMAIL.haj) g.haj++;
+    else if (m.owner_email === GROUP_TO_EMAIL.belal) g.belal++;
+    else if (m.owner_email === GROUP_TO_EMAIL.bouhaikal) g.bouhaikal++;
+  }
+  return g;
+}
+
+// Authoritative fixture check: the normalized manifest must match the fixed
+// 48/1/9/7/15 distribution exactly. Returns { groupCounts, match, issues }.
+function checkFixture(manifest) {
+  const g = deriveGroupCounts(manifest);
+  const issues = [];
+  for (const key of Object.keys(GROUP_FIXTURE)) {
+    if (g[key] !== GROUP_FIXTURE[key]) {
+      issues.push(`group '${key}' must be ${GROUP_FIXTURE[key]}, got ${g[key]}`);
+    }
+  }
+  return { groupCounts: g, match: issues.length === 0, issues };
+}
+
+// Build the manifest fingerprint from a normalized manifest (stable, sorted).
+function manifestStringFor(manifest) {
+  return manifest
+    .map(m => `${m.id}|${m.ownership_state}|${m.owner_email}`)
+    .sort().join("\n");
 }
 
 // Compare a current Conversation state to a manifest target.
@@ -171,29 +267,61 @@ export default async function(req) {
       return Response.json({ error: "action must be dry_run or apply" }, { status: 400 });
     }
 
-    const v = validateRecords(body.records);
-    if (v.issues.length || !v.manifest) {
-      await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: action, status: "denied", resultSummary: `structural validation failed: ${v.issues.join("; ").slice(0, 300)}`, requestHash: null });
+    // Build the normalized manifest from whichever input shape was provided.
+    let built;
+    if (body.groups) {
+      built = expandGroups(body.groups);
+    } else if (body.records) {
+      built = validateRecords(body.records);
+    } else {
+      await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: action, status: "denied", resultSummary: "missing groups/records", requestHash: null });
+      return Response.json({ error: "Provide 'groups' or 'records'" }, { status: 400 });
+    }
+
+    let issues = [...built.issues];
+    let manifest = built.manifest;
+
+    // Unified fixture check on the normalized manifest (both paths).
+    let groupCounts = null;
+    if (manifest) {
+      const fg = checkFixture(manifest);
+      groupCounts = fg.groupCounts;
+      if (!fg.match) {
+        issues.push(...fg.issues);
+        manifest = null;
+      }
+    }
+
+    if (issues.length || !manifest) {
+      await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: action, status: "denied", resultSummary: `structural validation failed: ${issues.join("; ").slice(0, 300)}`, requestHash: null });
       return Response.json({
-        error: "Record validation failed",
+        error: "Manifest validation failed",
         code_version: CODE_VERSION,
-        issues: v.issues,
-        counts: v.counts,
-        detail: v.detail,
+        source: built.source,
+        issues,
+        counts: built.counts,
+        group_counts: groupCounts,
+        detail: built.detail || null,
       }, { status: 400 });
     }
 
-    const manifest = v.manifest;
-    const manifestFingerprint = await sha256Hex(v.manifestString);
+    const manifestString = manifestStringFor(manifest);
+    const manifestFingerprint = await sha256Hex(manifestString);
     const manifestHash = manifestFingerprint.slice(0, 16);
     const ids = manifest.map(m => m.id);
+    const submittedIdSet = new Set(ids);
 
-    // Load existing conversations for these ids.
-    let existing = [];
-    try { existing = await db.entities.Conversation.filter({ id: { $in: ids } }); } catch (_) { existing = []; }
+    // Load ALL current Conversations via supported list pagination (NOT
+    // Conversation.filter $in). Select submitted ids in memory.
+    let page = [];
+    try { page = await db.entities.Conversation.list('-created_date', SCAN_LIMIT, 0); } catch (_) { page = []; }
+    const capped = Array.isArray(page) && page.length >= SCAN_LIMIT;
     const convoById = {};
-    for (const c of existing) convoById[c.id] = c;
+    for (const c of page) convoById[c.id] = c;
+    const totalConversations = page.length;
+
     const missingIds = ids.filter(id => !convoById[id]);
+    const extraIds = Object.keys(convoById).filter(id => !submittedIdSet.has(id));
 
     // Classify each manifest entry against current state.
     const already = [], needs = [], conflicts = [];
@@ -209,7 +337,21 @@ export default async function(req) {
     }
 
     const stateFingerprint = await sha256Hex(currentStateString(convoById, manifest));
-    const apply_blocked = missingIds.length > 0 || conflicts.length > 0;
+
+    const fixtures = {
+      group_counts_match: groupCounts != null && Object.keys(GROUP_FIXTURE).every(k => groupCounts[k] === GROUP_FIXTURE[k]),
+      total_unique_ids: ids.length === EXPECTED.records,
+      human_verified: (groupCounts ? groupCounts.mokhtar + groupCounts.haj + groupCounts.belal + groupCounts.bouhaikal : 0) === EXPECTED.human_verified,
+      anonymous_legacy: (groupCounts ? groupCounts.anonymous : 0) === EXPECTED.anonymous_legacy,
+      total_conversations_match: totalConversations === EXPECTED.records,
+      no_missing: missingIds.length === 0,
+      no_extras: extraIds.length === 0,
+      no_conflicts: conflicts.length === 0,
+      not_capped: !capped,
+    };
+
+    const apply_blocked = capped || totalConversations !== EXPECTED.records
+      || missingIds.length > 0 || extraIds.length > 0 || conflicts.length > 0;
 
     if (action === "dry_run") {
       const run = await db.entities.AiDataRepairRun.create({
@@ -218,34 +360,45 @@ export default async function(req) {
       });
       const blob = {
         code_version: CODE_VERSION,
-        totals: { records: manifest.length, human_verified: v.counts.human_verified, anonymous_legacy: v.counts.anonymous_legacy },
+        source: built.source,
+        totals: { records: manifest.length, human_verified: fixtures.human_verified ? EXPECTED.human_verified : (groupCounts ? groupCounts.mokhtar + groupCounts.haj + groupCounts.belal + groupCounts.bouhaikal : 0), anonymous_legacy: groupCounts ? groupCounts.anonymous : 0 },
+        group_counts: groupCounts,
+        total_conversations: totalConversations,
         missing_ids: missingIds,
+        extra_ids: extraIds,
         already_stamped: already.length,
         needs_stamp: needs.length,
         conflicts_count: conflicts.length,
         manifest_fingerprint: manifestFingerprint,
         state_fingerprint: stateFingerprint,
+        fixtures,
         apply_blocked,
       };
       await db.entities.AiDataRepairRun.update(run.id, {
         status: "completed",
         finished_at: new Date().toISOString(),
         totals: JSON.stringify(blob),
-        summary: `stamp_dry_run v${CODE_VERSION}: records=${manifest.length} hv=${v.counts.human_verified} al=${v.counts.anonymous_legacy} already=${already.length} needs=${needs.length} conflicts=${conflicts.length} missing=${missingIds.length} apply_blocked=${apply_blocked} fp=${manifestHash}`,
+        summary: `stamp_dry_run v${CODE_VERSION}: src=${built.source} total=${totalConversations} hv=${blob.totals.human_verified} al=${blob.totals.anonymous_legacy} already=${already.length} needs=${needs.length} conflicts=${conflicts.length} missing=${missingIds.length} extra=${extraIds.length} capped=${capped} apply_blocked=${apply_blocked} fp=${manifestHash}`,
       });
-      await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: "dry_run", status: "success", resultSummary: `fp=${manifestHash} apply_blocked=${apply_blocked}`, requestHash: manifestHash });
+      await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: "dry_run", status: "success", resultSummary: `src=${built.source} fp=${manifestHash} apply_blocked=${apply_blocked}`, requestHash: manifestHash });
       return Response.json({
         action: "dry_run",
         run_id: run.id,
         code_version: CODE_VERSION,
+        source: built.source,
         totals: blob.totals,
+        group_counts: groupCounts,
+        total_conversations: totalConversations,
         already_stamped: already.length,
         needs_stamp: needs.length,
         conflicts,
         missing_ids: missingIds,
+        extra_ids: extraIds,
+        capped,
         manifest_fingerprint: manifestFingerprint,
         manifest_hash: manifestHash,
         state_fingerprint: stateFingerprint,
+        fixtures,
         apply_blocked,
       });
     }
@@ -261,7 +414,7 @@ export default async function(req) {
     }
     if (body.manifest_fingerprint !== manifestFingerprint) {
       await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: "apply", status: "denied", resultSummary: "manifest_fingerprint mismatch vs records", requestHash: manifestHash });
-      return Response.json({ error: "manifest_fingerprint does not match submitted records" }, { status: 409 });
+      return Response.json({ error: "manifest_fingerprint does not match submitted manifest" }, { status: 409 });
     }
 
     // Load the bound dry-run.
@@ -269,7 +422,7 @@ export default async function(req) {
     try { runRows = await db.entities.AiDataRepairRun.filter({ id: body.dry_run_id }); } catch (_) {}
     const run = runRows && runRows[0];
     if (!run) {
-      await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: "apply", status: "denied", resultSummary: "dry_run not found", requestHash: manifestHash });
+      await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: "apply", status: "denied", resultSummary: "dry-run not found", requestHash: manifestHash });
       return Response.json({ error: "dry-run not found" }, { status: 404 });
     }
     if (run.action !== "stamp_dry_run") {
@@ -295,18 +448,26 @@ export default async function(req) {
       return Response.json({ error: "manifest_fingerprint does not match dry-run" }, { status: 409 });
     }
 
-    // Unchanged current state: recompute state fingerprint from the apply-time
-    // load and compare to the dry-run's stashed fingerprint.
+    // Drift revalidation: recompute the current-state fingerprint from the
+    // apply-time load and compare to the dry-run's stashed fingerprint.
     const freshStateFingerprint = await sha256Hex(currentStateString(convoById, manifest));
     if (freshStateFingerprint !== stashed.state_fingerprint) {
       await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: "apply", status: "denied", resultSummary: "current state changed since dry-run", requestHash: manifestHash });
       return Response.json({ error: "Current state changed since dry-run — rerun dry_run" }, { status: 409 });
     }
 
-    // Zero conflicts / zero missing required for apply.
-    if (missingIds.length > 0 || conflicts.length > 0) {
-      await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: "apply", status: "denied", resultSummary: `blocked: missing=${missingIds.length} conflicts=${conflicts.length}`, requestHash: manifestHash });
-      return Response.json({ error: "Apply blocked", missing_ids: missingIds, conflicts }, { status: 409 });
+    // Apply gates: not capped, total == 80, no missing, no extras, no conflicts.
+    if (capped) {
+      await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: "apply", status: "denied", resultSummary: "scan capped", requestHash: manifestHash });
+      return Response.json({ error: "Scan capped — cannot confirm complete coverage" }, { status: 409 });
+    }
+    if (totalConversations !== EXPECTED.records) {
+      await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: "apply", status: "denied", resultSummary: `total conversations ${totalConversations} != ${EXPECTED.records}`, requestHash: manifestHash });
+      return Response.json({ error: "Total Conversations must be 80", total_conversations: totalConversations }, { status: 409 });
+    }
+    if (missingIds.length > 0 || extraIds.length > 0 || conflicts.length > 0) {
+      await writeAudit(db, { actorEmail: user.email, actionType: ACTION_TYPE, target: "apply", status: "denied", resultSummary: `blocked: missing=${missingIds.length} extra=${extraIds.length} conflicts=${conflicts.length}`, requestHash: manifestHash });
+      return Response.json({ error: "Apply blocked", missing_ids: missingIds, extra_ids: extraIds, conflicts }, { status: 409 });
     }
 
     const applyRun = await db.entities.AiDataRepairRun.create({
