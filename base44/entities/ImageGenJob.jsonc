@@ -1,0 +1,81 @@
+{
+  "name": "ImageGenJob",
+  "type": "object",
+  "properties": {
+    "prompt": {
+      "type": "string",
+      "description": "User prompt for the image"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "processing",
+        "ready",
+        "error"
+      ],
+      "default": "processing",
+      "description": "Generation status"
+    },
+    "base_image_url": {
+      "type": "string",
+      "description": "Generated base image URL (no baked-in text)"
+    },
+    "overlays": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "placement": {
+            "type": "string"
+          },
+          "size": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      },
+      "default": [],
+      "description": "Structured text overlays rendered on the client canvas"
+    },
+    "reference_image_url": {
+      "type": "string",
+      "description": "Optional reference photo for edit jobs"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "generated",
+        "edited"
+      ],
+      "default": "generated",
+      "description": "Whether this was a fresh generation or a reference edit"
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Error details if status is error"
+    }
+  },
+  "required": [
+    "prompt",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

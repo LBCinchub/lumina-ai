@@ -8,12 +8,16 @@ import Composer from '@/components/chat/Composer';
 import LuminaMark from '@/components/layout/LuminaMark';
 import ContextToggle from '@/components/converse/ContextToggle';
 import ContextSelector from '@/components/converse/ContextSelector';
-import { PanelLeft, Download } from 'lucide-react';
+import { PanelLeft, Download, ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useExportPDF } from '@/hooks/useExportPDF';
 import { useSpeechOutput } from '@/hooks/useSpeechOutput';
 import LiveCallOverlay from '@/components/chat/LiveCallOverlay';
 import ExportDialog from '@/components/chat/ExportDialog';
+import TwinPanel from '@/components/twin/TwinPanel';
+import TwinRecommendations from '@/components/twin/TwinRecommendations';
+import ImageStudio from '@/components/twin/ImageStudio';
+import { useTwinLearning } from '@/components/twin/useTwinLearning';
 
 const OPENERS = [
   "What are you circling right now?",
@@ -52,6 +56,8 @@ export default function Converse() {
   const startMicRef = useRef(null);
   const composerRef = useRef(null);
   const { speak, stop: stopSpeaking, speaking, unlock: unlockSpeech } = useSpeechOutput();
+  const [imageOpen, setImageOpen] = useState(false);
+  const { logInteraction } = useTwinLearning();
 
   // Wire composerRef to startMicRef once available
   useEffect(() => {
@@ -168,6 +174,8 @@ export default function Converse() {
 
     const fileUrls = attachments.map(a => a.url);
     const displayText = text || (attachments.length ? `[${attachments.map(a => a.name).join(', ')}]` : '');
+
+    logInteraction('general', 'chat', { text: displayText.slice(0, 120) });
 
     if (isNew) {
       // Generate smart title from first message
@@ -334,6 +342,7 @@ export default function Converse() {
       messages={messages}
       onDownload={handleExport}
     />
+    <ImageStudio open={imageOpen} onOpenChange={setImageOpen} />
     {voiceMode && (
       <LiveCallOverlay
         speaking={speaking}
@@ -365,6 +374,7 @@ export default function Converse() {
           onContextChange={handleContextChange}
           myPlatform="lbchub.site"
         />
+        <TwinPanel />
       </aside>
 
       {sidebarOpen && (
@@ -388,6 +398,14 @@ export default function Converse() {
               </div>
             </div>
             <div className="flex items-center gap-1">
+              <button
+                onClick={() => setImageOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                title="Image Studio"
+              >
+                <ImageIcon className="w-3.5 h-3.5" strokeWidth={1.75} />
+                <span className="hidden sm:inline">Image</span>
+              </button>
               {activeId && messages.length > 0 && (
                 <button
                   onClick={handleExportClick}
@@ -416,6 +434,9 @@ export default function Converse() {
               <p className="text-sm text-muted-foreground text-center max-w-md leading-relaxed">
                 Converse, build, and grow with LBC AI.
               </p>
+              <div className="w-full max-w-md mt-8 text-left">
+                <TwinRecommendations onAct={(r) => logInteraction(r.vertical, r.action_type, { recommendation: r.id })} />
+              </div>
               {hasContext === false && (
                 <a
                   href="/knowledge"

@@ -1,0 +1,56 @@
+{
+  "name": "TwinAuthorizationSettings",
+  "type": "object",
+  "properties": {
+    "ride_booking": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "confirm",
+        "off"
+      ],
+      "default": "confirm",
+      "description": "Ride booking authorization mode"
+    },
+    "marketplace_listing": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "confirm",
+        "off"
+      ],
+      "default": "confirm",
+      "description": "Marketplace listing authorization mode"
+    },
+    "travel_booking": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "confirm",
+        "off"
+      ],
+      "default": "confirm",
+      "description": "Travel booking authorization mode"
+    },
+    "max_auto_spend_usd": {
+      "type": "number",
+      "default": 0,
+      "description": "Maximum USD the twin may spend automatically before asking"
+    }
+  },
+  "required": [],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

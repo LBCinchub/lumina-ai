@@ -1,0 +1,43 @@
+{
+  "name": "TwinInteractionLog",
+  "type": "object",
+  "properties": {
+    "vertical": {
+      "type": "string",
+      "enum": [
+        "ride_booking",
+        "marketplace_listing",
+        "travel_booking",
+        "general"
+      ],
+      "default": "general",
+      "description": "Activity vertical"
+    },
+    "action_type": {
+      "type": "string",
+      "description": "search, book, list, browse, rate, chat, etc."
+    },
+    "action_data": {
+      "type": "string",
+      "description": "Redacted JSON snapshot of the action context (no PII)"
+    }
+  },
+  "required": [
+    "vertical",
+    "action_type"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "name": "UserTwinProfile",
+  "type": "object",
+  "properties": {
+    "interaction_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Total logged interactions for this user"
+    },
+    "confidence_score": {
+      "type": "number",
+      "default": 0,
+      "description": "Twin confidence score 0-100"
+    },
+    "communication_style": {
+      "type": "string",
+      "enum": [
+        "terse",
+        "balanced",
+        "chatty"
+      ],
+      "default": "balanced",
+      "description": "Preferred reply cadence"
+    },
+    "learned_traits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "trait": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "trait",
+          "confidence",
+          "count"
+        ]
+      },
+      "default": [],
+      "description": "Learned preference traits with confidence and occurrence count"
+    }
+  },
+  "required": [],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

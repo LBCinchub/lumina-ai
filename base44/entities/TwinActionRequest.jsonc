@@ -1,0 +1,58 @@
+{
+  "name": "TwinActionRequest",
+  "type": "object",
+  "properties": {
+    "vertical": {
+      "type": "string",
+      "enum": [
+        "ride_booking",
+        "marketplace_listing",
+        "travel_booking"
+      ],
+      "description": "Vertical the proposed action belongs to"
+    },
+    "summary": {
+      "type": "string",
+      "description": "Human-readable description of the proposed action"
+    },
+    "action_data": {
+      "type": "string",
+      "description": "Redacted JSON payload for the proposed action"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "confirmed",
+        "denied",
+        "executed"
+      ],
+      "default": "pending",
+      "description": "Lifecycle state of the action request"
+    },
+    "estimated_cost_usd": {
+      "type": "number",
+      "default": 0,
+      "description": "Estimated cost in USD; financial actions always require explicit confirmation"
+    }
+  },
+  "required": [
+    "vertical",
+    "summary",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

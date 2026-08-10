@@ -1,0 +1,44 @@
+{
+  "name": "SavedImageAsset",
+  "type": "object",
+  "properties": {
+    "image_url": {
+      "type": "string",
+      "description": "URL of the saved image"
+    },
+    "prompt": {
+      "type": "string",
+      "description": "Prompt that produced the image"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "generated",
+        "edited"
+      ],
+      "default": "generated",
+      "description": "Whether the image was generated or edited from a reference"
+    },
+    "source_job_id": {
+      "type": "string",
+      "description": "Reference to the ImageGenJob that produced this asset"
+    }
+  },
+  "required": [
+    "image_url"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

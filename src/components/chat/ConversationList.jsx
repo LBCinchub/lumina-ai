@@ -6,7 +6,7 @@ import VoicePanel from './VoicePanel';
 
 export default function ConversationList({ conversations, activeId, onSelect, onNew, isLoading, voiceMode, speaking, listening, onToggleVoice }) {
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col flex-1 min-h-0">
       <div className="px-5 py-5">
         <button
           onClick={onNew}
