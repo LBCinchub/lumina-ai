@@ -11,6 +11,7 @@ import { base44 } from '@/api/base44Client';
 
 // Lazy-loaded pages (code-split per workspace).
 const Converse = lazy(() => import('@/pages/Converse'));
+const Agents = lazy(() => import('@/pages/Agents'));
 const Build = lazy(() => import('@/pages/Build'));
 const KnowledgeSources = lazy(() => import('@/pages/KnowledgeSources'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
@@ -58,6 +59,7 @@ const AuthenticatedApp = () => {
     <Suspense fallback={<Loading />}>
       <Routes>
         <Route element={<AppShell />}>
+          <Route path="/agents" element={<Agents />} />
           <Route path="/" element={<Converse />} />
           <Route path="/build" element={<Build />} />
           <Route path="/knowledge" element={<KnowledgeSources />} />

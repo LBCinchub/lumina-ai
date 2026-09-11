@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { MessageSquare, Code2, Database, FolderKanban, Settings, Menu, X, Sun, Moon, LogIn } from 'lucide-react';
+import { Bot, MessageSquare, Code2, Database, FolderKanban, Settings, Menu, X, Sun, Moon, LogIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import LuminaMark from './LuminaMark';
 // server-verified admins (role === 'admin'); founder-only gating is enforced
 // server-side in the backend functions, never via client-side PII.
 const PRIMARY_NAV = [
+  { to: '/agents', label: 'My Agents', icon: Bot, end: true },
   { to: '/', label: 'Chat', icon: MessageSquare, end: true },
   { to: '/build', label: 'Build', icon: Code2 },
   { to: '/knowledge', label: 'Knowledge', icon: Database },
