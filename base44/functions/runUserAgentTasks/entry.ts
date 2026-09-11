@@ -17,7 +17,7 @@ import { deliverViaTelegram } from '../../shared/telegramBridge.ts';
 //    repeated invocation cannot re-run a task or burn extra credits.
 //  - Authenticated non-admins are rejected; the workflow invokes without a
 //    user session. All AI runs server-side only.
-//  - When the agent is connected to the user's Superagent, the result is
+//  - When the agent is connected to the user's Telegram bot, the result is
 //    delivered to their phone in addition to the agent's chat history.
 export default async function(req) {
   try {

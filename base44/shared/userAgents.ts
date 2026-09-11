@@ -45,7 +45,7 @@ const VOICE_GUIDES = {
 
 // ---------------------------------------------------------------------------
 // Credential encryption (AES-256-GCM, key derived from a server-only secret).
-// Used for Superagent API keys. The plaintext never leaves the server after
+// Used for Telegram bot tokens. The plaintext never leaves the server after
 // the initial live validation, and is never logged or returned to any client.
 // ---------------------------------------------------------------------------
 
@@ -258,7 +258,7 @@ export function buildHistoryBlock(history) {
   ).join('\n\n');
 }
 
-// One full agent turn, shared by the in-app chat, the Superagent Bridge sync,
+// One full agent turn, shared by the in-app chat, the Telegram Bridge sync,
 // and the Autopilot runner. `client` is a Base44 SDK client (user-scoped for
 // interactive flows, service role for scheduled ones) — the LLM is always
 // called server-side only.

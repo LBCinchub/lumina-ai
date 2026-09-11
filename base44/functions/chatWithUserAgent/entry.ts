@@ -19,7 +19,7 @@ import { deliverViaTelegram } from '../../shared/telegramBridge.ts';
 //  - Both messages (user + assistant) are created with server-stamped
 //    owner_email + ownership_state from the authenticated session.
 //  - The LLM is called exclusively server-side. No client-side InvokeLLM.
-//  - When the agent is connected to the user's Superagent, the reply is
+//  - When the agent is connected to the user's Telegram bot, the reply is
 //    mirrored to their phone after the response (30s cooldown, hourly cap,
 //    never blocks or breaks the chat).
 export default async function(req) {
