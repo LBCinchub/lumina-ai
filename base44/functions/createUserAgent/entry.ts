@@ -26,7 +26,7 @@ export default async function(req) {
     const active = await base44.entities.UserAgent.filter({ status: 'active' });
     if (active.length >= AGENT_ACTIVE_LIMIT) {
       return Response.json({
-        error: `Free plan limit reached: ${AGENT_ACTIVE_LIMIT} active agents. Archive an agent to create a new one.`,
+        error: `Free Plan Limit Reached — ${AGENT_ACTIVE_LIMIT} Active LBC AI Agent. Upgrade To LBC AI Superagent For Up To 10, Or Archive Your Current Agent To Create A New One.`,
         limit: AGENT_ACTIVE_LIMIT,
       }, { status: 409 });
     }

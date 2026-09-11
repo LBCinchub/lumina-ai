@@ -5,33 +5,33 @@ import {
   MAX_HISTORY_MESSAGES,
 } from '../../shared/userAgents.ts';
 import {
-  collectNewUserMessages,
-  sendSuperagentMessage,
+  collectNewUpdates,
+  sendTelegramMessage,
   withinDeliveryBudget,
   deliveryBudgetUpdate,
-  SuperagentError,
+  TelegramError,
   MAX_DELIVERY_CHARS,
-} from '../../shared/superagentBridge.ts';
+} from '../../shared/telegramBridge.ts';
 
-// Superagent Bridge sync. For every agent connected to the user's own
-// Base44 Superagent: fetches the Superagent's conversations, detects new
-// user-role messages since the stored watermark, runs the user's LBC AI
-// agent on them (same persona + voice + instructions + knowledge flow),
-// persists both sides in the agent's chat history, and delivers the reply
-// through the Superagent API — which lands on the user's phone channel.
+// Telegram bridge sync. For every agent connected to the user's own Telegram
+// bot: fetches new Telegram messages since the stored watermark, runs the
+// user's LBC AI agent on them (same persona + voice + instructions + knowledge
+// flow as the in-app chat), persists both sides in the agent's chat history,
+// and delivers the reply through the Telegram Bot API — landing on the user's
+// phone. The bot only carries messages; the brain is LBC AI.
 //
 // Modes:
-//  - { agent_id } → manual "Sync Now" (user session; RLS + 404 enforce that
-//    only the owning user's connection is processed).
-//  - {} → scheduled run (every-minute workflow; service role; every
-//    connection must carry the SAME server-stamped owner as its agent).
+//  - { agent_id } → manual check (user session; RLS + 404 enforce that only
+//    the owning user's connection is processed).
+//  - {} → scheduled run (5-minute workflow; service role; every connection
+//    must carry the SAME server-stamped owner as its agent).
 //
 // Security model:
 //  - In manual mode all reads/writes are user-scoped — RLS isolation.
 //  - In scheduled mode the connection and agent must match on
-//    server-stamped owner_email, and both must be human_verified-usable.
-//  - The API key is decrypted in-memory only, never logged, never returned.
-//  - The Superagent's payloads are treated as untrusted message content.
+//    server-stamped owner_email, and both must be usable.
+//  - The bot token is decrypted in-memory only, never logged, never returned.
+//  - Telegram payloads are treated as untrusted message content.
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -45,7 +45,7 @@ export default async function(req) {
     const manualAgentId = typeof body.agent_id === 'string' ? body.agent_id : '';
 
     if (manualAgentId) {
-      // ---- Manual Sync Now ----
+      // ---- Manual check for one agent ----
       if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
       if (!user.email) return Response.json({ error: 'Session missing email' }, { status: 403 });
 
@@ -54,14 +54,14 @@ export default async function(req) {
         agents = await base44.entities.UserAgent.filter({ id: manualAgentId });
       } catch (_) {}
       const agent = agents && agents[0];
-      if (!agent) return Response.json({ error: 'Not found' }, { status: 404 });
+      if (!agent) return Response.json({ error: 'Not Found' }, { status: 404 });
 
       let conns = [];
       try {
         conns = await base44.entities.UserAgentConnection.filter({ agent_id: manualAgentId });
       } catch (_) {}
       const conn = (conns || []).find(
-        c => c && c.status === 'connected' && c.superagent_agent_id && c.api_key_encrypted
+        c => c && c.status === 'connected' && c.api_key_encrypted
       );
       if (!conn) {
         return Response.json({ ok: true, processed: 0, replied: 0, failed: 0, note: 'Not Connected' });
@@ -76,7 +76,7 @@ export default async function(req) {
           processed: 0,
           replied: 0,
           failed: 1,
-          note: (err && err.message) || 'Your Superagent Is Unreachable — Check Your Base44 Account',
+          note: (err && err.message) || 'Telegram Is Unreachable — Check Your Connection',
         });
       }
       return Response.json({ ok: true, ...result });
@@ -98,7 +98,7 @@ export default async function(req) {
     let syncs = 0;
 
     for (const conn of conns || []) {
-      if (!conn.superagent_agent_id || !conn.api_key_encrypted || !conn.owner_email) continue;
+      if (!conn.api_key_encrypted || !conn.owner_email) continue;
 
       let agents = [];
       try {
@@ -132,14 +132,14 @@ export default async function(req) {
 // scheduled mode).
 async function processConnection(client, conn, agent) {
   const ownerEmail = conn.owner_email;
-  let apiKey = '';
+  let token = '';
   try {
-    apiKey = await decryptCredential(conn.api_key_encrypted);
+    token = await decryptCredential(conn.api_key_encrypted);
   } catch (_) {
-    throw new SuperagentError('The stored connection could not be read. Reconnect your Superagent.');
+    throw new TelegramError('The Stored Connection Could Not Be Read — Reconnect Your Bot');
   }
 
-  const entries = await collectNewUserMessages(conn.superagent_agent_id, apiKey, conn.last_processed_at);
+  const entries = await collectNewUpdates(token, conn.last_update_id);
 
   let processed = 0;
   let replied = 0;
@@ -151,7 +151,7 @@ async function processConnection(client, conn, agent) {
       { agent_id: agent.id }, 'created_date', MAX_HISTORY_MESSAGES
     ).catch(() => []);
 
-    // Persist the inbound phone message with the connection's stamped owner.
+    // Persist the inbound Telegram message with the connection's stamped owner.
     await client.entities.UserAgentMessage.create({
       agent_id: agent.id,
       role: 'user',
@@ -176,12 +176,10 @@ async function processConnection(client, conn, agent) {
         ownership_state: 'human_verified',
       }).catch(() => {});
 
-      // Deliver the reply into the conversation the phone message came from.
+      // Deliver the reply to the chat the Telegram message came from.
       if (withinDeliveryBudget(conn)) {
         try {
-          await sendSuperagentMessage(
-            conn.superagent_agent_id, apiKey, entry.conversation_id, 'assistant', reply.slice(0, MAX_DELIVERY_CHARS)
-          );
+          await sendTelegramMessage(token, entry.chat_id, reply.slice(0, MAX_DELIVERY_CHARS));
           replied++;
           Object.assign(conn, deliveryBudgetUpdate(conn));
         } catch (_) {
@@ -190,11 +188,11 @@ async function processConnection(client, conn, agent) {
       }
     }
 
-    // Advance the watermark after each message so a crash never duplicates
-    // a reply.
+    // Advance the watermark after each message so a crash never duplicates a
+    // reply, and remember the owner's chat for mirrors and test messages.
     await client.entities.UserAgentConnection.update(conn.id, {
-      last_processed_message_id: entry.message_id || '',
-      last_processed_at: entry.at.toISOString(),
+      chat_id: entry.chat_id,
+      last_update_id: entry.update_id,
       reply_hour_key: conn.reply_hour_key || '',
       reply_count: Number(conn.reply_count || 0),
     }).catch(() => {});

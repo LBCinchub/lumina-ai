@@ -41,7 +41,7 @@ export default async function(req) {
     if ((enabledTasks || []).length >= AGENT_TASK_ACTIVE_LIMIT) {
       return Response.json(
         {
-          error: `Free plan limit reached: ${AGENT_TASK_ACTIVE_LIMIT} active autopilot tasks per agent. Disable a task to add another.`,
+          error: `Free Plan Limit Reached — ${AGENT_TASK_ACTIVE_LIMIT} Autopilot Task Per Agent. Upgrade To LBC AI Superagent For More, Or Disable A Task To Add Another.`,
           limit: AGENT_TASK_ACTIVE_LIMIT,
         },
         { status: 409 }

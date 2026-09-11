@@ -1,0 +1,41 @@
+{
+  "name": "EarlyAccessInterest",
+  "type": "object",
+  "properties": {
+    "email": {
+      "type": "string",
+      "description": "Email to notify when payment activation goes live"
+    },
+    "plan": {
+      "type": "string",
+      "description": "Plan the user wants early access to"
+    }
+  },
+  "required": [
+    "email",
+    "plan"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

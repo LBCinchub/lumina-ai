@@ -4,8 +4,10 @@ import {
   MAX_HISTORY_MESSAGES,
   MAX_MESSAGE_CHARS,
   runAgentTurn,
+  countAgentMessagesToday,
+  FREE_DAILY_AGENT_MESSAGES,
 } from '../../shared/userAgents.ts';
-import { deliverViaSuperagent } from '../../shared/superagentBridge.ts';
+import { deliverViaTelegram } from '../../shared/telegramBridge.ts';
 
 // Server-side chat with a user-owned agent.
 //
@@ -47,6 +49,15 @@ export default async function(req) {
       return Response.json({ error: 'This agent is archived' }, { status: 403 });
     }
 
+    // Free-tier daily message cap — server-side, honest rejection. Never fake.
+    const todayCount = await countAgentMessagesToday(base44);
+    if (todayCount >= FREE_DAILY_AGENT_MESSAGES) {
+      return Response.json({
+        error: `Daily Message Limit Reached — You Have Used ${FREE_DAILY_AGENT_MESSAGES} Messages Today. LBC AI Superagent Unlocks More Messages.`,
+        limit_reached: true,
+      }, { status: 429 });
+    }
+
     // Per-agent message history (before this turn's message) — user-scoped read.
     const history = await base44.entities.UserAgentMessage.filter(
       { agent_id: agentId }, 'created_date', MAX_HISTORY_MESSAGES
@@ -77,9 +88,9 @@ export default async function(req) {
       ownership_state: 'human_verified',
     });
 
-    // Mirror the reply to the user's phone through their Superagent when
+    // Mirror the reply to the user's phone through their Telegram bot when
     // connected — post-response, rate-limited, and never fatal to the chat.
-    waitUntil(deliverViaSuperagent(base44, agentId, content, { mirror: true }));
+    waitUntil(deliverViaTelegram(base44, agentId, content, { mirror: true }));
 
     return Response.json({ content });
   } catch (error) {

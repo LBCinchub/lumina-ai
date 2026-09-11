@@ -3,8 +3,8 @@
 // AGENT_ACTIVE_LIMIT and AGENT_TASK_ACTIVE_LIMIT mirror the server-side
 // constants in base44/shared/userAgents.ts.
 
-export const AGENT_ACTIVE_LIMIT = 3;
-export const AGENT_TASK_ACTIVE_LIMIT = 2;
+export const AGENT_ACTIVE_LIMIT = 1;
+export const AGENT_TASK_ACTIVE_LIMIT = 1;
 
 export const WEEKDAYS = [
   { value: 0, label: 'Sunday' },

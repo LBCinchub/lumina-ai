@@ -2,29 +2,29 @@
   "definition": {
     "document": {
       "dsl": "1.0.0",
-      "name": "superagent_bridge_sync",
+      "name": "lbc_ai_telegram_sync",
       "version": "1.0",
       "namespace": "base44"
     },
     "do": [
       {
-        "sync_bridge": {
+        "sync_telegram": {
           "call": "invoke_backend_function",
           "with": {
-            "function_name": "superagentBridgeSync",
+            "function_name": "telegramBridgeSync",
             "args": {}
           },
           "then": "end",
           "x-base44": {
-            "title": "Sync Superagent Bridge",
-            "description": "Process new phone messages"
+            "title": "Sync Telegram Bridge",
+            "description": "Process new Telegram messages"
           }
         }
       }
     ]
   },
-  "name": "Superagent Bridge Sync",
-  "description": "Syncs new phone messages from users' connected Superagents to their LBC AI agents, every 5 minutes",
+  "name": "LBC AI Telegram Sync",
+  "description": "Syncs new Telegram messages from users' connected bots to their LBC AI agents, every 5 minutes",
   "trigger": {
     "condition": null,
     "config": {

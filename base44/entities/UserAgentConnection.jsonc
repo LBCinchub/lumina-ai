@@ -6,13 +6,32 @@
       "type": "string",
       "description": "ID of the parent UserAgent"
     },
-    "superagent_agent_id": {
+    "channel": {
       "type": "string",
-      "description": "Agent ID of the user's own Base44 Superagent, copied from its API URL"
+      "enum": [
+        "telegram",
+        "whatsapp",
+        "imessage"
+      ],
+      "default": "telegram",
+      "description": "Phone channel of the connection"
+    },
+    "telegram_bot_username": {
+      "type": "string",
+      "description": "Telegram bot username, verified live via the Telegram Bot API at connect time"
     },
     "api_key_encrypted": {
       "type": "string",
-      "description": "AES-256-GCM ciphertext of the Superagent API key. Only backend functions hold the decryption key; the plaintext never returns to any client."
+      "description": "AES-256-GCM ciphertext of the Telegram bot token. Only backend functions hold the decryption key; the plaintext never returns to any client."
+    },
+    "chat_id": {
+      "type": "string",
+      "description": "Telegram chat id of the owner's most recent conversation with their bot"
+    },
+    "last_update_id": {
+      "type": "number",
+      "default": 0,
+      "description": "Newest Telegram update id already processed by the bridge"
     },
     "status": {
       "type": "string",
@@ -28,19 +47,10 @@
       "format": "date-time",
       "description": "When the connection was established"
     },
-    "last_processed_message_id": {
-      "type": "string",
-      "description": "ID of the newest Superagent message already processed by the bridge"
-    },
-    "last_processed_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "Processing watermark \u2014 only Superagent messages newer than this are synced"
-    },
     "last_mirror_at": {
       "type": "string",
       "format": "date-time",
-      "description": "When the in-app chat was last mirrored to the Superagent (mirror cooldown)"
+      "description": "When the in-app chat was last mirrored to Telegram (mirror cooldown)"
     },
     "reply_hour_key": {
       "type": "string",

@@ -1,341 +1,253 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Smartphone, ExternalLink, Loader2, CheckCircle2, AlertCircle,
-  Info, RefreshCw, KeyRound, IdCard,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { base44 } from '@/api/base44Client';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
-} from '@/components/ui/dialog';
+  Send, MessageCircle, CheckCircle2, XCircle, Loader2, Bot, Smartphone, Info, Clock,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-const GUIDE_STEPS = [
-  {
-    title: 'Create A Free Base44 Account',
-    text: 'Sign up at base44.com — free, and your Superagent comes with its own credits.',
-    link: 'https://base44.com',
-  },
-  {
-    title: 'Create Your Superagent',
-    text: 'Click Agent at the top of the Base44 sidebar and describe what it should do. Keep it simple — it only carries messages.',
-  },
-  {
-    title: 'Connect Your Phone Channel',
-    text: 'In your Superagent: Agent Settings → Channels → connect Telegram, WhatsApp, or iMessage. This is how replies reach your phone.',
-  },
-  {
-    title: 'Copy Your Agent ID And API Key',
-    text: 'In your Superagent: Agent Settings → Customize → Developer. Copy the Agent ID from its API URL and the API Key, then paste both below.',
-  },
+// Connect tab — LBC AI phone channels. Telegram is fully functional: the user
+// creates their own Telegram bot with the official BotFather inside Telegram,
+// pastes the token here, and their LBC AI agent answers on their phone — the
+// bot only carries messages, the brain is LBC AI. WhatsApp and iMessage show
+// honest availability states — no fake buttons, no simulated success.
+
+const SETUP_STEPS = [
+  { title: 'Open Telegram', text: 'Open The Telegram App And Search For The Official BotFather Bot.' },
+  { title: 'Create A New Bot', text: 'Send /newbot To BotFather, Choose A Name, Then Choose A Username Ending In "bot".' },
+  { title: 'Copy The Token', text: 'BotFather Replies With A Token Like 123456789:ABC-DEF1234 — Copy It Exactly.' },
+  { title: 'Paste It Below', text: 'Paste The Token Into The Field Below And Press Connect — LBC AI Verifies It Live With Telegram.' },
 ];
 
-// Connect tab for one agent's detail view — the unified Superagent Bridge
-// (Bring Your Own Superagent). One flow covers every phone channel because
-// the user's own Base44 Superagent holds the channel connections. Honest
-// states only: no fake buttons, no simulated success, and the API key is
-// stored encrypted server-side and never shown again.
 export default function AgentConnectTab({ agent }) {
+  const [token, setToken] = useState('');
   const [connection, setConnection] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [agentIdInput, setAgentIdInput] = useState('');
-  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
-  const [connectResult, setConnectResult] = useState(null); // { connected, reason, conversation_count }
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState(null); // { sent, reason }
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState(null); // { note }
-  const [aboutOpen, setAboutOpen] = useState(false);
-
-  const loadConnection = async () => {
-    setIsLoading(true);
-    try {
-      const conns = await base44.entities.UserAgentConnection.filter(
-        { agent_id: agent.id }
-      );
-      const conn = (conns || []).find(
-        c => c && c.status === 'connected' && c.superagent_agent_id && c.api_key_encrypted
-      );
-      setConnection(conn || null);
-    } catch (_) {
-      setConnection(null);
-    }
-    setIsLoading(false);
-  };
+  const [result, setResult] = useState(null); // { type: 'ok' | 'error', text }
 
   useEffect(() => {
-    loadConnection();
-  }, [agent.id]); // eslint-disable-line
+    let alive = true;
+    base44.entities.UserAgentConnection.filter({ agent_id: agent.id })
+      .then(conns => {
+        if (!alive) return;
+        setConnection((conns || []).find(c => c.status === 'connected') || null);
+        setLoading(false);
+      })
+      .catch(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [agent.id]);
+
+  const callFn = async (name, payload) => {
+    try {
+      const res = await base44.functions.invoke(name, payload);
+      const data = res?.data || res;
+      if (data?.error) return { error: data.error };
+      return { data };
+    } catch (err) {
+      const errData = err?.response?.data || err?.data || {};
+      return { error: errData.error || errData.reason || 'Something Went Wrong. Please Try Again.' };
+    }
+  };
+
+  const connected = !!(connection && connection.telegram_bot_username);
 
   const handleConnect = async () => {
-    const superagentId = agentIdInput.trim();
-    const apiKey = apiKeyInput.trim();
-    if ((!superagentId || !apiKey) || connecting) return;
+    const t = token.trim();
+    if (!t || connecting) return;
     setConnecting(true);
-    setConnectResult(null);
-    setTestResult(null);
-    setSyncResult(null);
-    try {
-      const res = await base44.functions.invoke('saveUserAgentSuperagent', {
-        agent_id: agent.id,
-        superagent_agent_id: superagentId,
-        api_key: apiKey,
-      });
-      const data = res?.data || res;
-      if (data?.error) {
-        setConnectResult({ connected: false, reason: data.error });
-      } else if (data?.connected === false) {
-        setConnectResult({ connected: false, reason: data.reason || 'Your Superagent Is Unreachable — Check Your Base44 Account' });
-      } else {
-        setAgentIdInput('');
-        setApiKeyInput('');
-        setConnectResult({ connected: true, conversation_count: data?.conversation_count });
-        await loadConnection();
-      }
-    } catch (_) {
-      setConnectResult({ connected: false, reason: 'Could not reach the bridge. Please try again.' });
-    }
+    setResult(null);
+    const res = await callFn('saveUserAgentTelegram', { agent_id: agent.id, bot_token: t });
     setConnecting(false);
+    if (res.error || res.data?.connected === false) {
+      setResult({ type: 'error', text: res.error || res.data?.reason || 'Telegram Could Not Verify This Token. Check It And Try Again.' });
+      return;
+    }
+    setToken('');
+    const uname = res.data?.bot_username ? `@${res.data.bot_username}` : 'Your Bot';
+    setResult({ type: 'ok', text: `Connected — ${uname} Is Live On Telegram. Send It A Message To Start Chatting With ${agent.name}.` });
+    base44.entities.UserAgentConnection.filter({ agent_id: agent.id })
+      .then(conns => setConnection((conns || []).find(c => c.status === 'connected') || null))
+      .catch(() => {});
   };
 
-  const handleTest = async () => {
+  const handleTestMessage = async () => {
     if (testing) return;
     setTesting(true);
-    setTestResult(null);
-    try {
-      const res = await base44.functions.invoke('testUserAgentSuperagent', { agent_id: agent.id });
-      const data = res?.data || res;
-      if (data?.error) {
-        setTestResult({ sent: false, reason: data.error });
-      } else {
-        setTestResult({ sent: !!data?.sent, reason: data?.reason || null });
-      }
-    } catch (_) {
-      setTestResult({ sent: false, reason: 'The test could not be sent. Please try again.' });
-    }
+    setResult(null);
+    const res = await callFn('testUserAgentTelegram', { agent_id: agent.id, send_test: true });
     setTesting(false);
-  };
-
-  const handleSyncNow = async () => {
-    if (syncing) return;
-    setSyncing(true);
-    setSyncResult(null);
-    try {
-      const res = await base44.functions.invoke('superagentBridgeSync', { agent_id: agent.id });
-      const data = res?.data || res;
-      if (data?.error) {
-        setSyncResult({ note: data.error });
-      } else if (data?.note) {
-        setSyncResult({ note: data.note });
-      } else if ((data?.processed || 0) > 0) {
-        setSyncResult({ note: `Synced — ${data.processed} new message(s) processed` });
-      } else {
-        setSyncResult({ note: 'No new messages' });
-      }
-    } catch (_) {
-      setSyncResult({ note: 'The sync could not run. Please try again.' });
+    if (res.data?.sent) {
+      setResult({ type: 'ok', text: 'Test Message Sent — Check Telegram On Your Phone.' });
+    } else {
+      setResult({ type: 'error', text: res.error || res.data?.reason || 'The Test Message Could Not Be Sent.' });
     }
-    setSyncing(false);
   };
-
-  const renderConnectForm = (compact) => (
-    <div className={cn("space-y-3", compact && "mt-3 pt-3 border-t border-border/40")}>
-      <div className="grid sm:grid-cols-2 gap-2">
-        <div className="relative">
-          <IdCard className="w-3.5 h-3.5 text-muted-foreground/60 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" strokeWidth={1.75} />
-          <input
-            value={agentIdInput}
-            onChange={e => setAgentIdInput(e.target.value)}
-            placeholder="Superagent Agent ID"
-            autoComplete="off"
-            spellCheck={false}
-            className="w-full bg-muted/30 border border-border/40 rounded-lg pl-9 pr-3 py-2 text-[12px] outline-none focus:border-primary/40 transition-colors"
-          />
-        </div>
-        <div className="relative">
-          <KeyRound className="w-3.5 h-3.5 text-muted-foreground/60 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" strokeWidth={1.75} />
-          <input
-            type="password"
-            value={apiKeyInput}
-            onChange={e => setApiKeyInput(e.target.value)}
-            placeholder="Superagent API Key"
-            autoComplete="off"
-            className="w-full bg-muted/30 border border-border/40 rounded-lg pl-9 pr-3 py-2 text-[12px] outline-none focus:border-primary/40 transition-colors"
-          />
-        </div>
-      </div>
-      <button
-        onClick={handleConnect}
-        disabled={!agentIdInput.trim() || !apiKeyInput.trim() || connecting}
-        className="px-3 py-2 rounded-lg text-[12px] bg-primary text-primary-foreground hover:opacity-90 transition-all disabled:opacity-40 inline-flex items-center gap-1.5"
-      >
-        {connecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={1.75} />}
-        Test Connection
-      </button>
-      {connectResult && !connectResult.connected && (
-        <p className="text-[11px] text-destructive flex items-start gap-1.5">
-          <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {connectResult.reason}
-        </p>
-      )}
-    </div>
-  );
 
   return (
     <div className="flex-1 overflow-y-auto scrollbar-minimal">
-      <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-4 animate-fade-up">
+      <div className="max-w-2xl mx-auto px-4 md:px-6 py-6 space-y-5 animate-fade-up">
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          Connect {agent.name} to your phone through your own Base44 Superagent. Chat from anywhere — your agent answers with its own persona, instructions, and knowledge.
+          Chat with {agent.name} from your phone. Your bot only carries messages — every answer comes from your LBC AI agent, with its own persona, instructions, and knowledge.
         </p>
 
-        {/* Unified connection card */}
-        <div className="rounded-xl border border-border/40 bg-card">
-          <div className="p-4 md:p-5 flex items-start gap-3">
-            <div className="w-9 h-9 rounded-md bg-accent flex items-center justify-center shrink-0">
-              <Smartphone className="w-4 h-4 text-foreground/70" strokeWidth={1.5} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-medium">Connect Your Phone</span>
-                {isLoading ? (
-                  <span className="text-[11px] text-muted-foreground/70">Checking…</span>
-                ) : connection ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-foreground/70 bg-primary/10 border border-primary/30 rounded-full px-2 py-0.5">
-                    <CheckCircle2 className="w-3 h-3" strokeWidth={2} />
-                    Connected To Your Superagent
-                  </span>
-                ) : (
-                  <span className="text-[11px] text-muted-foreground/70">Not Connected</span>
-                )}
-              </div>
+        {result && (
+          <div
+            className={cn(
+              "flex items-start gap-2 rounded-lg border px-3.5 py-2.5 text-[12px] leading-relaxed",
+              result.type === 'ok'
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+                : "border-destructive/30 bg-destructive/10 text-destructive"
+            )}
+          >
+            {result.type === 'ok'
+              ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={2} />
+              : <XCircle className="w-4 h-4 shrink-0 mt-0.5" strokeWidth={2} />}
+            {result.text}
+          </div>
+        )}
 
-              {!connection ? (
-                <div className="mt-3 space-y-4">
-                  <ol className="space-y-2.5">
-                    {GUIDE_STEPS.map((step, i) => (
-                      <li key={i} className="flex gap-2.5">
-                        <span className="w-5 h-5 rounded-full bg-accent text-foreground/70 text-[10px] font-medium flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
-                        <div className="text-[12px] leading-relaxed">
-                          <span className="text-foreground/80 font-medium">{step.title}</span>
-                          <span className="text-muted-foreground"> — {step.text}</span>
-                          {step.link && (
-                            <a
-                              href={step.link}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="ml-1.5 inline-flex items-center gap-0.5 text-primary hover:underline"
-                            >
-                              base44.com <ExternalLink className="w-3 h-3" strokeWidth={1.75} />
-                            </a>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ol>
-                  {renderConnectForm(false)}
-                </div>
-              ) : (
-                <div className="mt-3 space-y-3">
-                  <p className="text-[12px] text-muted-foreground leading-relaxed">
-                    {agent.name} is bridged to your Superagent. Messages you send it from your connected phone channel are answered by {agent.name} here — and replies, Autopilot results, and in-app chats are mirrored to your phone.
-                  </p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <button
-                      onClick={handleTest}
-                      disabled={testing}
-                      className="px-3 py-1.5 rounded-lg text-[12px] border border-border/40 hover:bg-accent/50 transition-colors disabled:opacity-40 inline-flex items-center gap-1.5"
-                    >
-                      {testing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={1.75} />}
-                      Test Connection
-                    </button>
-                    <button
-                      onClick={handleSyncNow}
-                      disabled={syncing}
-                      className="px-3 py-1.5 rounded-lg text-[12px] border border-border/40 hover:bg-accent/50 transition-colors disabled:opacity-40 inline-flex items-center gap-1.5"
-                    >
-                      {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" strokeWidth={1.75} />}
-                      Sync Now
-                    </button>
-                  </div>
-                  {testResult && (
-                    <p className={cn(
-                      "text-[11px] inline-flex items-start gap-1.5",
-                      testResult.sent ? "text-foreground/70" : "text-muted-foreground"
-                    )}>
-                      {testResult.sent
-                        ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" strokeWidth={1.75} />
-                        : <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />}
-                      {testResult.sent
-                        ? 'Test Sent — check your phone for the reply'
-                        : (testResult.reason || 'The test could not be sent.')}
-                    </p>
-                  )}
-                  {syncResult && (
-                    <p className="text-[11px] text-muted-foreground">{syncResult.note}</p>
-                  )}
-                  <div>
-                    <div className="text-[11px] text-muted-foreground/80 font-medium">
-                      Replace Your Superagent
+        {/* Telegram — fully functional */}
+        <div className="rounded-xl border border-border/40 bg-card p-4 md:p-5 space-y-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-md bg-accent flex items-center justify-center">
+                <Send className="w-4 h-4 text-foreground/70" strokeWidth={1.75} />
+              </div>
+              <div>
+                <h3 className="text-sm font-medium">Telegram</h3>
+                <p className="text-[11px] text-muted-foreground">Two-Way Chat On Your Phone</p>
+              </div>
+            </div>
+            {loading ? (
+              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
+                <Loader2 className="w-3 h-3 animate-spin" /> Checking…
+              </span>
+            ) : connected ? (
+              <span className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={2} />
+                Connected — @{connection.telegram_bot_username}
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border border-border/50 bg-muted/30 text-muted-foreground font-medium">
+                <XCircle className="w-3.5 h-3.5" strokeWidth={2} />
+                Not Connected
+              </span>
+            )}
+          </div>
+
+          {!connected && (
+            <div className="rounded-lg border border-border/30 bg-muted/10 p-4 space-y-3">
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground/70 font-medium">
+                Create Your Bot In Telegram — 4 Steps
+              </div>
+              <ol className="space-y-2.5">
+                {SETUP_STEPS.map((step, i) => (
+                  <li key={i} className="flex gap-3">
+                    <span className="shrink-0 w-5 h-5 rounded-full bg-primary/15 text-primary text-[11px] font-medium flex items-center justify-center">
+                      {i + 1}
+                    </span>
+                    <div>
+                      <div className="text-[12px] font-medium">{step.title}</div>
+                      <div className="text-[11.5px] text-muted-foreground leading-relaxed mt-0.5">{step.text}</div>
                     </div>
-                    {renderConnectForm(true)}
-                  </div>
-                </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          <div className="space-y-2.5">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground/70 font-medium">
+              {connected ? 'Replace Your Bot' : 'Connect Your Bot'}
+            </div>
+            <input
+              type="password"
+              value={token}
+              onChange={e => setToken(e.target.value)}
+              placeholder="Paste Your Telegram Bot Token"
+              disabled={connecting}
+              className="w-full bg-muted/30 border border-border/40 rounded-lg px-3 py-2.5 text-[12px] font-mono outline-none focus:border-primary/40 transition-colors disabled:opacity-50"
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleConnect}
+                disabled={!token.trim() || connecting}
+                className="px-3.5 py-2 rounded-lg text-[12px] bg-primary text-primary-foreground hover:opacity-90 transition-all disabled:opacity-40 inline-flex items-center gap-1.5"
+              >
+                {connecting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {connected ? 'Replace Bot' : 'Connect'}
+              </button>
+              {connected && (
+                <button
+                  onClick={handleTestMessage}
+                  disabled={testing}
+                  className="px-3.5 py-2 rounded-lg text-[12px] border border-border/50 hover:bg-accent/50 transition-colors disabled:opacity-40 inline-flex items-center gap-1.5"
+                >
+                  {testing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  Test Message
+                </button>
               )}
             </div>
+            <p className="text-[11px] text-muted-foreground/60 leading-relaxed">
+              Your token is stored encrypted — LBC AI never shows it again after connecting.
+            </p>
           </div>
+
+          {connected && (
+            <div className="flex items-start gap-2 rounded-lg border border-border/30 bg-muted/10 px-3.5 py-2.5 text-[11.5px] text-muted-foreground leading-relaxed">
+              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" strokeWidth={1.75} />
+              <span>
+                How It Works — Your Phone ↔ Your Telegram Bot ↔ {agent.name} On LBC AI.
+                Send your bot a message and {agent.name} answers within about 5 minutes.
+                Autopilot results are delivered to your Telegram too.
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Honest info section */}
-        <div className="rounded-xl border border-border/40 bg-muted/20 p-4 md:p-5 flex items-start gap-3">
-          <div className="w-9 h-9 rounded-md bg-muted/40 flex items-center justify-center shrink-0">
-            <Info className="w-4 h-4 text-muted-foreground/70" strokeWidth={1.5} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-foreground/80">What This Does</div>
-            <div className="text-[12px] text-muted-foreground leading-relaxed mt-1.5 space-y-1.5">
-              <p>
-                Your Superagent runs on <span className="text-foreground/80">your own Base44 account and credits</span> — LBC AI never charges you for it. It only carries messages between your phone and {agent.name}.
+        {/* WhatsApp — honest coming-soon state */}
+        <div className="rounded-xl border border-border/40 bg-card p-4 md:p-5">
+          <div className="flex items-start gap-2.5">
+            <div className="w-8 h-8 rounded-md bg-muted/40 flex items-center justify-center shrink-0">
+              <MessageCircle className="w-4 h-4 text-muted-foreground/60" strokeWidth={1.75} />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-medium mb-1">WhatsApp</h3>
+              <p className="text-[12.5px] text-foreground/80 font-medium">
+                Coming Soon — LBC Is Setting Up LBC-Branded WhatsApp Access
               </p>
-              <p>
-                Phone channels (Telegram, WhatsApp, iMessage) are connected inside your Superagent on Base44 — LBC AI never sees your phone number.
+              <p className="text-[11.5px] text-muted-foreground leading-relaxed mt-1.5">
+                No Connection Needed Today. This Space Will Activate Automatically When LBC-Branded WhatsApp Access Is Live.
               </p>
-              <p>
-                Your API key is stored encrypted server-side, never displayed again, and never shared.
-              </p>
-              <button
-                onClick={() => setAboutOpen(true)}
-                className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground/70 hover:text-foreground transition-colors inline-flex items-center gap-1.5 mt-1"
-              >
-                How The Bridge Works
-              </button>
             </div>
           </div>
         </div>
-      </div>
 
-      <Dialog open={aboutOpen} onOpenChange={setAboutOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>How The Bridge Works</DialogTitle>
-            <DialogDescription>
-              Your phone ↔ your Superagent on Base44 ↔ {agent.name} on LBC AI.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="text-[12px] text-muted-foreground leading-relaxed space-y-3">
-            <p>
-              <span className="text-foreground/80 font-medium">Phone → Agent:</span> you message your Superagent from Telegram, WhatsApp, or iMessage. The bridge picks it up, {agent.name} answers with its own persona, instructions, and knowledge, and the reply lands on your phone.
-            </p>
-            <p>
-              <span className="text-foreground/80 font-medium">In-App → Phone:</span> when you chat with {agent.name} inside LBC AI, replies are mirrored to your phone (rate-limited to once every 30 seconds).
-            </p>
-            <p>
-              <span className="text-foreground/80 font-medium">Autopilot → Phone:</span> scheduled task results are delivered to your phone in addition to the agent's chat history.
-            </p>
-            <p>
-              The bridge checks for new messages every 5 minutes — use Sync Now to check instantly. If your Superagent is unreachable or out of credits, you will see an honest error, never a fake success.
-            </p>
+        {/* iMessage — honest unavailable state */}
+        <div className="rounded-xl border border-border/40 bg-card p-4 md:p-5">
+          <div className="flex items-start gap-2.5">
+            <div className="w-8 h-8 rounded-md bg-muted/40 flex items-center justify-center shrink-0">
+              <Smartphone className="w-4 h-4 text-muted-foreground/60" strokeWidth={1.75} />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-medium mb-1">iMessage</h3>
+              <p className="text-[12.5px] text-foreground/80 font-medium">
+                Not Available — Apple Does Not Provide An API
+              </p>
+              <p className="text-[11.5px] text-muted-foreground leading-relaxed mt-1.5">
+                Apple Does Not Offer A Public API For iMessage, So No App Can Connect To It.
+                This Will Not Change Until Apple Provides One.
+              </p>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/50 pt-1">
+          <Clock className="w-3.5 h-3.5" strokeWidth={1.75} />
+          New Telegram Messages Are Answered Within About 5 Minutes.
+        </div>
+      </div>
     </div>
   );
 }

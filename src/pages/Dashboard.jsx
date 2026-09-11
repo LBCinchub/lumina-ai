@@ -7,7 +7,7 @@ import { Activity, LayoutGrid, Zap, Globe } from 'lucide-react';
 
 const LOG_ENTRIES = [
   { time: "23:10:12", msg: "ProtocolGuard successfully initialized.", type: "success" },
-  { time: "23:09:55", msg: "MasterDashboard route carved by Base44 agent.", type: "info" },
+  { time: "23:09:55", msg: "MasterDashboard Route Activated By LBC AI.", type: "info" },
   { time: "23:08:21", msg: "Sync handshake acknowledged.", type: "success" },
   { time: "23:04:15", msg: "InsightEngine detected technical debt in VpsToolPanel.", type: "warning" },
 ];

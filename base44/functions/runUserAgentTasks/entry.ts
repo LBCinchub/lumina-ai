@@ -4,7 +4,7 @@ import {
   runAgentTurn,
   isTaskDue,
 } from '../../shared/userAgents.ts';
-import { deliverViaSuperagent } from '../../shared/superagentBridge.ts';
+import { deliverViaTelegram } from '../../shared/telegramBridge.ts';
 
 // Scheduled Autopilot runner: executes due enabled tasks for user-built
 // agents. Invoked every 15 minutes by the Agent Autopilot Runner workflow.
@@ -111,9 +111,9 @@ export default async function(req) {
         await service.entities.UserAgentTask.update(task.id, { last_result: result.slice(0, 2000) });
       } catch (_) {}
 
-      // Deliver to the user's phone through their Superagent when connected.
+      // Deliver to the user's phone through their Telegram bot when connected.
       // Honest and never fatal to the run — the result is already stored.
-      await deliverViaSuperagent(service, agent.id, historyContent);
+      await deliverViaTelegram(service, agent.id, historyContent);
 
       ran++;
     }

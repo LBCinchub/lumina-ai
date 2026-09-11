@@ -4,8 +4,19 @@
 
 import { secrets } from "base44:runtime";
 
-export const AGENT_ACTIVE_LIMIT = 3; // Free-tier limit on active agents per user.
-export const AGENT_TASK_ACTIVE_LIMIT = 2; // Free-tier limit on active autopilot tasks per agent.
+export const AGENT_ACTIVE_LIMIT = 1; // Free-tier limit on active agents per user.
+export const AGENT_TASK_ACTIVE_LIMIT = 1; // Free-tier limit on active autopilot tasks per agent.
+export const FREE_DAILY_AGENT_MESSAGES = 20; // Free-tier daily message cap across the user's agents.
+
+// Counts the authenticated user's agent messages sent today (UTC) — used for
+// the free-tier daily message cap. `client` must be user-scoped (RLS-enforced).
+export async function countAgentMessagesToday(client, now = new Date()) {
+  const startIso = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
+  const msgs = await client.entities.UserAgentMessage.filter(
+    { role: 'user', created_date: { $gte: startIso } }, 'created_date', 500
+  ).catch(() => []);
+  return (msgs || []).length;
+}
 export const AGENT_VOICES = ['warm', 'direct', 'playful', 'professional'];
 export const AGENT_STATUSES = ['active', 'archived'];
 
