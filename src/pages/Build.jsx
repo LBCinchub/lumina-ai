@@ -264,10 +264,10 @@ export default function Build() {
       const buildData = buildRes?.data || buildRes || {};
       const content = buildData.content || '';
       const imageUrl = buildData.image_url || null;
-      const assistantMsg = { 
-        role: 'assistant', 
-        content: imageUrl ? `Here's the design:\n\n![Design](${imageUrl})\n\n${content}` : content, 
-        id: Date.now() + 1 
+      const assistantMsg = {
+        role: 'assistant',
+        content: imageUrl ? `Here's the design:\n\n![Design](${imageUrl})\n\n${content}` : content,
+        id: Date.now() + 1
       };
       newMessages.push(assistantMsg);
 

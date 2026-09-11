@@ -4,6 +4,9 @@ import AgentGallery from './AgentGallery';
 import AgentCreateWizard from './AgentCreateWizard';
 import AgentChat from './AgentChat';
 import AgentEditDialog from './AgentEditDialog';
+import AgentDetailHeader from './AgentDetailHeader';
+import AgentAutopilotTab from './AgentAutopilotTab';
+import AgentConnectTab from './AgentConnectTab';
 import { AGENT_ACTIVE_LIMIT } from './agentTemplates';
 
 // Container for the My Agents workspace (gallery / create wizard / agent chat).
@@ -21,6 +24,7 @@ export default function AgentWorkspace({ onBack }) {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [detailTab, setDetailTab] = useState('chat'); // chat | autopilot | connect
 
   const callFn = async (name, payload) => {
     try {
@@ -56,6 +60,7 @@ export default function AgentWorkspace({ onBack }) {
   const openChat = async (agent) => {
     setActionError(null);
     setActiveAgent(agent);
+    setDetailTab('chat');
     setView('chat');
     setLoadingMessages(true);
     try {
@@ -152,14 +157,25 @@ export default function AgentWorkspace({ onBack }) {
       )}
 
       {view === 'chat' && activeAgent && (
-        <AgentChat
-          agent={activeAgent}
-          messages={messages}
-          loadingMessages={loadingMessages}
-          sending={sending}
-          onBack={() => { setView('gallery'); loadAgents(); }}
-          onSend={handleSend}
-        />
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <AgentDetailHeader
+            agent={activeAgent}
+            onBack={() => { setView('gallery'); loadAgents(); }}
+            activeTab={detailTab}
+            onTabChange={setDetailTab}
+          />
+          {detailTab === 'chat' && (
+            <AgentChat
+              agent={activeAgent}
+              messages={messages}
+              loadingMessages={loadingMessages}
+              sending={sending}
+              onSend={handleSend}
+            />
+          )}
+          {detailTab === 'autopilot' && <AgentAutopilotTab agent={activeAgent} />}
+          {detailTab === 'connect' && <AgentConnectTab agent={activeAgent} />}
+        </div>
       )}
 
       {editing && (

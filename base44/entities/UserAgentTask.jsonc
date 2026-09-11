@@ -1,0 +1,109 @@
+{
+  "name": "UserAgentTask",
+  "type": "object",
+  "properties": {
+    "agent_id": {
+      "type": "string",
+      "description": "ID of the parent UserAgent"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Server-derived owner email from the authenticated session. The browser can never set or override this."
+    },
+    "ownership_state": {
+      "type": "string",
+      "enum": [
+        "human_verified",
+        "anonymous_legacy"
+      ],
+      "description": "Ownership classification stamped server-side on create"
+    },
+    "name": {
+      "type": "string",
+      "description": "Autopilot task name"
+    },
+    "schedule_type": {
+      "type": "string",
+      "enum": [
+        "daily",
+        "weekly"
+      ],
+      "description": "Recurrence type"
+    },
+    "schedule_weekday": {
+      "type": "number",
+      "description": "Day of week 0-6 (Sunday-Saturday) for weekly tasks"
+    },
+    "schedule_time": {
+      "type": "string",
+      "description": "Run time HH:MM in UTC. Daily tasks default to 08:00."
+    },
+    "instruction": {
+      "type": "string",
+      "description": "What the agent should do on each run"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether the task runs on schedule"
+    },
+    "last_run_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the task last ran"
+    },
+    "last_result": {
+      "type": "string",
+      "description": "Preview of the agent's most recent run result"
+    }
+  },
+  "required": [
+    "agent_id",
+    "name",
+    "schedule_type",
+    "schedule_time",
+    "instruction"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    }
+  }
+}

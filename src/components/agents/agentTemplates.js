@@ -1,8 +1,20 @@
 // Shared constants for the My Agents workspace.
 // Brand: LBC AI. All user-facing text in Title Case.
-// AGENT_ACTIVE_LIMIT mirrors the server-side constant in base44/shared/userAgents.ts.
+// AGENT_ACTIVE_LIMIT and AGENT_TASK_ACTIVE_LIMIT mirror the server-side
+// constants in base44/shared/userAgents.ts.
 
 export const AGENT_ACTIVE_LIMIT = 3;
+export const AGENT_TASK_ACTIVE_LIMIT = 2;
+
+export const WEEKDAYS = [
+  { value: 0, label: 'Sunday' },
+  { value: 1, label: 'Monday' },
+  { value: 2, label: 'Tuesday' },
+  { value: 3, label: 'Wednesday' },
+  { value: 4, label: 'Thursday' },
+  { value: 5, label: 'Friday' },
+  { value: 6, label: 'Saturday' },
+];
 
 export const AGENT_VOICES = [
   { value: 'warm', label: 'Warm', description: 'Supportive and encouraging' },

@@ -1,0 +1,117 @@
+{
+  "name": "UserAgentConnection",
+  "type": "object",
+  "properties": {
+    "agent_id": {
+      "type": "string",
+      "description": "ID of the parent UserAgent"
+    },
+    "channel": {
+      "type": "string",
+      "enum": [
+        "telegram",
+        "whatsapp",
+        "imessage"
+      ],
+      "description": "Delivery channel for this connection"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "connected",
+        "disconnected"
+      ],
+      "default": "connected",
+      "description": "Connection status"
+    },
+    "token_encrypted": {
+      "type": "string",
+      "description": "AES-256-GCM ciphertext of the channel credential. Only backend functions hold the decryption key; the plaintext never returns to any client."
+    },
+    "webhook_secret": {
+      "type": "string",
+      "description": "SHA-256 hex of the bot token, used as the Telegram webhook secret token so the webhook resolves ownership server-side from the token itself."
+    },
+    "bot_username": {
+      "type": "string",
+      "description": "Telegram @username of the connected bot"
+    },
+    "chat_id": {
+      "type": "string",
+      "description": "Telegram chat id of the owner, learned from the first webhook update"
+    },
+    "connected_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the connection was established"
+    },
+    "reply_hour_key": {
+      "type": "string",
+      "description": "Current rate-limit hour bucket for webhook replies"
+    },
+    "reply_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Replies sent in the current rate-limit hour bucket"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Server-derived owner email from the authenticated session. The browser can never set or override this."
+    },
+    "ownership_state": {
+      "type": "string",
+      "enum": [
+        "human_verified",
+        "anonymous_legacy"
+      ],
+      "description": "Ownership classification stamped server-side on create"
+    }
+  },
+  "required": [
+    "agent_id",
+    "channel",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    }
+  }
+}

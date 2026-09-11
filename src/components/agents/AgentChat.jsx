@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { ArrowLeft, ArrowUp, Bot, Loader2 } from 'lucide-react';
+import { ArrowUp, Bot, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { voiceLabel } from './agentTemplates';
 
-// Chat view for one of the user's own agents. Message history is persisted
-// per agent per user; every send goes through the chatWithUserAgent backend
-// function (server-side LLM only — no client-side InvokeLLM).
-export default function AgentChat({ agent, messages, loadingMessages, sending, onBack, onSend }) {
+// Messages + composer for one of the user's own agents. The detail header
+// (back button, identity, tabs) lives in AgentDetailHeader. Message history
+// is persisted per agent per user; every send goes through the
+// chatWithUserAgent backend function (server-side LLM only — no
+// client-side InvokeLLM).
+export default function AgentChat({ agent, messages, loadingMessages, sending, onSend }) {
   const [input, setInput] = useState('');
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
@@ -34,26 +35,6 @@ export default function AgentChat({ agent, messages, loadingMessages, sending, o
 
   return (
     <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-      {/* Header */}
-      <div className="shrink-0 px-4 md:px-6 py-3 border-b border-border/40 flex items-center gap-3">
-        <button
-          onClick={onBack}
-          className="p-1.5 -ml-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-          title="Back To My Agents"
-        >
-          <ArrowLeft className="w-4 h-4" strokeWidth={1.75} />
-        </button>
-        <div className="w-9 h-9 rounded-md bg-accent flex items-center justify-center shrink-0">
-          <Bot className="w-4 h-4 text-foreground/70" strokeWidth={1.5} />
-        </div>
-        <div className="min-w-0">
-          <div className="text-sm font-medium truncate">{agent.name}</div>
-          <div className="text-[11px] text-muted-foreground truncate">
-            {agent.persona} · {voiceLabel(agent.voice)}
-          </div>
-        </div>
-      </div>
-
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-minimal">
         {loadingMessages ? (
