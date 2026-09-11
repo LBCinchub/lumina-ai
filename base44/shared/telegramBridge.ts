@@ -20,9 +20,11 @@ export class TelegramError extends Error {
   }
 }
 
-// The bot token from app secrets — server-side only.
+// The bot token from app secrets — server-side only. Trimmed: trailing
+// whitespace or a newline from secret storage would break the API URL and
+// falsely look like an invalid token.
 export function botToken() {
-  return secrets.get('TELEGRAM_BOT_TOKEN') || '';
+  return String(secrets.get('TELEGRAM_BOT_TOKEN') || '').trim();
 }
 
 // Shared secret between webhook registration and the webhook handler, so

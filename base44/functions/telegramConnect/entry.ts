@@ -38,16 +38,23 @@ export default async function(req) {
 
     const token = botToken();
     if (!token) {
-      return Response.json({ error: 'Bot Token Not Configured' }, { status: 503 });
+      return Response.json({ error: 'Bot Token Not Configured — Add The Bot Token In App Secrets' }, { status: 503 });
     }
 
     // ---- Verify the bot identity with a live Telegram call ----
+    // Surfaces the honest, specific reason: a missing secret never reaches
+    // here (503 above); a rejected token, a network failure, and any other
+    // Telegram error each carry their own message — never a blanket
+    // "Bot Token Invalid" for unrelated failures.
     if (action === 'verify') {
       try {
         const identity = await getBotIdentity(token);
         return Response.json({ ok: true, username: (identity && identity.username) || '' });
-      } catch (_) {
-        return Response.json({ ok: false, error: 'Bot Token Invalid — Check The Token' });
+      } catch (err) {
+        return Response.json({
+          ok: false,
+          error: (err && err.message) || 'Telegram Could Not Be Reached — Try Again In A Moment',
+        });
       }
     }
 

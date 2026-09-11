@@ -40,7 +40,7 @@ export default function AgentConnectTab({ agent }) {
     let alive = true;
     callFn('telegramConnect', { action: 'verify' }).then(res => {
       if (!alive) return;
-      setBotStatus(res.error ? { ok: false } : { ok: true, username: res.data?.username || '' });
+      setBotStatus(res.error ? { ok: false, error: res.error } : { ok: true, username: res.data?.username || '' });
     });
     loadConnection().finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
@@ -146,7 +146,7 @@ export default function AgentConnectTab({ agent }) {
           {botStatus && !botStatus.ok && (
             <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-[11.5px] text-destructive leading-relaxed">
               <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" strokeWidth={2} />
-              Bot Token Invalid — Check The Token. Telegram Connect Is Temporarily Unavailable.
+              {botStatus.error}
             </div>
           )}
 

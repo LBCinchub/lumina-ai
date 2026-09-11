@@ -263,10 +263,11 @@ export default function Converse() {
         setIsAuthenticated(false);
         return;
       }
+      const serverError = err?.response?.data?.error || err?.data?.error || err?.error;
       setMessages(prev => [...prev, { 
         id: 'error-' + Date.now(), 
         role: 'assistant', 
-        content: '⚠️ Message failed to send. Please try again.' 
+        content: `⚠️ ${serverError || 'Message Failed To Send — Please Try Again'}` 
       }]);
     } finally {
       isSendingRef.current = false;
