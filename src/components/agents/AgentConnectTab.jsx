@@ -1,42 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import {
-  Send, MessageCircle, CheckCircle2, XCircle, Loader2, Bot, Smartphone, Info, Clock,
+  Send, MessageCircle, CheckCircle2, XCircle, Loader2, Smartphone, Info, Clock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// Connect tab — LBC AI phone channels. Telegram is fully functional: the user
-// creates their own Telegram bot with the official BotFather inside Telegram,
-// pastes the token here, and their LBC AI agent answers on their phone — the
-// bot only carries messages, the brain is LBC AI. WhatsApp and iMessage show
+// Connect tab — LBC AI phone channels. Telegram runs on the official LBC AI
+// bot: users pair their phone with a short-lived single-use 6-digit code, and
+// their LBC AI agent answers two-way on Telegram. WhatsApp and iMessage show
 // honest availability states — no fake buttons, no simulated success.
 
-const SETUP_STEPS = [
-  { title: 'Open Telegram', text: 'Open The Telegram App And Search For The Official BotFather Bot.' },
-  { title: 'Create A New Bot', text: 'Send /newbot To BotFather, Choose A Name, Then Choose A Username Ending In "bot".' },
-  { title: 'Copy The Token', text: 'BotFather Replies With A Token Like 123456789:ABC-DEF1234 — Copy It Exactly.' },
-  { title: 'Paste It Below', text: 'Paste The Token Into The Field Below And Press Connect — LBC AI Verifies It Live With Telegram.' },
-];
-
 export default function AgentConnectTab({ agent }) {
-  const [token, setToken] = useState('');
+  const [botStatus, setBotStatus] = useState(null); // { ok, username }
   const [connection, setConnection] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [connecting, setConnecting] = useState(false);
+  const [pairing, setPairing] = useState(false);
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState(null); // { type: 'ok' | 'error', text }
-
-  useEffect(() => {
-    let alive = true;
-    base44.entities.UserAgentConnection.filter({ agent_id: agent.id })
-      .then(conns => {
-        if (!alive) return;
-        setConnection((conns || []).find(c => c.status === 'connected') || null);
-        setLoading(false);
-      })
-      .catch(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
-  }, [agent.id]);
 
   const callFn = async (name, payload) => {
     try {
@@ -50,32 +30,52 @@ export default function AgentConnectTab({ agent }) {
     }
   };
 
-  const connected = !!(connection && connection.telegram_bot_username);
+  const loadConnection = () => {
+    return base44.entities.UserAgentConnection.filter({ agent_id: agent.id })
+      .then(conns => setConnection((conns || [])[0] || null))
+      .catch(() => {});
+  };
 
-  const handleConnect = async () => {
-    const t = token.trim();
-    if (!t || connecting) return;
-    setConnecting(true);
+  useEffect(() => {
+    let alive = true;
+    callFn('telegramConnect', { action: 'verify' }).then(res => {
+      if (!alive) return;
+      setBotStatus(res.error ? { ok: false } : { ok: true, username: res.data?.username || '' });
+    });
+    loadConnection().finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [agent.id]);
+
+  const pending = !!(connection && connection.status === 'pending_pairing' && connection.pairing_code);
+  const paired = !!(connection && connection.status === 'connected');
+
+  // While a pairing is open, poll so the card flips to Connected the moment
+  // the user sends /start from their phone.
+  useEffect(() => {
+    if (!pending) return undefined;
+    const timer = setInterval(loadConnection, 10000);
+    return () => clearInterval(timer);
+  }, [pending, agent.id]);
+
+  const handlePair = async () => {
+    if (pairing) return;
+    setPairing(true);
     setResult(null);
-    const res = await callFn('saveUserAgentTelegram', { agent_id: agent.id, bot_token: t });
-    setConnecting(false);
-    if (res.error || res.data?.connected === false) {
-      setResult({ type: 'error', text: res.error || res.data?.reason || 'Telegram Could Not Verify This Token. Check It And Try Again.' });
+    const res = await callFn('telegramConnect', { action: 'pair', agent_id: agent.id });
+    setPairing(false);
+    if (res.error) {
+      setResult({ type: 'error', text: res.error });
       return;
     }
-    setToken('');
-    const uname = res.data?.bot_username ? `@${res.data.bot_username}` : 'Your Bot';
-    setResult({ type: 'ok', text: `Connected — ${uname} Is Live On Telegram. Send It A Message To Start Chatting With ${agent.name}.` });
-    base44.entities.UserAgentConnection.filter({ agent_id: agent.id })
-      .then(conns => setConnection((conns || []).find(c => c.status === 'connected') || null))
-      .catch(() => {});
+    await loadConnection();
+    setResult({ type: 'ok', text: 'Pairing Code Ready — It Expires In 15 Minutes And Works Once.' });
   };
 
   const handleTestMessage = async () => {
     if (testing) return;
     setTesting(true);
     setResult(null);
-    const res = await callFn('testUserAgentTelegram', { agent_id: agent.id, send_test: true });
+    const res = await callFn('telegramConnect', { action: 'test', agent_id: agent.id });
     setTesting(false);
     if (res.data?.sent) {
       setResult({ type: 'ok', text: 'Test Message Sent — Check Telegram On Your Phone.' });
@@ -84,11 +84,14 @@ export default function AgentConnectTab({ agent }) {
     }
   };
 
+  const code = connection?.pairing_code || '';
+  const formattedCode = code ? code.split('').join(' ') : '';
+
   return (
     <div className="flex-1 overflow-y-auto scrollbar-minimal">
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6 space-y-5 animate-fade-up">
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          Chat with {agent.name} from your phone. Your bot only carries messages — every answer comes from your LBC AI agent, with its own persona, instructions, and knowledge.
+          Chat with {agent.name} from your phone. The bot only carries messages — every answer comes from your LBC AI agent, with its own persona, instructions, and knowledge.
         </p>
 
         {result && (
@@ -107,7 +110,7 @@ export default function AgentConnectTab({ agent }) {
           </div>
         )}
 
-        {/* Telegram — fully functional */}
+        {/* Telegram — official LBC AI bot, pairing flow */}
         <div className="rounded-xl border border-border/40 bg-card p-4 md:p-5 space-y-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2.5">
@@ -116,17 +119,21 @@ export default function AgentConnectTab({ agent }) {
               </div>
               <div>
                 <h3 className="text-sm font-medium">Telegram</h3>
-                <p className="text-[11px] text-muted-foreground">Two-Way Chat On Your Phone</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {botStatus?.ok
+                    ? `Official LBC AI Bot${botStatus.username ? ` — @${botStatus.username}` : ''}`
+                    : 'Two-Way Chat On Your Phone'}
+                </p>
               </div>
             </div>
             {loading ? (
               <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
                 <Loader2 className="w-3 h-3 animate-spin" /> Checking…
               </span>
-            ) : connected ? (
+            ) : paired ? (
               <span className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 font-medium">
                 <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={2} />
-                Connected — @{connection.telegram_bot_username}
+                Connected{connection.bot_username ? ` — @${connection.bot_username}` : ''}
               </span>
             ) : (
               <span className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border border-border/50 bg-muted/30 text-muted-foreground font-medium">
@@ -136,49 +143,19 @@ export default function AgentConnectTab({ agent }) {
             )}
           </div>
 
-          {!connected && (
-            <div className="rounded-lg border border-border/30 bg-muted/10 p-4 space-y-3">
-              <div className="text-[11px] uppercase tracking-wider text-muted-foreground/70 font-medium">
-                Create Your Bot In Telegram — 4 Steps
-              </div>
-              <ol className="space-y-2.5">
-                {SETUP_STEPS.map((step, i) => (
-                  <li key={i} className="flex gap-3">
-                    <span className="shrink-0 w-5 h-5 rounded-full bg-primary/15 text-primary text-[11px] font-medium flex items-center justify-center">
-                      {i + 1}
-                    </span>
-                    <div>
-                      <div className="text-[12px] font-medium">{step.title}</div>
-                      <div className="text-[11.5px] text-muted-foreground leading-relaxed mt-0.5">{step.text}</div>
-                    </div>
-                  </li>
-                ))}
-              </ol>
+          {botStatus && !botStatus.ok && (
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-[11.5px] text-destructive leading-relaxed">
+              <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" strokeWidth={2} />
+              Bot Token Invalid — Check The Token. Telegram Connect Is Temporarily Unavailable.
             </div>
           )}
 
-          <div className="space-y-2.5">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground/70 font-medium">
-              {connected ? 'Replace Your Bot' : 'Connect Your Bot'}
-            </div>
-            <input
-              type="password"
-              value={token}
-              onChange={e => setToken(e.target.value)}
-              placeholder="Paste Your Telegram Bot Token"
-              disabled={connecting}
-              className="w-full bg-muted/30 border border-border/40 rounded-lg px-3 py-2.5 text-[12px] font-mono outline-none focus:border-primary/40 transition-colors disabled:opacity-50"
-            />
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={handleConnect}
-                disabled={!token.trim() || connecting}
-                className="px-3.5 py-2 rounded-lg text-[12px] bg-primary text-primary-foreground hover:opacity-90 transition-all disabled:opacity-40 inline-flex items-center gap-1.5"
-              >
-                {connecting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                {connected ? 'Replace Bot' : 'Connect'}
-              </button>
-              {connected && (
+          {paired && (
+            <div className="space-y-3">
+              <p className="text-[12px] text-muted-foreground leading-relaxed">
+                {agent.name} answers you right here in Telegram — messages, replies, and Autopilot results all land in this chat.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={handleTestMessage}
                   disabled={testing}
@@ -187,21 +164,84 @@ export default function AgentConnectTab({ agent }) {
                   {testing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Test Message
                 </button>
-              )}
+                <button
+                  onClick={handlePair}
+                  disabled={pairing}
+                  className="px-3.5 py-2 rounded-lg text-[12px] text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors disabled:opacity-40 inline-flex items-center gap-1.5"
+                >
+                  {pairing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  Re-Pair This Agent
+                </button>
+              </div>
+              <div className="flex items-start gap-2 rounded-lg border border-border/30 bg-muted/10 px-3.5 py-2.5 text-[11.5px] text-muted-foreground leading-relaxed">
+                <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" strokeWidth={1.75} />
+                <span>
+                  How It Works — Your Phone ↔ The Official LBC AI Bot ↔ {agent.name} On LBC AI.
+                  Every reply is logged in this agent's chat history.
+                </span>
+              </div>
             </div>
-            <p className="text-[11px] text-muted-foreground/60 leading-relaxed">
-              Your token is stored encrypted — LBC AI never shows it again after connecting.
-            </p>
-          </div>
+          )}
 
-          {connected && (
-            <div className="flex items-start gap-2 rounded-lg border border-border/30 bg-muted/10 px-3.5 py-2.5 text-[11.5px] text-muted-foreground leading-relaxed">
-              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" strokeWidth={1.75} />
-              <span>
-                How It Works — Your Phone ↔ Your Telegram Bot ↔ {agent.name} On LBC AI.
-                Send your bot a message and {agent.name} answers within about 5 minutes.
-                Autopilot results are delivered to your Telegram too.
-              </span>
+          {pending && (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3.5">
+              <div className="text-center">
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground/70 font-medium mb-2">
+                  Your Pairing Code — Expires In 15 Minutes, Works Once
+                </div>
+                <div className="font-mono text-2xl tracking-[0.35em] font-medium py-2">{formattedCode}</div>
+              </div>
+              <div className="rounded-lg border border-border/30 bg-muted/10 p-4 space-y-2.5">
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground/70 font-medium">
+                  Three Steps On Your Phone
+                </div>
+                <ol className="space-y-2">
+                  {[
+                    'Open Telegram On Your Phone.',
+                    botStatus?.username
+                      ? `Find The Official LBC AI Bot — @${botStatus.username}.`
+                      : 'Find The Official LBC AI Bot.',
+                    `Send This Message To The Bot: /start ${code}`,
+                  ].map((step, i) => (
+                    <li key={i} className="flex gap-3">
+                      <span className="shrink-0 w-5 h-5 rounded-full bg-primary/15 text-primary text-[11px] font-medium flex items-center justify-center">
+                        {i + 1}
+                      </span>
+                      <span className="text-[12px] leading-relaxed">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+              <p className="text-[11px] text-muted-foreground/70 leading-relaxed text-center">
+                This page flips to Connected automatically once the bot receives your code.
+                Generate A New Code if this one expires.
+              </p>
+              <button
+                onClick={handlePair}
+                disabled={pairing}
+                className="w-full px-3.5 py-2 rounded-lg text-[12px] border border-border/50 hover:bg-accent/50 transition-colors disabled:opacity-40 inline-flex items-center justify-center gap-1.5"
+              >
+                {pairing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Generate A New Code
+              </button>
+            </div>
+          )}
+
+          {!pending && !paired && (
+            <div className="space-y-3.5">
+              <div className="rounded-lg border border-border/30 bg-muted/10 p-4">
+                <p className="text-[12px] leading-relaxed text-muted-foreground">
+                  Pairing takes about a minute: generate a 6-digit code here, then send it to the official LBC AI bot on Telegram from your phone.
+                </p>
+              </div>
+              <button
+                onClick={handlePair}
+                disabled={pairing || (botStatus && !botStatus.ok)}
+                className="px-4 py-2 rounded-lg text-[12px] bg-primary text-primary-foreground hover:opacity-90 transition-all disabled:opacity-40 inline-flex items-center gap-1.5"
+              >
+                {pairing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Pair My Telegram
+              </button>
             </div>
           )}
         </div>
@@ -245,7 +285,7 @@ export default function AgentConnectTab({ agent }) {
 
         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/50 pt-1">
           <Clock className="w-3.5 h-3.5" strokeWidth={1.75} />
-          New Telegram Messages Are Answered Within About 5 Minutes.
+          Telegram Messages Are Answered In Seconds, With Hourly Reply Limits.
         </div>
       </div>
     </div>

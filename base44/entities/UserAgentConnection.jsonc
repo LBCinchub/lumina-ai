@@ -16,36 +16,37 @@
       "default": "telegram",
       "description": "Phone channel of the connection"
     },
-    "telegram_bot_username": {
+    "bot_username": {
       "type": "string",
-      "description": "Telegram bot username, verified live via the Telegram Bot API at connect time"
-    },
-    "api_key_encrypted": {
-      "type": "string",
-      "description": "AES-256-GCM ciphertext of the Telegram bot token. Only backend functions hold the decryption key; the plaintext never returns to any client."
+      "description": "Username of the official LBC AI bot, verified live at pair time"
     },
     "chat_id": {
       "type": "string",
-      "description": "Telegram chat id of the owner's most recent conversation with their bot"
+      "description": "Telegram chat id of the owner's paired phone chat"
     },
-    "last_update_id": {
-      "type": "number",
-      "default": 0,
-      "description": "Newest Telegram update id already processed by the bridge"
+    "pairing_code": {
+      "type": "string",
+      "description": "Single-use 6-digit pairing code, consumed by the webhook on successful pairing"
+    },
+    "pairing_expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the pairing code expires \u2014 15 minutes after generation"
+    },
+    "paired_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the phone chat was paired"
     },
     "status": {
       "type": "string",
       "enum": [
+        "pending_pairing",
         "connected",
         "disconnected"
       ],
-      "default": "connected",
+      "default": "pending_pairing",
       "description": "Connection status"
-    },
-    "connected_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "When the connection was established"
     },
     "last_mirror_at": {
       "type": "string",

@@ -5,6 +5,7 @@ import { voiceLabel } from './agentTemplates';
 
 const TABS = [
   { id: 'chat', label: 'Chat' },
+  { id: 'dashboard', label: 'Dashboard' },
   { id: 'autopilot', label: 'Autopilot' },
   { id: 'connect', label: 'Connect' },
 ];
