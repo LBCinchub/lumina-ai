@@ -18,7 +18,7 @@ const PRIMARY_NAV = [
   { to: '/projects', label: 'Projects', icon: FolderKanban },
 ];
 
-export default function AppShell() {
+export default function AppShell({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState(null);
   const { theme, toggle } = useTheme();
@@ -152,7 +152,7 @@ export default function AppShell() {
       </div>
 
       <main className="flex-1 flex flex-col min-w-0 pt-14 md:pt-0 pb-16 md:pb-0">
-        <Outlet />
+        {children ?? <Outlet />}
       </main>
 
       {/* Mobile bottom nav — four workspaces */}

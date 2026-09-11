@@ -8,9 +8,10 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import AppShell from '@/components/layout/AppShell';
 import { base44 } from '@/api/base44Client';
+import RootGate from '@/components/RootGate';
+import Landing from '@/pages/Landing';
 
 // Lazy-loaded pages (code-split per workspace).
-const Converse = lazy(() => import('@/pages/Converse'));
 const Agents = lazy(() => import('@/pages/Agents'));
 const Build = lazy(() => import('@/pages/Build'));
 const KnowledgeSources = lazy(() => import('@/pages/KnowledgeSources'));
@@ -50,6 +51,9 @@ const AuthenticatedApp = () => {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
+      // Signed-out visitors see the public landing at the app root; every
+      // other path keeps the login redirect.
+      if (window.location.pathname === '/') return <Landing />;
       navigateToLogin();
       return null;
     }
@@ -58,9 +62,10 @@ const AuthenticatedApp = () => {
   return (
     <Suspense fallback={<Loading />}>
       <Routes>
+        {/* Root gate: signed-out → public landing, signed-in → Chat in the shell. */}
+        <Route path="/" element={<RootGate />} />
         <Route element={<AppShell />}>
           <Route path="/agents" element={<Agents />} />
-          <Route path="/" element={<Converse />} />
           <Route path="/build" element={<Build />} />
           <Route path="/knowledge" element={<KnowledgeSources />} />
           <Route path="/projects" element={<Dashboard />} />
