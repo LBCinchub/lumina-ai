@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 export function useTheme() {
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('lumina-theme') || 'light';
+    return localStorage.getItem('lbc-theme') || 'dark';
   });
 
   useEffect(() => {
@@ -12,7 +12,7 @@ export function useTheme() {
     } else {
       root.classList.remove('dark');
     }
-    localStorage.setItem('lumina-theme', theme);
+    localStorage.setItem('lbc-theme', theme);
   }, [theme]);
 
   const toggle = () => setTheme(t => t === 'dark' ? 'light' : 'dark');

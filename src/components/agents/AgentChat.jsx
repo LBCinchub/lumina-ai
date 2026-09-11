@@ -55,7 +55,7 @@ export default function AgentChat({ agent, messages, loadingMessages, sending, o
           <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-5">
             {messages.map(m => m.role === 'user' ? (
               <div key={m.id} className="flex justify-end animate-fade-up">
-                <div className="max-w-[80%] bg-primary/20 border border-primary/30 rounded-xl rounded-tr-sm px-3.5 py-2.5 text-[13px] leading-relaxed">
+                <div className="max-w-[80%] rounded-xl rounded-tr-sm px-3.5 py-2.5 text-[13px] leading-relaxed text-white bg-gradient-to-br from-pink-500 to-purple-500">
                   {m.content}
                 </div>
               </div>
