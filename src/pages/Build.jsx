@@ -4,11 +4,12 @@ import { base44 } from '@/api/base44Client';
 import {
   Code2, ArrowUp, Copy, Check, ChevronDown, ChevronUp,
   Monitor, Eye, Plus, Trash2, FolderOpen, Github,
-  RefreshCw, ExternalLink, Download, Loader, Zap
+  RefreshCw, ExternalLink, Download, Loader, Zap, Bot
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import LuminaMark from '@/components/layout/LuminaMark';
 import { useCollaborativeSession } from '@/hooks/useCollaborativeSession';
+import AgentWorkspace from '@/components/agents/AgentWorkspace';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 
@@ -173,6 +174,7 @@ export default function Build() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [pushingCode, setPushingCode] = useState(false);
   const [pushConfirm, setPushConfirm] = useState(null);
+  const [showAgents, setShowAgents] = useState(false);
 
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
@@ -456,6 +458,10 @@ export default function Build() {
         </div>
       </aside>
 
+      {showAgents ? (
+        <AgentWorkspace onBack={() => setShowAgents(false)} />
+      ) : (
+      <>
       {/* CENTER PANEL — Chat + Code Editor (~55%) */}
       <div className="flex flex-col flex-1 min-w-0 md:w-1/2 border-r border-border/40">
         <div className="shrink-0 px-4 py-3 border-b border-border/40 flex items-center justify-between">
@@ -466,6 +472,17 @@ export default function Build() {
             </span>
           </div>
           <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowAgents(true)}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] transition-colors",
+                showAgents ? "bg-primary/20 border border-primary/30 text-foreground" : "text-muted-foreground/70 hover:text-foreground hover:bg-accent/40"
+              )}
+              title="My Agents"
+            >
+              <Bot className="w-3.5 h-3.5" strokeWidth={1.75} />
+              <span className="hidden sm:inline">My Agents</span>
+            </button>
             <button
               onClick={() => setShowCode(!showCode)}
               className={cn(
@@ -691,6 +708,8 @@ export default function Build() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+      </>
       )}
     </div>
   );

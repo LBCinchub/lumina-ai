@@ -1,0 +1,81 @@
+{
+  "name": "UserAgentMessage",
+  "type": "object",
+  "properties": {
+    "agent_id": {
+      "type": "string",
+      "description": "ID of the parent UserAgent"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "user",
+        "assistant"
+      ],
+      "description": "Who sent the message"
+    },
+    "content": {
+      "type": "string",
+      "description": "The message body"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Server-derived owner email from the authenticated session. The browser can never set or override this."
+    },
+    "ownership_state": {
+      "type": "string",
+      "enum": [
+        "human_verified",
+        "anonymous_legacy"
+      ],
+      "description": "Ownership classification stamped server-side on create"
+    }
+  },
+  "required": [
+    "agent_id",
+    "role",
+    "content"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    }
+  }
+}
