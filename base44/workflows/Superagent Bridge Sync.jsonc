@@ -1,0 +1,45 @@
+{
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "superagent_bridge_sync",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "sync_bridge": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "superagentBridgeSync",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Sync Superagent Bridge",
+            "description": "Process new phone messages"
+          }
+        }
+      }
+    ]
+  },
+  "name": "Superagent Bridge Sync",
+  "description": "Syncs new phone messages from users' connected Superagents to their LBC AI agents, every 5 minutes",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/5 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  }
+}

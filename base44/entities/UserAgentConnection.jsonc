@@ -6,14 +6,13 @@
       "type": "string",
       "description": "ID of the parent UserAgent"
     },
-    "channel": {
+    "superagent_agent_id": {
       "type": "string",
-      "enum": [
-        "telegram",
-        "whatsapp",
-        "imessage"
-      ],
-      "description": "Delivery channel for this connection"
+      "description": "Agent ID of the user's own Base44 Superagent, copied from its API URL"
+    },
+    "api_key_encrypted": {
+      "type": "string",
+      "description": "AES-256-GCM ciphertext of the Superagent API key. Only backend functions hold the decryption key; the plaintext never returns to any client."
     },
     "status": {
       "type": "string",
@@ -24,35 +23,33 @@
       "default": "connected",
       "description": "Connection status"
     },
-    "token_encrypted": {
-      "type": "string",
-      "description": "AES-256-GCM ciphertext of the channel credential. Only backend functions hold the decryption key; the plaintext never returns to any client."
-    },
-    "webhook_secret": {
-      "type": "string",
-      "description": "SHA-256 hex of the bot token, used as the Telegram webhook secret token so the webhook resolves ownership server-side from the token itself."
-    },
-    "bot_username": {
-      "type": "string",
-      "description": "Telegram @username of the connected bot"
-    },
-    "chat_id": {
-      "type": "string",
-      "description": "Telegram chat id of the owner, learned from the first webhook update"
-    },
     "connected_at": {
       "type": "string",
       "format": "date-time",
       "description": "When the connection was established"
     },
+    "last_processed_message_id": {
+      "type": "string",
+      "description": "ID of the newest Superagent message already processed by the bridge"
+    },
+    "last_processed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Processing watermark \u2014 only Superagent messages newer than this are synced"
+    },
+    "last_mirror_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the in-app chat was last mirrored to the Superagent (mirror cooldown)"
+    },
     "reply_hour_key": {
       "type": "string",
-      "description": "Current rate-limit hour bucket for webhook replies"
+      "description": "Current rate-limit hour bucket for bridge deliveries"
     },
     "reply_count": {
       "type": "number",
       "default": 0,
-      "description": "Replies sent in the current rate-limit hour bucket"
+      "description": "Bridge deliveries sent in the current rate-limit hour bucket"
     },
     "owner_email": {
       "type": "string",
@@ -69,7 +66,6 @@
   },
   "required": [
     "agent_id",
-    "channel",
     "status"
   ],
   "rls": {

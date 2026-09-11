@@ -1,11 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import {
   MAX_HISTORY_MESSAGES,
-  MAX_HISTORY_CHARS_PER_MSG,
-  buildAgentSystemPrompt,
+  runAgentTurn,
   isTaskDue,
-  decryptBotToken,
 } from '../../shared/userAgents.ts';
+import { deliverViaSuperagent } from '../../shared/superagentBridge.ts';
 
 // Scheduled Autopilot runner: executes due enabled tasks for user-built
 // agents. Invoked every 15 minutes by the Agent Autopilot Runner workflow.
@@ -18,6 +17,8 @@ import {
 //    repeated invocation cannot re-run a task or burn extra credits.
 //  - Authenticated non-admins are rejected; the workflow invokes without a
 //    user session. All AI runs server-side only.
+//  - When the agent is connected to the user's Superagent, the result is
+//    delivered to their phone in addition to the agent's chat history.
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -71,39 +72,15 @@ export default async function(req) {
       let result = '';
       try {
         // Same knowledge + history flow as the in-app chat.
-        let knowledge = [];
-        if (Array.isArray(agent.knowledge_source_ids) && agent.knowledge_source_ids.length > 0) {
-          try {
-            knowledge = await service.entities.KnowledgeSource.filter(
-              { id: { $in: agent.knowledge_source_ids }, is_active: true, status: 'ready' }
-            );
-          } catch (_) {}
-        }
         const history = await service.entities.UserAgentMessage.filter(
           { agent_id: agent.id }, 'created_date', MAX_HISTORY_MESSAGES
         ).catch(() => []);
 
-        const systemPrompt = buildAgentSystemPrompt(agent, knowledge);
-        const historyBlock = history.length > 0
-          ? history.map(m =>
-              `${m.role === 'user' ? 'User' : 'Agent'}: ${(m.content || '').slice(0, MAX_HISTORY_CHARS_PER_MSG)}`
-            ).join('\n\n')
-          : '(No prior messages with this agent.)';
-
-        const fullPrompt = `${systemPrompt}
-
----
-
-CONVERSATION SO FAR:
-${historyBlock}
-
-AUTOMATED TASK: "${task.name}" — the user scheduled this task to run now.
-TASK INSTRUCTION: ${task.instruction}
-
-Complete the task for the user directly, without prefixing your name.`;
-
-        const llmResponse = await service.integrations.Core.InvokeLLM({ prompt: fullPrompt });
-        result = typeof llmResponse === 'string' ? llmResponse : (llmResponse && llmResponse.content) || '';
+        result = await runAgentTurn(service, agent, {
+          history,
+          taskName: task.name,
+          taskInstruction: task.instruction,
+        });
       } catch (_) {
         result = '';
       }
@@ -134,26 +111,9 @@ Complete the task for the user directly, without prefixing your name.`;
         await service.entities.UserAgentTask.update(task.id, { last_result: result.slice(0, 2000) });
       } catch (_) {}
 
-      // Deliver to Telegram when the agent is connected.
-      try {
-        const conns = await service.entities.UserAgentConnection.filter(
-          { agent_id: agent.id, channel: 'telegram', status: 'connected' }
-        );
-        const conn = conns && conns[0];
-        if (conn && conn.chat_id) {
-          let token = '';
-          try {
-            token = await decryptBotToken(conn.token_encrypted);
-          } catch (_) {}
-          if (token) {
-            await fetch(`https://api.telegram.org/bot${encodeURIComponent(token)}/sendMessage`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ chat_id: conn.chat_id, text: historyContent.slice(0, 4000) }),
-            });
-          }
-        }
-      } catch (_) {}
+      // Deliver to the user's phone through their Superagent when connected.
+      // Honest and never fatal to the run — the result is already stored.
+      await deliverViaSuperagent(service, agent.id, historyContent);
 
       ran++;
     }
