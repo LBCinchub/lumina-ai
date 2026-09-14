@@ -32,5 +32,13 @@
       "default": "direct"
     }
   },
-  "required": []
+  "required": [],
+  "rls": {
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  }
 }
