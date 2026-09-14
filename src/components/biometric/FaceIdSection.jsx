@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import FaceIdConfirmDialog from '@/components/biometric/FaceIdConfirmDialog';
-import {
-  isFaceIdSupported,
-  toRegistrationCredentialOptions,
-  serializeRegistration,
-} from '@/lib/webauthn';
+import FaceIdEnrollmentDialog from '@/components/biometric/FaceIdEnrollmentDialog';
+import { isFaceIdSupported } from '@/lib/webauthn';
 import { Loader2, Fingerprint, RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
 
 // Face ID Verification section of Settings. The browser's standard WebAuthn
@@ -19,8 +15,7 @@ export default function FaceIdSection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [supported, setSupported] = useState(null);
-  const [label, setLabel] = useState('');
-  const [enrolling, setEnrolling] = useState(false);
+  const [enrollOpen, setEnrollOpen] = useState(false);
   const [pendingRemove, setPendingRemove] = useState(null);
 
   const load = useCallback(async () => {
@@ -41,47 +36,6 @@ export default function FaceIdSection() {
   }, [load]);
 
   const active = credentials.filter((c) => c.status === 'Active');
-
-  const handleSetUp = async () => {
-    if (enrolling) return;
-    setError(null);
-    if (supported === false) {
-      setError('Face ID Not Available On This Browser Or Device.');
-      return;
-    }
-    setEnrolling(true);
-    try {
-      const startRes = await base44.functions.invoke('startFaceIdEnrollment', {
-        rp_id: window.location.hostname,
-      });
-      const options = startRes?.data?.options || startRes?.options;
-      if (!options?.challenge) throw new Error('No Challenge');
-      const credential = await navigator.credentials.create(
-        toRegistrationCredentialOptions(options)
-      );
-      if (!credential) {
-        // User dismissed the browser prompt — no fake success.
-        setEnrolling(false);
-        return;
-      }
-      const verifyRes = await base44.functions.invoke('verifyFaceIdEnrollment', {
-        registration: serializeRegistration(credential),
-        label: label.trim(),
-        rp_id: window.location.hostname,
-      });
-      const data = verifyRes?.data || verifyRes || {};
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setLabel('');
-        await load();
-      }
-    } catch (err) {
-      const serverError = err?.response?.data?.error || err?.data?.error;
-      setError(serverError || 'Face ID Setup Failed — Please Try Again.');
-    }
-    setEnrolling(false);
-  };
 
   const confirmRemove = async (assertion) => {
     if (!pendingRemove) return false;
@@ -146,17 +100,8 @@ export default function FaceIdSection() {
         </p>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <Input
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="Label, e.g. iPhone"
-            className="h-8 w-44 text-[12px]"
-            maxLength={40}
-          />
-          <Button size="sm" onClick={handleSetUp} disabled={enrolling} className="text-[12px]">
-            {enrolling
-              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              : <Fingerprint className="w-3.5 h-3.5" strokeWidth={1.75} />}
+          <Button size="sm" onClick={() => setEnrollOpen(true)} className="text-[12px]">
+            <Fingerprint className="w-3.5 h-3.5" strokeWidth={1.75} />
             Set Up Face ID
           </Button>
         </div>
@@ -218,6 +163,12 @@ export default function FaceIdSection() {
         }
         confirmLabel="Remove"
         onVerified={confirmRemove}
+      />
+
+      <FaceIdEnrollmentDialog
+        open={enrollOpen}
+        onOpenChange={setEnrollOpen}
+        onComplete={load}
       />
     </div>
   );
