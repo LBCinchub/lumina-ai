@@ -3,6 +3,7 @@ import {
   requireFounderOrAdmin, errorResponse, sha256Hex,
   isAllowedRepo, isSafePath, isSafeBranch, withinSize, redact,
   issueConfirmation, verifyConfirmation, writeAudit, executeGitHubCommit,
+  createNotification,
 } from '../../shared/security.ts';
 
 const ACTION_TYPE = 'templates_backup_push';
@@ -122,6 +123,15 @@ export default async function (req) {
     if (!result.ok) {
       return Response.json({ error: 'GitHub Push Failed' }, { status: result.status });
     }
+
+    // Dashboard alert — owner-only, server-stamped, never fatal to the push.
+    await createNotification(db, {
+      ownerEmail: user.email,
+      kind: 'template_push',
+      title: 'Template Backup Pushed To GitHub',
+      body: `${templates.length} Templates Committed To ${repo} On ${branch} — Commit ${(result.commit || '').slice(0, 7)}.`,
+      link: '/templates',
+    });
     return Response.json({ success: true, commit: result.commit, url: result.url, template_count: templates.length });
   } catch (error) {
     return Response.json({ error: 'GitHub Push Failed' }, { status: 500 });

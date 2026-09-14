@@ -7,6 +7,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/useTheme';
 import LuminaMark from './LuminaMark';
+import NotificationCenter from '@/components/notifications/NotificationCenter';
 
 // Primary workspaces visible to every user. Operations is appended only for
 // server-verified admins (role === 'admin'); founder-only gating is enforced
@@ -76,6 +77,7 @@ export default function AppShell({ children }) {
         </nav>
 
         <div className="p-4 border-t border-sidebar-border space-y-2">
+          <NotificationCenter />
           <div className="flex items-center justify-between -mx-1">
             <button
               onClick={toggle}
@@ -121,15 +123,18 @@ export default function AppShell({ children }) {
             <LuminaMark size={20} className="text-foreground" />
             <span className="font-serif text-lg tracking-tight">LBC AI ULTRA</span>
           </a>
-          {isAdmin && (
-            <button
-              onClick={() => setMobileOpen(!mobileOpen)}
-              className="p-2 -mr-2 text-foreground"
-              aria-label="Operations menu"
-            >
-              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            <NotificationCenter />
+            {isAdmin && (
+              <button
+                onClick={() => setMobileOpen(!mobileOpen)}
+                className="p-2 -mr-2 text-foreground"
+                aria-label="Operations menu"
+              >
+                {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+            )}
+          </div>
         </div>
 
         {mobileOpen && isAdmin && (

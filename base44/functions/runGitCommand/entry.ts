@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.44';
 import {
   requireFounderOrAdmin, errorResponse, isAllowedRepo,
-  redact, writeAudit, GITHUB_CONNECTOR_ID,
+  redact, writeAudit, GITHUB_CONNECTOR_ID, createNotification,
 } from '../../shared/security.ts';
 
 // External Git commands for the LBC private Terminal. Executes a safe,
@@ -140,6 +140,15 @@ export default async function(req) {
       actorEmail: user.email, actionType: ACTION_TYPE,
       target: `${repo}:${sub}`, status: 'success',
       resultSummary: `git ${sub} ok`, requestHash: null,
+    });
+
+    // Dashboard alert — owner-only, server-stamped, never fatal to the command.
+    await createNotification(db, {
+      ownerEmail: user.email,
+      kind: 'terminal_task',
+      title: 'Terminal Git Task Completed',
+      body: `git ${sub} On ${repo} Completed Successfully.`,
+      link: '/terminal',
     });
 
     return Response.json({ output });

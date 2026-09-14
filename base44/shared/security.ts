@@ -139,6 +139,25 @@ export async function writeSecurityEvent(db, { eventType, actorEmail, resourceTy
   } catch (_) {}
 }
 
+// --- In-app notifications -----------------------------------------------------
+
+// Records a dashboard notification for the given owner. Ownership is derived
+// from the server-side session at the call site — never from client input.
+// Failures never break the flow that emits them.
+export async function createNotification(db, { ownerEmail, kind, title, body, link }) {
+  if (!ownerEmail) return;
+  try {
+    await db.entities.UserNotification.create({
+      owner_email: ownerEmail,
+      kind: kind || 'system',
+      title: String(title || '').slice(0, 200),
+      body: String(body || '').slice(0, 500),
+      link: link || null,
+      is_read: false,
+    });
+  } catch (_) {}
+}
+
 // --- GitHub allowlist + validation -------------------------------------------
 
 export const GITHUB_CONNECTOR_ID = "69e9a63841ece86c3a6ac789";

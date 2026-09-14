@@ -1,0 +1,84 @@
+{
+  "name": "UserNotification",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Short notification title"
+    },
+    "body": {
+      "type": "string",
+      "description": "Details of the event"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "terminal_task",
+        "template_push",
+        "system"
+      ],
+      "default": "system",
+      "description": "Event category"
+    },
+    "link": {
+      "type": "string",
+      "description": "In-app route to open from the notification"
+    },
+    "is_read": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the user has read it"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Server-derived owner email from the authenticated session. The browser can never set or override this."
+    }
+  },
+  "required": [
+    "title",
+    "kind",
+    "is_read"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
+    }
+  }
+}
