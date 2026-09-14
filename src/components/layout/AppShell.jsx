@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Bot, MessageSquare, Code2, Database, FolderKanban, Terminal as TerminalIcon, Settings, Menu, X, Sun, Moon, LogIn } from 'lucide-react';
+import { Bot, MessageSquare, Code2, Database, FolderKanban, Terminal as TerminalIcon, Settings, SlidersHorizontal, Menu, X, Sun, Moon, LogIn } from 'lucide-react';
+import DeviceVerification from '@/components/device/DeviceVerification';
 import { cn } from '@/lib/utils';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -39,12 +40,15 @@ export default function AppShell({ children }) {
   };
 
   const isAdmin = user?.role === 'admin';
-  const desktopNav = isAdmin
-    ? [...PRIMARY_NAV, { to: '/operations', label: 'Operations', icon: Settings }]
-    : PRIMARY_NAV;
+  const desktopNav = [
+    ...PRIMARY_NAV,
+    { to: '/settings', label: 'Settings', icon: SlidersHorizontal },
+    ...(isAdmin ? [{ to: '/operations', label: 'Operations', icon: Settings }] : []),
+  ];
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">
+      <DeviceVerification />
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-60 shrink-0 border-r border-border bg-sidebar flex-col">
         <div className="px-6 py-6 flex items-center gap-2.5">

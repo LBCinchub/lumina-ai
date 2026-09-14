@@ -1,0 +1,52 @@
+{
+  "name": "DeviceKey",
+  "type": "object",
+  "properties": {
+    "device_name": {
+      "type": "string",
+      "description": "Display name of the enrolled device, e.g. Device A1B2"
+    },
+    "key_hash": {
+      "type": "string",
+      "description": "SHA-256 hash of the app-generated device key. The raw key, and any hardware identifiers, are never stored"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Active",
+        "Revoked"
+      ],
+      "default": "Active",
+      "description": "Whether this device may verify"
+    },
+    "first_seen": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the device first enrolled"
+    },
+    "last_seen": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the device last verified"
+    }
+  },
+  "required": [
+    "device_name",
+    "key_hash",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

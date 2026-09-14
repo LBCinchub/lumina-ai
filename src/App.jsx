@@ -19,6 +19,7 @@ const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const LBCCommandCenter = lazy(() => import('@/pages/LBCCommandCenter'));
 const Pricing = lazy(() => import('@/pages/Pricing'));
 const Terminal = lazy(() => import('@/pages/Terminal'));
+const Settings = lazy(() => import('@/pages/Settings'));
 
 const Loading = () => (
   <div className="fixed inset-0 flex items-center justify-center">
@@ -73,6 +74,7 @@ const AuthenticatedApp = () => {
           <Route path="/operations" element={<AdminGate><LBCCommandCenter /></AdminGate>} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/terminal" element={<Terminal />} />
+          <Route path="/settings" element={<Settings />} />
 
           {/* Legacy route consolidation redirects */}
           <Route path="/context" element={<Navigate to="/knowledge" replace />} />
