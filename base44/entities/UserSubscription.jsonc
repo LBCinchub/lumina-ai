@@ -46,6 +46,11 @@
     "read": {
       "created_by": "{{user.email}}"
     },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
     "write": {
       "created_by": "{{user.email}}"
     }
