@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, Play, Plus, Trash2, Zap } from 'lucide-react';
+import { Loader2, Play, Plus, Trash2, Zap, Github } from 'lucide-react';
+import GitHubBackup from '@/components/templates/GitHubBackup';
 
 // Command templates manager — save command strings you run often, then trigger
 // them in the Terminal with a single click. Private to the signed-in account.
@@ -13,6 +14,7 @@ export default function TemplateManager({ onRun }) {
   const [name, setName] = useState('');
   const [command, setCommand] = useState('');
   const [saving, setSaving] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -68,9 +70,14 @@ export default function TemplateManager({ onRun }) {
           <Zap className="w-4 h-4 text-pink-400" strokeWidth={1.75} />
           <h2 className="text-sm font-medium">Your Templates</h2>
         </div>
-        <Button size="sm" onClick={openNew}>
-          <Plus className="w-3.5 h-3.5" /> New Template
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setBackupOpen(true)}>
+            <Github className="w-3.5 h-3.5" /> Back Up To GitHub
+          </Button>
+          <Button size="sm" onClick={openNew}>
+            <Plus className="w-3.5 h-3.5" /> New Template
+          </Button>
+        </div>
       </div>
 
       {error && <div className="px-4 md:px-5 py-3 text-[12px] text-destructive">{error}</div>}
@@ -105,6 +112,12 @@ export default function TemplateManager({ onRun }) {
           </div>
         ))}
       </div>
+
+      <GitHubBackup
+        open={backupOpen}
+        onOpenChange={setBackupOpen}
+        templateCount={Array.isArray(templates) ? templates.length : 0}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open && !saving) setDialogOpen(false); }}>
         <DialogContent className="sm:max-w-md">
