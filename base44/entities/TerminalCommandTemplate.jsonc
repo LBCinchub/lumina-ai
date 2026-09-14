@@ -1,0 +1,32 @@
+{
+  "name": "TerminalCommandTemplate",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Display name of the template"
+    },
+    "command": {
+      "type": "string",
+      "description": "Command string executed when the template is triggered"
+    }
+  },
+  "required": [
+    "name",
+    "command"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

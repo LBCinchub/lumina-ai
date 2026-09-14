@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Zap } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import TerminalInput from '@/components/terminal/TerminalInput';
+import CommandTemplates from '@/components/terminal/CommandTemplates';
 import TerminalLines from '@/components/terminal/TerminalLines';
 
 // Private command console for the signed-in LBC AI workspace. Every command
@@ -25,6 +27,7 @@ const HELP_LINES = [
   '/go <workspace>   Open chat · agents · build · knowledge · projects · pricing',
   '/status           Show your session',
   '/clear            Clear the terminal',
+  'Templates         Save Commands You Run Often, Then Trigger Them With One Click',
 ];
 
 let lineSeq = 0;
@@ -36,6 +39,8 @@ export default function Terminal() {
     line('out', 'Type anything to ask LBC AI, or /help for commands. Everything here is private to your account.'),
   ]);
   const [busy, setBusy] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [lastCmd, setLastCmd] = useState('');
   const convoRef = useRef(null);
   const scrollRef = useRef(null);
   const navigate = useNavigate();
@@ -110,6 +115,7 @@ export default function Terminal() {
   };
 
   const handleSubmit = async (raw) => {
+    setLastCmd(raw);
     print(line('cmd', raw));
     const [cmd, ...rest] = raw.split(/\s+/);
     const arg = rest.join(' ').trim();
@@ -161,9 +167,17 @@ export default function Terminal() {
             <span className="w-2.5 h-2.5 rounded-full bg-border" />
             <span className="ml-2 font-mono text-[11px] text-muted-foreground">LBC — Private Terminal</span>
           </div>
-          <span className="font-mono text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full border border-pink-400/30 bg-pink-500/10 text-pink-300">
-            Private
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setTemplatesOpen(o => !o)}
+              className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full border border-purple-400/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 transition-colors"
+            >
+              <Zap className="w-3 h-3" /> Templates
+            </button>
+            <span className="font-mono text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full border border-pink-400/30 bg-pink-500/10 text-pink-300">
+              Private
+            </span>
+          </div>
         </div>
 
         {/* Log */}
@@ -173,6 +187,11 @@ export default function Terminal() {
             <div className="mt-3 font-mono text-[12.5px] text-pink-400 animate-pulse">▌ Working…</div>
           )}
         </div>
+
+        {/* Saved command templates — one-click operations */}
+        {templatesOpen && (
+          <CommandTemplates onRun={handleSubmit} prefillCommand={lastCmd} busy={busy} />
+        )}
 
         {/* Input */}
         <div className="border-t border-border px-4 py-3 bg-background/40">
