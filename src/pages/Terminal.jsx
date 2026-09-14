@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Zap } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import TerminalInput from '@/components/terminal/TerminalInput';
@@ -44,10 +44,33 @@ export default function Terminal() {
   const convoRef = useRef(null);
   const scrollRef = useRef(null);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [lines, busy]);
+
+  // One-click trigger from the Command Templates section — a ?tpl=<id> link
+  // runs the saved command once, then the param is cleared.
+  useEffect(() => {
+    const tplId = searchParams.get('tpl');
+    if (!tplId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const found = await base44.entities.TerminalCommandTemplate.filter({ id: tplId });
+        const tpl = found?.[0];
+        setSearchParams({}, { replace: true });
+        if (cancelled) return;
+        if (tpl) handleSubmit(tpl.command);
+        else print(line('err', 'Template Not Found.'));
+      } catch (_) {
+        if (!cancelled) print(line('err', 'Could Not Load The Template — Please Try Again.'));
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const print = (...newLines) => setLines(prev => [...prev, ...newLines]);
   const printOut = (texts) => print(...texts.map(t => line('out', t)));

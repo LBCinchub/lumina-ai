@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Bot, MessageSquare, Code2, Database, FolderKanban, Terminal as TerminalIcon, Settings, SlidersHorizontal, Menu, X, Sun, Moon, LogIn } from 'lucide-react';
+import { Bot, MessageSquare, Code2, Database, FolderKanban, Terminal as TerminalIcon, Settings, SlidersHorizontal, Menu, X, Sun, Moon, LogIn, Zap } from 'lucide-react';
 import DeviceVerification from '@/components/device/DeviceVerification';
 import { cn } from '@/lib/utils';
 import { base44 } from '@/api/base44Client';
@@ -42,6 +42,7 @@ export default function AppShell({ children }) {
   const isAdmin = user?.role === 'admin';
   const desktopNav = [
     ...PRIMARY_NAV,
+    { to: '/templates', label: 'Templates', icon: Zap },
     { to: '/settings', label: 'Settings', icon: SlidersHorizontal },
     ...(isAdmin ? [{ to: '/operations', label: 'Operations', icon: Settings }] : []),
   ];
