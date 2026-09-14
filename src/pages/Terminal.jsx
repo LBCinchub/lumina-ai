@@ -18,6 +18,7 @@ const WORKSPACES = {
 };
 
 const HELP_LINES = [
+  'anything          Any text that is not a command is sent to LBC AI as a message',
   '/ask <message>   Ask LBC AI — the reply prints right here',
   '/agents           List your agents',
   '/tasks            List your Autopilot tasks',
@@ -32,7 +33,7 @@ const line = (type, text) => ({ id: 'l' + (++lineSeq), type, text });
 export default function Terminal() {
   const [lines, setLines] = useState(() => [
     line('system', 'LBC AI ULTRA — Private Terminal'),
-    line('out', 'Type /help for commands. Everything here is private to your account.'),
+    line('out', 'Type anything to ask LBC AI, or /help for commands. Everything here is private to your account.'),
   ]);
   const [busy, setBusy] = useState(false);
   const convoRef = useRef(null);
@@ -143,7 +144,9 @@ export default function Terminal() {
         await showStatus();
         break;
       default:
-        print(line('err', `Unknown Command — ${cmd}. Type /help for commands.`));
+        // Anything unrecognized is allowed — plain text (and unknown /commands)
+        // are sent straight to LBC AI as a message.
+        await askLumina(raw);
     }
   };
 
