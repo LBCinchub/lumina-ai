@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Bot, MessageSquare, Code2, Database, FolderKanban, Settings, Menu, X, Sun, Moon, LogIn } from 'lucide-react';
+import { Bot, MessageSquare, Code2, Database, FolderKanban, Terminal as TerminalIcon, Settings, Menu, X, Sun, Moon, LogIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ const PRIMARY_NAV = [
   { to: '/build', label: 'Build', icon: Code2 },
   { to: '/knowledge', label: 'Knowledge', icon: Database },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
+  { to: '/terminal', label: 'Terminal', icon: TerminalIcon },
 ];
 
 export default function AppShell({ children }) {
