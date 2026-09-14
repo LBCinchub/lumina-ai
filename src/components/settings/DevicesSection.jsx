@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
-} from '@/components/ui/dialog';
+
 import { Loader2, MonitorSmartphone, RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
 
 // Devices section of Settings — lists this user's enrolled devices and lets
@@ -13,8 +11,7 @@ export default function DevicesSection() {
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [confirming, setConfirming] = useState(null); // device row pending revocation
-  const [revoking, setRevoking] = useState(false);
+  const [revokingId, setRevokingId] = useState(null); // device row being revoked
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -30,27 +27,26 @@ export default function DevicesSection() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleRevoke = async () => {
-    if (!confirming || revoking) return;
-    setRevoking(true);
+  const handleRevoke = async (deviceId) => {
+    if (revokingId) return;
+    setRevokingId(deviceId);
     setError(null);
     try {
       const res = await base44.functions.invoke('registerOrVerifyDevice', {
         action: 'revoke',
-        device_id: confirming.id,
+        device_id: deviceId,
       });
       const data = res?.data || res || {};
       if (data.error) {
         setError(data.error);
       } else {
-        setConfirming(null);
         await load();
       }
     } catch (err) {
       const serverError = err?.response?.data?.error || err?.data?.error || err?.error;
       setError(serverError || 'Revocation Failed — Please Try Again.');
     }
-    setRevoking(false);
+    setRevokingId(null);
   };
 
   return (
@@ -106,9 +102,11 @@ export default function DevicesSection() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setConfirming(d)}
+                  onClick={() => handleRevoke(d.id)}
+                  disabled={revokingId === d.id}
                   className="text-[12px]"
                 >
+                  {revokingId === d.id && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Revoke
                 </Button>
               )}
@@ -117,25 +115,6 @@ export default function DevicesSection() {
         )}
       </div>
 
-      <Dialog open={!!confirming} onOpenChange={(open) => { if (!open && !revoking) setConfirming(null); }}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Revoke This Device?</DialogTitle>
-            <DialogDescription>
-              A Revoked Device Must Enroll As A New Device On Its Next Visit. You Stay Signed In On This Browser.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirming(null)} disabled={revoking}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleRevoke} disabled={revoking}>
-              {revoking && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              Revoke Device
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
