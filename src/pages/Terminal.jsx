@@ -26,6 +26,7 @@ const HELP_LINES = [
   '/tasks            List your Autopilot tasks',
   '/go <workspace>   Open chat · agents · build · knowledge · projects · pricing',
   '/status           Show your session',
+  'git <cmd> <repo>  Run External Git — status · log · branch · remote (e.g. git log LBCinchub/repo)',
   '/clear            Clear the terminal',
   'Templates         Save Commands You Run Often, Then Trigger Them With One Click',
 ];
@@ -137,11 +138,32 @@ export default function Terminal() {
     setBusy(false);
   };
 
+  const runGit = async (raw) => {
+    setBusy(true);
+    try {
+      const res = await base44.functions.invoke('runGitCommand', { command: raw });
+      const data = res?.data || res || {};
+      if (Array.isArray(data.output) && data.output.length) printOut(data.output);
+      else print(line('err', data.error || 'Git Command Failed — Please Try Again.'));
+    } catch (err) {
+      const serverError = err?.response?.data?.error || err?.data?.error || err?.error;
+      print(line('err', serverError || 'Git Command Failed — Please Try Again.'));
+    }
+    setBusy(false);
+  };
+
   const handleSubmit = async (raw) => {
     setLastCmd(raw);
     print(line('cmd', raw));
     const [cmd, ...rest] = raw.split(/\s+/);
     const arg = rest.join(' ').trim();
+
+    // External Git commands run server-side against your connected GitHub.
+    const lowerRaw = raw.trim().toLowerCase();
+    if (lowerRaw === 'git' || lowerRaw.startsWith('git ')) {
+      await runGit(raw);
+      return;
+    }
 
     switch ((cmd || '').toLowerCase()) {
       case '/help':
