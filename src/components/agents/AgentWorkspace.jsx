@@ -8,6 +8,7 @@ import AgentDetailHeader from './AgentDetailHeader';
 import AgentAutopilotTab from './AgentAutopilotTab';
 import AgentDashboardTab from './AgentDashboardTab';
 import AgentConnectTab from './AgentConnectTab';
+import FaceIdConfirmDialog from '@/components/biometric/FaceIdConfirmDialog';
 import { AGENT_ACTIVE_LIMIT } from './agentTemplates';
 
 // Container for the My Agents workspace (gallery / create wizard / agent chat).
@@ -26,6 +27,7 @@ export default function AgentWorkspace({ onBack }) {
   const [sending, setSending] = useState(false);
   const [editing, setEditing] = useState(null);
   const [detailTab, setDetailTab] = useState('chat'); // chat | autopilot | connect
+  const [pendingArchive, setPendingArchive] = useState(null); // agent awaiting Face ID confirmation
 
   const callFn = async (name, payload) => {
     try {
@@ -109,11 +111,28 @@ export default function AgentWorkspace({ onBack }) {
     setSending(false);
   };
 
-  const handleArchive = async (agent) => {
+  // Archiving removes the agent from the active workspace — gated by Face ID
+  // confirmation when biometric credentials exist. Runs after the dialog;
+  // the server verifies the assertion again, never a client flag.
+  const handleArchive = (agent) => {
     setActionError(null);
-    const res = await callFn('updateUserAgent', { agent_id: agent.id, status: 'archived' });
-    if (res.error) setActionError(res.error);
+    setPendingArchive(agent);
+  };
+
+  const confirmArchive = async (assertion) => {
+    if (!pendingArchive) return false;
+    const res = await callFn('updateUserAgent', {
+      agent_id: pendingArchive.id,
+      status: 'archived',
+      assertion,
+      rp_id: window.location.hostname,
+    });
+    if (res.error) {
+      setActionError(res.error);
+      return false;
+    }
     loadAgents();
+    return true;
   };
 
   const handleRestore = async (agent) => {
@@ -188,6 +207,20 @@ export default function AgentWorkspace({ onBack }) {
           onSave={handleUpdate}
         />
       )}
+
+      <FaceIdConfirmDialog
+        open={!!pendingArchive}
+        onOpenChange={(o) => { if (!o) setPendingArchive(null); }}
+        action={pendingArchive ? `Archive Agent ${pendingArchive.id}` : ''}
+        title="Archive Agent"
+        description={
+          pendingArchive
+            ? `Archive The Agent "${pendingArchive.name}"? You Can Restore It Later.`
+            : ''
+        }
+        confirmLabel="Archive Agent"
+        onVerified={confirmArchive}
+      />
     </div>
   );
 }

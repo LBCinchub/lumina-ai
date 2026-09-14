@@ -7,6 +7,7 @@ import {
   buildEnrollmentRecord,
   confirmationCode,
 } from '../../shared/deviceKeys.ts';
+import { requireFaceIdGate, resolveRp, faceIdGateError } from '../../shared/biometrics.ts';
 
 // Server-side device verification. The browser holds a random app-generated
 // key in local storage; only its SHA-256 hash is ever stored, compared, or
@@ -38,6 +39,18 @@ export default async function(req) {
         devices = await base44.entities.DeviceKey.filter({ id: deviceId });
       } catch (_) {}
       if (!devices?.[0]) return Response.json({ error: 'Device Not Found.' }, { status: 404 });
+
+      // Face ID gate: with active biometric credentials a verified assertion
+      // for this exact device is required — checked server-side. With zero
+      // active credentials the standard session is the confirmation.
+      const gate = await requireFaceIdGate(
+        base44, base44.asServiceRole, user,
+        resolveRp(req, body.rp_id), `Revoke Device ${deviceId}`, body.assertion
+      );
+      if (!gate.ok) {
+        return Response.json({ error: faceIdGateError(gate.reason) }, { status: 403 });
+      }
+
       await base44.entities.DeviceKey.update(deviceId, { status: 'Revoked' });
       return Response.json({ ok: true });
     }

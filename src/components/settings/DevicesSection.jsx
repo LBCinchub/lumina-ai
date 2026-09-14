@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
+import FaceIdConfirmDialog from '@/components/biometric/FaceIdConfirmDialog';
 
 import { Loader2, MonitorSmartphone, RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
 
@@ -12,6 +13,7 @@ export default function DevicesSection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [revokingId, setRevokingId] = useState(null); // device row being revoked
+  const [pendingRevoke, setPendingRevoke] = useState(null); // device awaiting Face ID confirmation
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -27,19 +29,25 @@ export default function DevicesSection() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleRevoke = async (deviceId) => {
-    if (revokingId) return;
-    setRevokingId(deviceId);
+  // Runs after Face ID confirmation. The server verifies the assertion again
+  // — the client "verified" state is never trusted on its own.
+  const confirmRevoke = async (assertion) => {
+    if (!pendingRevoke || revokingId) return false;
+    setRevokingId(pendingRevoke.id);
     setError(null);
+    let ok = false;
     try {
       const res = await base44.functions.invoke('registerOrVerifyDevice', {
         action: 'revoke',
-        device_id: deviceId,
+        device_id: pendingRevoke.id,
+        assertion,
+        rp_id: window.location.hostname,
       });
       const data = res?.data || res || {};
       if (data.error) {
         setError(data.error);
       } else {
+        ok = true;
         await load();
       }
     } catch (err) {
@@ -47,6 +55,7 @@ export default function DevicesSection() {
       setError(serverError || 'Revocation Failed — Please Try Again.');
     }
     setRevokingId(null);
+    return ok;
   };
 
   return (
@@ -102,7 +111,7 @@ export default function DevicesSection() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleRevoke(d.id)}
+                  onClick={() => setPendingRevoke(d)}
                   disabled={revokingId === d.id}
                   className="text-[12px]"
                 >
@@ -115,6 +124,19 @@ export default function DevicesSection() {
         )}
       </div>
 
+      <FaceIdConfirmDialog
+        open={!!pendingRevoke}
+        onOpenChange={(o) => { if (!o) setPendingRevoke(null); }}
+        action={pendingRevoke ? `Revoke Device ${pendingRevoke.id}` : ''}
+        title="Revoke Device"
+        description={
+          pendingRevoke
+            ? `Revoke The Device "${pendingRevoke.device_name}"? It Will No Longer Be Able To Verify.`
+            : ''
+        }
+        confirmLabel="Revoke Device"
+        onVerified={confirmRevoke}
+      />
     </div>
   );
 }

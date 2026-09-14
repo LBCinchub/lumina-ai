@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { AGENT_ACTIVE_LIMIT, AGENT_STATUSES, sanitizeAgentInput } from '../../shared/userAgents.ts';
+import { requireFaceIdGate, resolveRp, faceIdGateError } from '../../shared/biometrics.ts';
 
 // Server-side UserAgent edit + archive/restore.
 //
@@ -57,6 +58,18 @@ export default async function(req) {
     if (body.status !== undefined) {
       if (!AGENT_STATUSES.includes(body.status)) {
         return Response.json({ error: 'Status must be active or archived' }, { status: 400 });
+      }
+      // Archiving removes the agent from the active workspace — gated by
+      // Face ID when active biometric credentials exist (verified
+      // server-side; standard session otherwise, never a lockout).
+      if (body.status === 'archived' && agent.status !== 'archived') {
+        const gate = await requireFaceIdGate(
+          base44, base44.asServiceRole, user,
+          resolveRp(req, body.rp_id), `Archive Agent ${agentId}`, body.assertion
+        );
+        if (!gate.ok) {
+          return Response.json({ error: faceIdGateError(gate.reason) }, { status: 403 });
+        }
       }
       if (body.status === 'active' && agent.status !== 'active') {
         // Restoring counts against the free-tier active limit.

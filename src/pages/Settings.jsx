@@ -1,5 +1,6 @@
 import React from 'react';
 import DevicesSection from '@/components/settings/DevicesSection';
+import FaceIdSection from '@/components/biometric/FaceIdSection';
 
 // Settings — account management for the signed-in LBC AI experience.
 // Currently holds the Devices section.
@@ -13,6 +14,7 @@ export default function Settings() {
             Manage Your LBC AI Account And Devices.
           </p>
         </div>
+        <FaceIdSection />
         <DevicesSection />
       </div>
     </div>
