@@ -11,8 +11,9 @@ Deno.serve(async (req) => {
 
     const db = base44.asServiceRole;
 
-    // Get or create user subscription
-    const subs = await db.entities.UserSubscription.filter({ created_by: user.email });
+    // Get or create user subscription — always the earliest record (canonical),
+    // so extra records can never reset the usage counter.
+    const subs = await db.entities.UserSubscription.filter({ created_by: user.email }, 'created_date');
     let sub = subs[0];
 
     if (!sub) {
