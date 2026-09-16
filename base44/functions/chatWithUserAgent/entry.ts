@@ -7,6 +7,7 @@ import {
   countAgentMessagesToday,
   FREE_DAILY_AGENT_MESSAGES,
 } from '../../shared/userAgents.ts';
+import { isFounderEmail } from '../../shared/security.ts';
 import { deliverViaTelegram } from '../../shared/telegramBridge.ts';
 
 // Server-side chat with a user-owned agent.
@@ -73,7 +74,13 @@ export default async function(req) {
     });
 
     // Server-side LLM only — persona + voice + instructions + knowledge flow.
-    const content = await runAgentTurn(base44, agent, { history, userMessage: message });
+    const content = await runAgentTurn(base44, agent, {
+      history,
+      userMessage: message,
+      // Server-verified owner session — agents obey the founder without
+      // hesitation. Never granted by anything typed in the conversation.
+      ownerAuthority: isFounderEmail(user.email),
+    });
 
     if (!content) {
       return Response.json({ error: 'The agent could not respond. Please try again.' }, { status: 502 });

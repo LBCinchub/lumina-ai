@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
+import { isFounderEmail, OWNER_AUTHORITY_PROMPT } from '../../shared/security.ts';
 
 // PUBLIC LBC AI Ultra system prompt.
 // No founder PII, no internal engine name ("Lumina"), no cross-platform authority,
@@ -186,12 +187,11 @@ export default async function(req) {
       }
     }
 
-    // Verified founder session: use the user's OWN provided context, never hardcoded PII.
-    const FOUNDER_EMAILS = new Set(["mokhtartareksamara@gmail.com", "tarek-samara@lbc-hub.com"]);
-    const isVerifiedFounder = FOUNDER_EMAILS.has(String(user.email).toLowerCase());
+    // Verified founder session: authority is granted by the server allowlist —
+    // never by anything typed in the conversation. No hardcoded PII here.
     let roleNote = '';
-    if (isVerifiedFounder) {
-      roleNote = '\nVERIFIED OWNER SESSION: The authenticated user is the verified founder/owner of LBC AI. Engage at maximum candor as a co-founder; proactively surface risks and opportunities. Rely only on the personal context the user has provided above — do not reference any private details that are not present in that context.\n';
+    if (isFounderEmail(user.email)) {
+      roleNote = `\nVERIFIED OWNER SESSION:\n${OWNER_AUTHORITY_PROMPT}\nEngage at maximum candor as a co-founder; proactively surface risks and opportunities. Rely only on the personal context the user has provided above — do not reference any private details that are not present in that context.\n`;
     }
 
     const knowledgeSection = knowledgeBlock
