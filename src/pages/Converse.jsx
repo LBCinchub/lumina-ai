@@ -8,8 +8,9 @@ import Composer from '@/components/chat/Composer';
 import LuminaMark from '@/components/layout/LuminaMark';
 import ContextToggle from '@/components/converse/ContextToggle';
 import ContextSelector from '@/components/converse/ContextSelector';
-import { PanelLeft, Download, ImageIcon, Search } from 'lucide-react';
+import { PanelLeft, Download, ImageIcon, Search, FileText } from 'lucide-react';
 import DeepSearchDialog from '@/components/research/DeepSearchDialog';
+import DocumentDialog from '@/components/documents/DocumentDialog';
 import { cn } from '@/lib/utils';
 import { useExportPDF } from '@/hooks/useExportPDF';
 import { useSpeechOutput } from '@/hooks/useSpeechOutput';
@@ -59,6 +60,7 @@ export default function Converse() {
   const { speak, stop: stopSpeaking, speaking, unlock: unlockSpeech } = useSpeechOutput();
   const [imageOpen, setImageOpen] = useState(false);
   const [deepSearchOpen, setDeepSearchOpen] = useState(false);
+  const [docOpen, setDocOpen] = useState(false);
   const { logInteraction } = useTwinLearning();
 
   // Wire composerRef to startMicRef once available
@@ -347,6 +349,7 @@ export default function Converse() {
     />
     <ImageStudio open={imageOpen} onOpenChange={setImageOpen} />
     <DeepSearchDialog open={deepSearchOpen} onOpenChange={setDeepSearchOpen} />
+    <DocumentDialog open={docOpen} onOpenChange={setDocOpen} conversationId={activeId} messages={messages} />
     {voiceMode && (
       <LiveCallOverlay
         speaking={speaking}
@@ -410,6 +413,16 @@ export default function Converse() {
                 <Search className="w-3.5 h-3.5" strokeWidth={1.75} />
                 <span className="hidden sm:inline">Deep Search</span>
               </button>
+              {activeId && messages.length > 0 && (
+                <button
+                  onClick={() => setDocOpen(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  title="Draft Document"
+                >
+                  <FileText className="w-3.5 h-3.5" strokeWidth={1.75} />
+                  <span className="hidden sm:inline">Draft</span>
+                </button>
+              )}
               <button
                 onClick={() => setImageOpen(true)}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
