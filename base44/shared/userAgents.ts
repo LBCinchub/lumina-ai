@@ -286,6 +286,14 @@ export async function runAgentTurn(client, agent, options) {
   const systemPrompt = buildAgentSystemPrompt(agent, knowledge, { ownerAuthority: !!opts.ownerAuthority });
   const historyBlock = buildHistoryBlock(opts.history);
 
+  // Persistent memory — stable facts, preferences, and standing instructions
+  // the user asked the agent to remember (per-user isolated, RLS-enforced).
+  const memories = Array.isArray(opts.memories) ? opts.memories : [];
+  const memoryBlock = memories.length > 0
+    ? `PERSISTENT MEMORY (stable facts, preferences, and standing instructions the user asked you to remember — apply them faithfully in every reply):\n` +
+      memories.map(m => `- ${String(m && m.content ? m.content : '').slice(0, 500)}`).join('\n')
+    : null;
+
   const finalBlock = taskInstruction
     ? `AUTOMATED TASK: "${opts.taskName || 'Autopilot Task'}" — the user scheduled this task to run now.
 TASK INSTRUCTION: ${taskInstruction}
@@ -296,6 +304,7 @@ Complete the task for the user directly, without prefixing your name.`
 Respond as ${agent.name} directly, without prefixing your name.`;
 
   const fullPrompt = `${systemPrompt}
+${memoryBlock ? `\n---\n\n${memoryBlock}\n` : ''}
 
 ---
 

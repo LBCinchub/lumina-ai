@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
+import DeepSearchDialog from '@/components/research/DeepSearchDialog';
 import LBCInternalMonitor from '@/components/monitor/LBCInternalMonitor';
 import SecurityShield from '@/components/security/SecurityShield';
 import DeploymentTerminal from '@/components/dashboard/DeploymentTerminal';
 import AutonomousWorkspace from '@/components/dashboard/AutonomousWorkspace';
-import { Activity, LayoutGrid, Zap, Globe } from 'lucide-react';
+import { Activity, LayoutGrid, Zap, Globe, Search } from 'lucide-react';
 
 const LOG_ENTRIES = [
   { time: "23:10:12", msg: "ProtocolGuard successfully initialized.", type: "success" },
@@ -25,6 +26,7 @@ const LogEntry = ({ time, msg, type }) => (
 );
 
 export default function Dashboard() {
+  const [deepSearchOpen, setDeepSearchOpen] = useState(false);
   return (
     <div className="p-6 bg-slate-950 min-h-screen text-emerald-50 font-sans">
       <div className="max-w-[1600px] mx-auto">
@@ -40,6 +42,13 @@ export default function Dashboard() {
           </div>
 
           <div className="flex gap-4">
+            <button
+              onClick={() => setDeepSearchOpen(true)}
+              className="bg-emerald-500/5 border border-emerald-500/10 px-4 py-2 rounded-xl flex items-center gap-2 text-xs font-bold text-emerald-100 hover:bg-emerald-500/10 transition-colors"
+            >
+              <Search className="w-4 h-4 text-emerald-500" />
+              Deep Search
+            </button>
             <div className="bg-emerald-500/5 border border-emerald-500/10 px-4 py-2 rounded-xl flex items-center gap-3">
               <Globe className="w-4 h-4 text-emerald-500" />
               <div className="text-left">
@@ -116,6 +125,7 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      <DeepSearchDialog open={deepSearchOpen} onOpenChange={setDeepSearchOpen} />
     </div>
   );
 }

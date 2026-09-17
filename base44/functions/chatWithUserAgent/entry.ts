@@ -73,10 +73,16 @@ export default async function(req) {
       ownership_state: 'human_verified',
     });
 
+    // Persistent memories for this agent — user-scoped read (RLS-isolated).
+    const memories = await base44.entities.AgentMemory.filter(
+      { agent_id: agentId }, 'created_date', 50
+    ).catch(() => []);
+
     // Server-side LLM only — persona + voice + instructions + knowledge flow.
     const content = await runAgentTurn(base44, agent, {
       history,
       userMessage: message,
+      memories,
       // Server-verified owner session — agents obey the founder without
       // hesitation. Never granted by anything typed in the conversation.
       ownerAuthority: isFounderEmail(user.email),

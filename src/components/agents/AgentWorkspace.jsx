@@ -8,6 +8,7 @@ import AgentDetailHeader from './AgentDetailHeader';
 import AgentAutopilotTab from './AgentAutopilotTab';
 import AgentDashboardTab from './AgentDashboardTab';
 import AgentConnectTab from './AgentConnectTab';
+import AgentMemoryTab from './AgentMemoryTab';
 import FaceIdConfirmDialog from '@/components/biometric/FaceIdConfirmDialog';
 import { AGENT_ACTIVE_LIMIT } from './agentTemplates';
 
@@ -194,6 +195,7 @@ export default function AgentWorkspace({ onBack }) {
             />
           )}
           {detailTab === 'dashboard' && <AgentDashboardTab agent={activeAgent} />}
+          {detailTab === 'memory' && <AgentMemoryTab agent={activeAgent} />}
           {detailTab === 'autopilot' && <AgentAutopilotTab agent={activeAgent} />}
           {detailTab === 'connect' && <AgentConnectTab agent={activeAgent} />}
         </div>

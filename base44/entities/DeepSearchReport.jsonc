@@ -1,0 +1,133 @@
+{
+  "name": "DeepSearchReport",
+  "type": "object",
+  "properties": {
+    "question": {
+      "type": "string",
+      "description": "The research question the user asked"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "processing",
+        "ready",
+        "error"
+      ],
+      "default": "processing",
+      "description": "Run status of the research"
+    },
+    "answer": {
+      "type": "string",
+      "description": "The synthesized research answer"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "claim": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "evidence": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "claim",
+          "confidence"
+        ]
+      },
+      "default": [],
+      "description": "Key findings with per-claim confidence levels"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
+      "default": [],
+      "description": "Every source consulted and cited by the run"
+    },
+    "unverified": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Claims that could NOT be verified across sources \u2014 stated honestly"
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "description": "Overall confidence in the answer"
+    },
+    "sub_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Sub-questions the research was decomposed into"
+    },
+    "rounds_used": {
+      "type": "number",
+      "default": 0,
+      "description": "Research rounds executed"
+    },
+    "searches_used": {
+      "type": "number",
+      "default": 0,
+      "description": "Targeted live-web searches executed"
+    },
+    "pages_read": {
+      "type": "number",
+      "default": 0,
+      "description": "Full pages read directly"
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Honest error details when status is error"
+    }
+  },
+  "required": [
+    "question",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

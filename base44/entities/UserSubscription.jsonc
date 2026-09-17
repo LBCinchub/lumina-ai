@@ -2,6 +2,16 @@
   "name": "UserSubscription",
   "type": "object",
   "properties": {
+    "plan": {
+      "type": "string",
+      "enum": [
+        "free",
+        "superagent",
+        "ultra"
+      ],
+      "default": "free",
+      "description": "LBC AI plan tier \u2014 Free, Superagent ($40/mo), or Ultra ($100/mo). Sourced from the earliest canonical record; grants are owner-set, never client-set."
+    },
     "requests_used": {
       "type": "number",
       "default": 0,

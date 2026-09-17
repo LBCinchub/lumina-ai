@@ -1,0 +1,32 @@
+{
+  "name": "AgentMemory",
+  "type": "object",
+  "properties": {
+    "agent_id": {
+      "type": "string",
+      "description": "ID of the parent UserAgent this memory belongs to"
+    },
+    "content": {
+      "type": "string",
+      "description": "A stable fact, preference, or standing instruction the agent remembers across conversations"
+    }
+  },
+  "required": [
+    "agent_id",
+    "content"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}
