@@ -1,0 +1,45 @@
+{
+  "name": "Autopilot Continuation",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/5 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "autopilot_continuation",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "advance_runs": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "autopilotWorker",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Advance Autopilot Runs",
+            "description": "One bounded step per opted-in owner's open run"
+          }
+        }
+      }
+    ]
+  },
+  "description": "Continues opted-in Autopilot runs server-side every 5 minutes \u2014 one lease-guarded step per run, independent of any open tab."
+}

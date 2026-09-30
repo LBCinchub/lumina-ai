@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { isFounderEmail, OWNER_AUTHORITY_PROMPT } from '../../shared/security.ts';
 import { getUserPlan } from '../../shared/tiers.ts';
 import { fetchPageText } from '../../shared/pageReader.ts';
+import { detectActionIntent, actionIntentReply } from '../../shared/actionIntent.ts';
 
 // PUBLIC LBC AI Ultra system prompt.
 // No founder PII, no internal engine name ("Lumina"), no cross-platform authority,
@@ -144,6 +145,16 @@ export default async function(req) {
       content: message,
       owner_email: user.email
     });
+
+    // --- External-action intent: post/listing requests route to the typed
+    // Autopilot pipeline — the model never claims it already acted.
+    const actionIntent = detectActionIntent(message);
+    if (actionIntent) {
+      const reply = actionIntentReply(actionIntent);
+      await db.entities.Message.create({ conversation_id, role: 'assistant', content: reply, owner_email: user.email });
+      (async () => { try { await db.entities.Conversation.update(conversation_id, { last_message_at: new Date().toISOString() }); } catch (_) {} })();
+      return Response.json({ content: reply });
+    }
 
     // --- Tier gate: live web search + page reading are LBC AI Superagent
     // capabilities. Free plan = basic chat only. Honest, server-side, never faked.

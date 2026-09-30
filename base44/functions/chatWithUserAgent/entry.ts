@@ -9,6 +9,7 @@ import {
 } from '../../shared/userAgents.ts';
 import { isFounderEmail } from '../../shared/security.ts';
 import { deliverViaTelegram } from '../../shared/telegramBridge.ts';
+import { detectActionIntent, actionIntentReply } from '../../shared/actionIntent.ts';
 
 // Server-side chat with a user-owned agent.
 //
@@ -72,6 +73,18 @@ export default async function(req) {
       owner_email: user.email,
       ownership_state: 'human_verified',
     });
+
+    // External-action requests (post / list) route to the typed Autopilot
+    // pipeline — an agent never claims it published something.
+    const actionIntent = detectActionIntent(message);
+    if (actionIntent) {
+      const content = actionIntentReply(actionIntent);
+      await base44.entities.UserAgentMessage.create({
+        agent_id: agentId, role: 'assistant', content,
+        owner_email: user.email, ownership_state: 'human_verified',
+      });
+      return Response.json({ content });
+    }
 
     // Persistent memories for this agent — user-scoped read (RLS-isolated).
     const memories = await base44.entities.AgentMemory.filter(

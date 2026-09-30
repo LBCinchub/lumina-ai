@@ -18,6 +18,7 @@ const PRIMARY_NAV = [
   { to: '/build', label: 'Build', icon: Code2 },
   { to: '/knowledge', label: 'Knowledge', icon: Database },
   { to: '/projects', label: 'Projects', icon: FolderKanban },
+  { to: '/autopilot', label: 'Autopilot', icon: Zap },
   { to: '/terminal', label: 'Terminal', icon: TerminalIcon },
 ];
 
