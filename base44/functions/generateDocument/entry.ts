@@ -80,7 +80,7 @@ Rules:
 ${transcript}
 === END OF CONVERSATION ===`;
 
-    const result = await base44.integrations.Core.InvokeLLM({ prompt, model: 'claude_opus_5' });
+    const result = await base44.integrations.Core.InvokeLLM({ prompt, model: 'claude_opus_5_5' });
     const content = typeof result === 'string' ? result : (result && result.content) || '';
     if (!content) return Response.json({ error: 'The Draft Could Not Be Generated — Please Try Again.' }, { status: 502 });
 
