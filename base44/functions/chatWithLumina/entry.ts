@@ -284,7 +284,7 @@ Return ONLY the prompt text, nothing else.`
       const llmCall = {
         prompt: fullPrompt,
         add_context_from_internet: webEnabled,
-        ...(webEnabled ? { model: 'gemini_3_flash' } : {}),
+        model: webEnabled ? 'gemini_3_flash' : 'claude_opus_5',
         ...(file_urls && file_urls.length ? { file_urls } : {}),
       };
       const llmResponse = await base44.integrations.Core.InvokeLLM(llmCall);

@@ -313,6 +313,6 @@ ${historyBlock}
 
 ${finalBlock}`;
 
-  const llmResponse = await client.integrations.Core.InvokeLLM({ prompt: fullPrompt });
+  const llmResponse = await client.integrations.Core.InvokeLLM({ prompt: fullPrompt, model: 'claude_opus_5' });
   return typeof llmResponse === 'string' ? llmResponse : (llmResponse && llmResponse.content) || '';
 }
