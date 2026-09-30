@@ -1,0 +1,40 @@
+{
+  "name": "Autopilot Status Alerts",
+  "description": "Notifies the run owner in-app whenever an Autopilot run changes status, including when approval is required.",
+  "trigger": {
+    "config": {
+      "trigger_type": "entity",
+      "entity_name": "AutopilotRun",
+      "events": [
+        "update"
+      ]
+    },
+    "condition": "${ .trigger.data.status != .trigger.old_data.status }"
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "autopilot_status_alerts",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "notify_owner": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "notifyAutopilotStatus",
+            "args": {
+              "run_id": "${ .trigger.entity_id }"
+            }
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Notify owner",
+            "description": "In-app status alert"
+          }
+        }
+      }
+    ]
+  }
+}

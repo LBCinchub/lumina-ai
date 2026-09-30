@@ -15,7 +15,8 @@
       "enum": [
         "terminal_task",
         "template_push",
-        "system"
+        "system",
+        "autopilot"
       ],
       "default": "system",
       "description": "Event category"
