@@ -1,0 +1,43 @@
+{
+  "name": "AutopilotPreference",
+  "type": "object",
+  "properties": {
+    "owner_user_id": {
+      "type": "string",
+      "description": "Server-derived owner id. Never client-set."
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Persistent Autopilot opt-in. Stays on until the owner turns it off."
+    },
+    "changed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "owner_user_id",
+    "enabled"
+  ],
+  "rls": {
+    "read": {
+      "data.owner_user_id": "{{user.id}}"
+    },
+    "create": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    }
+  }
+}

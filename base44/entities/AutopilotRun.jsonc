@@ -6,6 +6,15 @@
       "type": "string",
       "description": "Server-derived owner id from the authenticated session. Never client-set."
     },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "task",
+        "social_post",
+        "marketplace_listing"
+      ],
+      "default": "task"
+    },
     "agent_id": {
       "type": "string",
       "description": "Optional owned UserAgent whose persona styles the output"
@@ -103,6 +112,78 @@
           "finished_at": {
             "type": "string"
           }
+        }
+      }
+    },
+    "action_draft": {
+      "type": "object",
+      "description": "Exact external-action content previewed to the owner",
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "destination_id": {
+          "type": "string"
+        },
+        "destination_label": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "object"
+        },
+        "copy": {
+          "type": "string"
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "description": "Hash-bound, expiring, single-use approval of the exact draft",
+      "properties": {
+        "content_hash": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string"
+        },
+        "used_at": {
+          "type": "string"
+        },
+        "claim": {
+          "type": "string"
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "description": "Adapter receipt; mock=true means test evidence only",
+      "properties": {
+        "provider": {
+          "type": "string"
+        },
+        "external_id": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "mock": {
+          "type": "boolean"
+        },
+        "verified": {
+          "type": "boolean"
+        },
+        "at": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
         }
       }
     },

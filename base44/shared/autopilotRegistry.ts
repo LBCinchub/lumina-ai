@@ -45,8 +45,12 @@ export const REGISTRY = {
     confirmation: 'exact_plan', reason: 'No Calendar Connection Exists In LBC AI Yet.',
   },
   'social.post': {
-    label: 'Publish Social Post', status: 'unsupported', risk: 'external_write', min_plan: 'ultra',
-    confirmation: 'exact_plan', reason: 'No Authorized Posting Destination Exists. LBC Hub Social Would Need Separate Cross-App Work.',
+    label: 'Publish Social Post', status: 'needs_connection', risk: 'external_write', min_plan: 'superagent',
+    confirmation: 'exact_plan', reason: 'Drafts And Previews Work. Publishing Needs A Connected Destination — None Is Connected Yet.',
+  },
+  'marketplace.list': {
+    label: 'Create Marketplace Listing', status: 'needs_connection', risk: 'external_write', min_plan: 'superagent',
+    confirmation: 'exact_plan', reason: 'Drafts And Previews Work. Listing Needs A Connected Marketplace — None Is Connected Yet.',
   },
   'github.write': {
     label: 'Write To GitHub', status: 'needs_permission', risk: 'external_write', min_plan: 'ultra',
@@ -66,7 +70,7 @@ export const REGISTRY = {
   },
   'schedule.recurring': {
     label: 'Repeat On A Schedule', status: 'unsupported', risk: 'generate', min_plan: 'superagent',
-    confirmation: 'none', reason: 'Recurring Runs Use Agent Autopilot Tasks (Daily Or Weekly) In Agents, Not General Autopilot Yet.',
+    confirmation: 'none', reason: 'Recurring Runs Only Via Explicit Agent Autopilot Tasks (Daily Or Weekly) In Agents. Persistent Mode Never Repeats Work On Its Own.',
   },
 };
 
