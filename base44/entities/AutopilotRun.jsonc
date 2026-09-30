@@ -1,0 +1,160 @@
+{
+  "name": "AutopilotRun",
+  "type": "object",
+  "properties": {
+    "owner_user_id": {
+      "type": "string",
+      "description": "Server-derived owner id from the authenticated session. Never client-set."
+    },
+    "agent_id": {
+      "type": "string",
+      "description": "Optional owned UserAgent whose persona styles the output"
+    },
+    "goal": {
+      "type": "string",
+      "description": "The plain-language task"
+    },
+    "document_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Owner-verified Document ids used as untrusted input"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "running",
+        "awaiting_input",
+        "awaiting_approval",
+        "blocked",
+        "paused",
+        "completed",
+        "failed",
+        "cancelled"
+      ],
+      "default": "queued"
+    },
+    "plan_summary": {
+      "type": "string"
+    },
+    "clarifying_question": {
+      "type": "string"
+    },
+    "blocked_reason": {
+      "type": "string"
+    },
+    "steps": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "properties": {
+          "capability_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "input": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "failed",
+              "skipped"
+            ]
+          },
+          "output": {
+            "type": "string"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "artifact_document_id": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "attempts": {
+            "type": "number"
+          },
+          "started_at": {
+            "type": "string"
+          },
+          "finished_at": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "final_summary": {
+      "type": "string"
+    },
+    "lease_until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Execution lease preventing concurrent double-runs"
+    },
+    "audit": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string"
+          },
+          "event": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Redacted state-change history"
+    }
+  },
+  "required": [
+    "owner_user_id",
+    "goal",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "data.owner_user_id": "{{user.id}}"
+    },
+    "create": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "delete": {
+      "data.owner_user_id": "{{user.id}}"
+    }
+  }
+}

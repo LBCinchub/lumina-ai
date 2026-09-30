@@ -278,8 +278,11 @@ export async function runAgentTurn(client, agent, options) {
   // user clients; service clients must verify ownership beforehand).
   let knowledge = [];
   if (Array.isArray(agent.knowledge_source_ids) && agent.knowledge_source_ids.length > 0) {
+    // Explicit ownership scope: service-role callers (the scheduled runner)
+    // bypass RLS, so only sources created by the agent's owner may load.
+    const ownerScope = agent.owner_email ? { created_by: agent.owner_email } : {};
     knowledge = await client.entities.KnowledgeSource.filter(
-      { id: { $in: agent.knowledge_source_ids }, is_active: true, status: 'ready' }
+      { id: { $in: agent.knowledge_source_ids }, is_active: true, status: 'ready', ...ownerScope }
     ).catch(() => []);
   }
 
