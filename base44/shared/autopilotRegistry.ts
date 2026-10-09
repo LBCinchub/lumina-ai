@@ -2,8 +2,12 @@
 // planner may choose from. Model output is constrained to these ids; anything
 // else is rejected. Server-side only.
 //
-// status: available | needs_connection | needs_permission | unsupported
+// status: available | needs_connection | needs_setup | needs_permission | blocked | unsupported
 // risk: read | draft | generate | external_write | financial | destructive
+// requires: 'gmail_connection' — the step additionally needs the owner's
+//   connected Gmail token (foreground only).
+// note: 'needs_user_session' — the step needs the owner online; background
+//   workers pause instead of executing.
 
 export const REGISTRY = {
   'research.web': {
@@ -35,10 +39,30 @@ export const REGISTRY = {
     confirmation: 'none', integration: 'Document Library', source: 'Prior step outputs',
     input: 'document title + format (report, brief, slide outline)', output: 'Markdown document saved to your library',
     timeout_ms: 60000, retries: 1, idempotent: true, verify: 'saved record re-read and non-empty',
+    note: 'needs_user_session',
   },
   'email.send': {
-    label: 'Send Email', status: 'needs_connection', risk: 'external_write', min_plan: 'ultra',
-    confirmation: 'exact_plan', reason: 'Autopilot Is Not Yet Wired To Your Individually Connected Gmail. Drafts Are Available Instead.',
+    label: 'Send Email (Your Gmail)', status: 'available', risk: 'external_write', min_plan: 'ultra',
+    confirmation: 'exact_plan', integration: 'Gmail (Owner-Connected)', requires: 'gmail_connection',
+    note: 'needs_user_session',
+    reason: 'Uses Your Own Connected Gmail (Ultra). The Exact Message Is Previewed, And Nothing Is Sent Until You Approve It.',
+  },
+  'email.draft': {
+    label: 'Save Draft To Gmail', status: 'available', risk: 'draft', min_plan: 'ultra',
+    confirmation: 'none', integration: 'Gmail (Owner-Connected)', requires: 'gmail_connection',
+    note: 'needs_user_session',
+    reason: 'Saves A Reversible Draft To Your Gmail Drafts Folder. Nothing Is Ever Sent Without Approval.',
+  },
+  'email.read': {
+    label: 'Read And Summarize Inbox', status: 'available', risk: 'read', min_plan: 'ultra',
+    confirmation: 'none', integration: 'Gmail (Owner-Connected)', requires: 'gmail_connection',
+    note: 'needs_user_session',
+    reason: 'Reads A Small, Bounded Window Of Your Connected Gmail And Summarizes It. Content Is Untrusted Evidence.',
+  },
+  'email.organize': {
+    label: 'Organize With Labels', status: 'needs_permission', risk: 'external_write', min_plan: 'ultra',
+    confirmation: 'exact_plan',
+    reason: 'Modifying Message Labels Requires The gmail.modify Scope, Which The Current Grant Does Not Include. Owner Setup: Add gmail.modify To The Registered Gmail App.',
   },
   'calendar.manage': {
     label: 'Manage Calendar', status: 'needs_connection', risk: 'external_write', min_plan: 'ultra',
@@ -76,6 +100,11 @@ export const REGISTRY = {
 
 export const CAPABILITY_IDS = Object.keys(REGISTRY);
 export const EXECUTABLE_IDS = CAPABILITY_IDS.filter(id => REGISTRY[id].status === 'available');
+// Steps needing the owner online (or their Gmail token) pause in background
+// execution instead of running — never faked.
+export const NEEDS_ONLINE_IDS = CAPABILITY_IDS.filter(
+  id => REGISTRY[id].note === 'needs_user_session' || REGISTRY[id].requires === 'gmail_connection'
+);
 
 // Public-safe view for the UI (no internals).
 export function publicRegistry() {

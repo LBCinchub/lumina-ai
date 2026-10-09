@@ -1,25 +1,33 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.53';
 import { runOneStep, auditEntry } from '../../shared/autopilotEngine.ts';
+import { NEEDS_ONLINE_IDS } from '../../shared/autopilotRegistry.ts';
 
-// Scheduled Autopilot continuation worker. Invoked every 5 minutes by the
-// "Autopilot Continuation" workflow. Durable, bounded, idempotent:
-//  - Only processes runs whose owner explicitly opted in (AutopilotPreference).
-//  - Advances AT MOST ONE pending step per run, per invocation, guarded by
-//    lease_until — no concurrent double-runs, no infinite paid loops.
-//  - Steps needing a user-scoped client (document.generate) are paused for
-//    foreground completion rather than faked.
-//  - Blocking a dispatch-destined step cannot happen here: only Executable
-//    capabilities planned in the foreground ever reach 'running'.
+// Scheduled Autopilot continuation worker.
+//
+// SETUP BLOCKER (verified this pass): the platform documents NO credential
+// that a function can use to verify that an unauthenticated invocation came
+// from the trusted scheduler, and this endpoint accepts direct anonymous
+// POSTs (tested: HTTP 200 with an empty body). "No user" is therefore NOT
+// authentication. Background execution stays DISABLED until a trusted
+// scheduler credential exists. A verified admin session may still run it in
+// the foreground.
+const SETUP_BLOCKER = {
+  disabled: true,
+  reason: 'scheduler_auth_blocker',
+  detail: 'Background Continuation Is Disabled: No Verified Scheduler Credential Exists For This Endpoint. Absence Of A User Is Not Authentication.',
+  setup_required: 'A Platform-Supported Trusted Scheduler Credential Or Request Signature For Scheduled invoke_backend_function Targets.',
+};
+
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
 
-    // The workflow invokes without a user session; direct browser calls are
-    // rejected (mirror of runUserAgentTasks' auth model).
+    // VERIFIED-SESSION GATE: only an authenticated admin may execute. An
+    // absent, expired, or non-admin identity never triggers any run.
     let user = null;
     try { user = await base44.auth.me(); } catch (_) {}
-    if (user && user.role !== 'admin') {
-      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    if (!user || user.role !== 'admin') {
+      return Response.json(SETUP_BLOCKER, { status: 503 });
     }
 
     const service = base44.asServiceRole;
@@ -29,10 +37,10 @@ export default async function(req) {
     const optedIn = new Set(prefs.map(p => p.owner_user_id));
     if (optedIn.size === 0) return Response.json({ advanced: 0, skipped: 0 });
 
-    const open = (await Promise.all([
-      service.entities.AutopilotRun.filter({ status: 'running' }, 'created_date', 100),
-      service.entities.AutopilotRun.filter({ status: 'queued' }, 'created_date', 100),
-    ]).catch(() => [[], []])).flat();
+    // Bounded, fair scan: oldest open runs first, one capped page.
+    const open = await service.entities.AutopilotRun.filter(
+      { status: { $in: ['running', 'queued'] } }, 'created_date', 25
+    ).catch(() => []);
 
     let advanced = 0, skipped = 0, deferred = 0;
     for (const run of open) {
@@ -40,25 +48,33 @@ export default async function(req) {
       if (!optedIn.has(run.owner_user_id)) { skipped++; continue; }
       if (run.lease_until && new Date(run.lease_until).getTime() > Date.now()) { skipped++; continue; }
       if (run.status === 'queued') {
-        // A run the browser never started (closed between plan and start).
-        await service.entities.AutopilotRun.update(run.id, {
-          status: 'running', lease_until: null,
-          audit: [...(run.audit || []), auditEntry('started', 'Execution started by the scheduled continuation')],
-        });
+        // Atomic start: conditional on the run still being queued (CAS), then
+        // verified by re-read — a lost race is skipped, never double-started.
+        await service.entities.AutopilotRun.updateMany(
+          { id: run.id, owner_user_id: run.owner_user_id, status: 'queued' },
+          { $set: { status: 'running' } }
+        ).catch(() => null);
+        const fresh = (await service.entities.AutopilotRun.filter(
+          { id: run.id, owner_user_id: run.owner_user_id }
+        ).catch(() => []))?.[0] || null;
+        if (!fresh || fresh.status !== 'running') { skipped++; continue; }
+        await service.entities.AutopilotRun.update(fresh.id, {
+          audit: [...(fresh.audit || []), auditEntry('started', 'Execution started by an authorized scheduler operator')],
+        }).catch(() => {});
       }
       const next = (run.steps || []).find(s => s.status === 'pending' || s.status === 'running');
-      if (next?.capability_id === 'document.generate') {
-        // Needs the owner's user-scoped client (RLS ownership stamping) —
-        // paused for foreground completion, outputs preserved.
+      if (!next) { skipped++; continue; }
+      if (NEEDS_ONLINE_IDS.includes(next.capability_id)) {
+        // Needs the owner's user-scoped session/token — paused for foreground
+        // completion, outputs preserved. Never faked in the background.
         await service.entities.AutopilotRun.update(run.id, {
-          status: 'paused', lease_until: null,
-          audit: [...(run.audit || []), auditEntry('paused', 'Needs You Online To Save The Document — Resume In Autopilot')],
+          status: 'paused', lease_until: null, lease_token: null,
+          audit: [...(run.audit || []), auditEntry('paused', 'Needs You Online To Use Your Connected Account Or Library — Resume In Autopilot')],
         });
         deferred++;
         continue;
       }
-      if (!next) { skipped++; continue; }
-      const result = await runOneStep(service, run.id, { ownerId: run.owner_user_id, agent: null, docs: [], userClient: null }).catch(() => null);
+      const result = await runOneStep(service, run.id, { ownerId: run.owner_user_id, agent: null, docs: [], userClient: null, gmailToken: null }).catch(() => null);
       if (result && ['completed', 'failed', 'blocked', 'paused'].includes(result.status)) advanced++;
       else skipped++;
     }

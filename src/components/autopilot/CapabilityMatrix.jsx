@@ -3,13 +3,17 @@ import { Badge } from '@/components/ui/badge';
 const STATUS_LABEL = {
   available: 'Executable',
   needs_connection: 'Needs Connection',
-  needs_permission: 'Needs Permission',
+  needs_setup: 'Owner Setup Required',
+  needs_permission: 'Plan Or Scope Required',
+  blocked: 'Blocked',
   unsupported: 'Unsupported',
 };
 const STATUS_COLOR = {
   available: 'default',
   needs_connection: 'outline',
+  needs_setup: 'outline',
   needs_permission: 'outline',
+  blocked: 'secondary',
   unsupported: 'secondary',
 };
 

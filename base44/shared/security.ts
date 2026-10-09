@@ -3,6 +3,9 @@
 // NO founder PII lives here — only identity allowlist for server-side gating.
 
 import { secrets } from "base44:runtime";
+import { sha256Hex, randomToken } from "./hash.ts";
+
+export { sha256Hex, randomToken };
 
 // --- Identity gating ---------------------------------------------------------
 
@@ -64,18 +67,9 @@ export function requireSecret(name) {
 }
 
 // --- Hashing / tokens --------------------------------------------------------
-
-export async function sha256Hex(input) {
-  const data = new TextEncoder().encode(String(input));
-  const buf = await crypto.subtle.digest("SHA-256", data);
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
-export function randomToken(bytes = 32) {
-  const arr = new Uint8Array(bytes);
-  crypto.getRandomValues(arr);
-  return [...arr].map(b => b.toString(16).padStart(2, "0")).join("");
-}
+// Implementations now live in ./hash.ts (re-exported above) so that modules
+// which must run in plain runtimes (deterministic tests) can import them
+// without pulling in base44:runtime.
 
 // --- Confirmation tokens (plan -> preview -> confirm -> execute) ------------
 

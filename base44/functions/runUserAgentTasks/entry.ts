@@ -15,21 +15,31 @@ import { deliverViaTelegram } from '../../shared/telegramBridge.ts';
 //    anything executes. Mismatched or unowned records are skipped.
 //  - Each due window fires exactly once (guarded by last_run_at), so
 //    repeated invocation cannot re-run a task or burn extra credits.
-//  - Authenticated non-admins are rejected; the workflow invokes without a
-//    user session. All AI runs server-side only.
+//  - VERIFIED-SESSION GATE (setup blocker): the platform documents no
+//    credential that lets this function verify a scheduled invocation, and
+//    the endpoint accepts anonymous calls. Absence of a user is NOT
+//    authentication, so background execution stays disabled until a trusted
+//    scheduler credential exists. A verified admin session still runs it.
 //  - When the agent is connected to the user's Telegram bot, the result is
 //    delivered to their phone in addition to the agent's chat history.
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
 
-    // Block direct invocation by authenticated non-admins.
+    // VERIFIED-SESSION GATE: only an authenticated admin may execute. An
+    // absent or unverified identity never triggers any run — this endpoint is
+    // publicly reachable (verified by test), so "no user" proves nothing.
     let user = null;
     try {
       user = await base44.auth.me();
     } catch (_) {}
-    if (user && user.role !== 'admin') {
-      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    if (!user || user.role !== 'admin') {
+      return Response.json({
+        disabled: true,
+        reason: 'scheduler_auth_blocker',
+        detail: 'Background Agent Task Execution Is Disabled: No Verified Scheduler Credential Exists For This Endpoint.',
+        setup_required: 'A Platform-Supported Trusted Scheduler Credential Or Request Signature For Scheduled invoke_backend_function Targets.',
+      }, { status: 503 });
     }
 
     const service = base44.asServiceRole;

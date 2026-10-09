@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,13 +11,14 @@ const GMAIL_CONNECTOR_ID = '6aac167efa382a764028ad72';
 
 // Gmail — each user connects their own inbox (Ultra tier, enforced server-side).
 export default function GmailSection() {
-  const [status, setStatus] = useState('loading'); // loading | connected | disconnected | upgrade
+  const [status, setStatus] = useState('loading'); // loading | connecting | connected | disconnected | upgrade
   const [messages, setMessages] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ to: '', subject: '', body: '' });
   const [sendState, setSendState] = useState(''); // idle | sending | sent | error
   const [sendError, setSendError] = useState('');
+  const pollRef = useRef(null);
 
   // Connection status doubles as the inbox loader.
   const loadInbox = async () => {
@@ -37,23 +38,50 @@ export default function GmailSection() {
     }
   };
 
-  useEffect(() => { loadInbox(); }, []);
+  useEffect(() => {
+    loadInbox();
+    // Stop polling when the component unmounts — no orphaned intervals.
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
 
   const handleConnect = async () => {
+    setError('');
+    setStatus('connecting');
+    // connectAppUser resolves to the provider URL string (SDK >= 0.8.53) —
+    // not an object.
+    let url = '';
     try {
-      const { url } = await base44.connectors.connectAppUser(GMAIL_CONNECTOR_ID);
-      const popup = window.open(url, '_blank');
-      setStatus('loading');
-      const timer = setInterval(() => {
-        if (!popup || popup.closed) {
-          clearInterval(timer);
-          loadInbox();
-        }
-      }, 500);
+      url = await base44.connectors.connectAppUser(GMAIL_CONNECTOR_ID);
     } catch (_) {
       setStatus('disconnected');
       setError('Could Not Start The Gmail Connection — Please Try Again.');
+      return;
     }
+    // Only open verified HTTPS provider URLs.
+    if (typeof url !== 'string' || !/^https:\/\//i.test(url)) {
+      setStatus('disconnected');
+      setError('The Connection Link Was Not Valid — Please Try Again.');
+      return;
+    }
+    const popup = window.open(url, '_blank');
+    if (!popup) {
+      setStatus('disconnected');
+      setError('Your Browser Blocked The Pop-Up — Allow Pop-Ups For This Site And Try Again.');
+      return;
+    }
+    // Poll while the OAuth tab is open; stop cleanly when it closes or after
+    // 4 minutes (no endless polling). Cancelling the tab just refreshes state.
+    let ticks = 0;
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(() => {
+      ticks++;
+      if (popup.closed || ticks > 480) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+        setStatus('loading');
+        loadInbox();
+      }
+    }, 500);
   };
 
   const handleDisconnect = async () => {
@@ -73,12 +101,17 @@ export default function GmailSection() {
     setSendState('sending');
     setSendError('');
     try {
-      await base44.functions.invoke('gmailOperations', {
+      const res = await base44.functions.invoke('gmailOperations', {
         action: 'send',
         to: form.to,
         subject: form.subject,
         body: form.body,
       });
+      if (res?.data?.outcome_unknown) {
+        setSendState('error');
+        setSendError('Gmail Did Not Confirm The Send — Check Your Sent Folder Before Retrying.');
+        return;
+      }
       setSendState('sent');
       setForm({ to: '', subject: '', body: '' });
       setTimeout(() => setSendState('idle'), 3000);
@@ -112,6 +145,12 @@ export default function GmailSection() {
         {status === 'loading' && (
           <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
             <span className="h-2 w-2 rounded-full bg-primary animate-pulse-soft" /> Checking Your Gmail Connection…
+          </div>
+        )}
+
+        {status === 'connecting' && (
+          <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+            <span className="h-2 w-2 rounded-full bg-primary animate-pulse-soft" /> Finish Connecting In The Opened Tab…
           </div>
         )}
 

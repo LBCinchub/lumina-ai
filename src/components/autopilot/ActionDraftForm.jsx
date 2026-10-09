@@ -31,12 +31,14 @@ export default function ActionDraftForm({ kind, destinations, onDrafted }) {
 
   const options = (destinations || []).filter(d => (d.kinds || []).includes(kind));
   const set = (k, v) => setFields(f => ({ ...f, [k]: v }));
+  const isEmail = kind === 'email_send';
 
-  const submit = async () => {
+  const submit = async (kindOverride) => {
     setBusy(true); setError(null);
     try {
-      const attachments = photos.length ? await uploadPhotos(photos) : [];
-      const res = await invokeAutopilot({ action: 'draft_action', kind, destination_id: destinationId, fields, attachments });
+      const actualKind = kindOverride || kind;
+      const attachments = actualKind === 'email_send' || actualKind === 'email_draft' ? [] : (photos.length ? await uploadPhotos(photos) : []);
+      const res = await invokeAutopilot({ action: 'draft_action', kind: actualKind, destination_id: destinationId, fields, attachments });
       if (res.data?.error) setError(res.data.error + (res.data.missing ? ` (${res.data.missing.join(', ')})` : ''));
       else onDrafted(res.data?.run_id);
     } catch (e) {
@@ -60,7 +62,22 @@ export default function ActionDraftForm({ kind, destinations, onDrafted }) {
         </select>
       </div>
 
-      {kind === 'social_post' ? (
+      {isEmail ? (
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-muted-foreground">To</label>
+            <Input className="mt-1" type="email" value={fields.to || ''} onChange={e => set('to', e.target.value)} placeholder="name@example.com" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Subject</label>
+            <Input className="mt-1" value={fields.subject || ''} onChange={e => set('subject', e.target.value)} placeholder="Subject" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Message (Sent Exactly As You Approve It)</label>
+            <textarea className={`${inputCls} mt-1 h-32`} value={fields.body || ''} onChange={e => set('body', e.target.value)} placeholder="Write Your Message…" />
+          </div>
+        </div>
+      ) : kind === 'social_post' ? (
         <div>
           <label className="text-xs text-muted-foreground">Post Text Or Notes For The Caption</label>
           <textarea className={`${inputCls} mt-1 h-24`} value={fields.text || ''} onChange={e => set('text', e.target.value)} placeholder="What Should The Caption Say?" />
@@ -103,17 +120,26 @@ export default function ActionDraftForm({ kind, destinations, onDrafted }) {
         </div>
       )}
 
-      <div>
-        <label className="text-xs text-muted-foreground">Photos (Stored Privately)</label>
-        <input type="file" accept="image/*" multiple className="mt-1 block text-sm" onChange={e => setPhotos(Array.from(e.target.files || []))} />
-        {photos.length > 0 && <div className="text-xs text-muted-foreground mt-1">{photos.length} Photo(s) Selected</div>}
-      </div>
+      {!isEmail && (
+        <div>
+          <label className="text-xs text-muted-foreground">Photos (Stored Privately)</label>
+          <input type="file" accept="image/*" multiple className="mt-1 block text-sm" onChange={e => setPhotos(Array.from(e.target.files || []))} />
+          {photos.length > 0 && <div className="text-xs text-muted-foreground mt-1">{photos.length} Photo(s) Selected</div>}
+        </div>
+      )}
 
       {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>}
 
-      <Button disabled={busy || !destinationId} onClick={submit}>
-        {busy ? 'Drafting…' : 'Draft For My Review'}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button disabled={busy || !destinationId} onClick={() => submit()}>
+          {busy ? 'Drafting…' : isEmail ? 'Draft For My Review' : 'Draft For My Review'}
+        </Button>
+        {isEmail && (
+          <Button variant="outline" disabled={busy || !destinationId} onClick={() => submit('email_draft')}>
+            Save To Gmail Drafts Instead
+          </Button>
+        )}
+      </div>
       <p className="text-xs text-muted-foreground">Drafting Never Publishes. The Exact Preview Appears Below For Approval.</p>
     </div>
   );

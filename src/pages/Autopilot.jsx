@@ -5,13 +5,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { invokeAutopilot, useAutopilotRuns, useAutopilotDriver } from '@/hooks/useAutopilot';
 import CapabilityMatrix from '@/components/autopilot/CapabilityMatrix';
+import ConnectedAccounts from '@/components/autopilot/ConnectedAccounts';
 import ActionDraftForm from '@/components/autopilot/ActionDraftForm';
 import TaskRunCard from '@/components/autopilot/TaskRunCard';
 
 
 export default function Autopilot() {
   const [params] = useSearchParams();
-  const initialKind = ['social_post', 'marketplace_listing'].includes(params.get('kind')) ? params.get('kind') : 'task';
+  const initialKind = ['social_post', 'marketplace_listing', 'email_send'].includes(params.get('kind')) ? params.get('kind') : 'task';
   const [kind, setKind] = useState(initialKind);
 
   const [capabilities, setCapabilities] = useState(null);
@@ -95,9 +96,12 @@ export default function Autopilot() {
 
       {capabilities && <CapabilityMatrix capabilities={capabilities} destinations={destinations} />}
 
+      <ConnectedAccounts />
+
       <Tabs value={kind} onValueChange={setKind}>
         <TabsList>
           <TabsTrigger value="task">General Task</TabsTrigger>
+          <TabsTrigger value="email_send">Email</TabsTrigger>
           <TabsTrigger value="social_post">Social Post</TabsTrigger>
           <TabsTrigger value="marketplace_listing">Marketplace Listing</TabsTrigger>
         </TabsList>

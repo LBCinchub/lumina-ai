@@ -5,7 +5,6 @@ import { format, subDays, startOfDay, getDay } from 'date-fns';
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts';
-import { WEEKDAYS } from './agentTemplates';
 
 // Dashboard tab for one agent's detail view — activity, active tasks, and
 // recent engagement over time, charted from this user's own RLS-scoped data.

@@ -23,7 +23,7 @@ export default function TaskRunCard({ run, onAction, onAnswer, busy }) {
     <div className="rounded-lg border border-border bg-card p-4 space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div className="text-sm font-medium">
-          {run.kind === 'social_post' ? 'Social Post' : run.kind === 'marketplace_listing' ? 'Marketplace Listing' : run.goal}
+          {run.kind === 'social_post' ? 'Social Post' : run.kind === 'marketplace_listing' ? 'Marketplace Listing' : run.kind === 'email' ? 'Email' : run.goal}
         </div>
         <StatusBadge status={run.status} />
       </div>
@@ -32,6 +32,11 @@ export default function TaskRunCard({ run, onAction, onAnswer, busy }) {
         <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
           <div className="text-xs text-muted-foreground">Destination: {draft.destination_label}</div>
           <div className="text-sm whitespace-pre-wrap">{draft.copy}</div>
+          {(draft.kind === 'email_send' || draft.kind === 'email_draft') && (
+            <div className="text-xs text-muted-foreground">
+              To: {draft.fields?.to}{draft.fields?.cc ? ` · Cc: ${draft.fields.cc}` : ''} · Subject: {draft.fields?.subject || '(No Subject)'}
+            </div>
+          )}
           {draft.kind === 'marketplace_listing' && (
             <div className="text-xs text-muted-foreground">
               Item: {draft.fields?.item} · Condition: {draft.fields?.condition} · Price: {draft.fields?.price ?? ''} {draft.fields?.currency || ''} · Location: {draft.fields?.location}
@@ -69,6 +74,7 @@ export default function TaskRunCard({ run, onAction, onAnswer, busy }) {
         <div className="rounded-md border border-border px-3 py-2 text-xs text-muted-foreground">
           Receipt: {run.receipt.provider}{run.receipt.external_id ? ` · ${run.receipt.external_id}` : ''}
           {run.receipt.url && <> · <a className="underline" href={run.receipt.url} target="_blank" rel="noreferrer">View Post</a></>}
+          {run.receipt.thread_id && <> · Thread {run.receipt.thread_id.slice(0, 12)}</>}
           {run.receipt.mock && ' · Mock — Nothing Was Published'}
         </div>
       )}
@@ -77,7 +83,9 @@ export default function TaskRunCard({ run, onAction, onAnswer, busy }) {
 
       <div className="flex flex-wrap gap-2">
         {run.kind !== 'task' && run.status === 'awaiting_approval' && (
-          <Button size="sm" disabled={busy} onClick={() => onAction('approve', run.id)}>Approve And Send</Button>
+          <Button size="sm" disabled={busy} onClick={() => onAction('approve', run.id)}>
+            {draft.kind === 'email_draft' ? 'Approve And Save Draft' : 'Approve And Send'}
+          </Button>
         )}
         {run.status === 'running' && <Button size="sm" variant="outline" disabled={busy} onClick={() => onAction('pause', run.id)}>Pause</Button>}
         {run.status === 'paused' && <Button size="sm" variant="outline" disabled={busy} onClick={() => onAction('resume', run.id)}>Resume</Button>}

@@ -1,10 +1,11 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.53';
 import { getUserPlan } from '../../shared/tiers.ts';
 import { publicRegistry } from '../../shared/autopilotRegistry.ts';
 import { planTask, preflight, runOneStep, auditEntry, MAX_STEPS } from '../../shared/autopilotEngine.ts';
 import {
-  ACTION_KINDS, DESTINATIONS, destinationUsable, publicDestinations,
-  validateFields, draftHash, draftCopy, dispatchAction, APPROVAL_TTL_MS,
+  ACTION_KINDS, EMAIL_KINDS, DESTINATIONS, GMAIL_CONNECTOR_ID,
+  destinationUsable, publicDestinations, publicAccounts,
+  validateFields, draftHash, draftCopy, checkApproval, dispatchAction, APPROVAL_TTL_MS,
 } from '../../shared/autopilotActions.ts';
 import { isAdmin, randomToken } from '../../shared/security.ts';
 
@@ -12,6 +13,11 @@ import { isAdmin, randomToken } from '../../shared/security.ts';
 // Identity is ALWAYS auth.me(); no client-supplied user/owner ids are read.
 // Run records are server-write-only (RLS); the service role is used only after
 // an explicit owner_user_id match on every access.
+//
+// Dispatch model: external writes ONLY happen inside the 'approve' action —
+// the owner's own live session supplies their OAuth token (foreground).
+// Background dispatch is structurally impossible (no offline per-user grant
+// exists) and is never simulated.
 const MAX_GOAL_CHARS = 3000;
 const MAX_DOCS = 5;
 const DAILY_LIMIT = { free: 5, superagent: 20, ultra: 40 };
@@ -29,8 +35,24 @@ export default async function(req) {
     const action = String(body.action || '');
     const plan = await getUserPlan(base44, user);
 
+    // Live probe of THIS user's own Gmail APP_USER connection. Returns only a
+    // boolean — tokens are never stored, logged, or sent to the client.
+    const probeGmail = async () => {
+      try {
+        const c = await base44.asServiceRole.connectors.getCurrentAppUserConnection(GMAIL_CONNECTOR_ID);
+        return !!c?.accessToken;
+      } catch (_) {
+        return false;
+      }
+    };
+
     if (action === 'capabilities') {
       return Response.json({ plan, capabilities: publicRegistry(), destinations: publicDestinations(isAdmin(user)) });
+    }
+
+    if (action === 'accounts') {
+      const gmailConnected = plan === 'ultra' ? await probeGmail() : false;
+      return Response.json({ plan, accounts: publicAccounts({ gmailConnected, plan }) });
     }
 
     if (action === 'get_mode') {
@@ -49,7 +71,7 @@ export default async function(req) {
           { owner_user_id: user.id, status: 'running' }, 'created_date', 20
         ).catch(() => []);
         await Promise.all(open.map(r => db.entities.AutopilotRun.update(r.id, {
-          status: 'paused', lease_until: null,
+          status: 'paused', lease_until: null, lease_token: null,
           audit: [...(r.audit || []), auditEntry('paused', 'Persistent mode turned off — resume in the Autopilot screen')],
         })));
       }
@@ -69,11 +91,22 @@ export default async function(req) {
       const docs = run.document_ids?.length
         ? await base44.entities.Document.filter({ id: { $in: run.document_ids }, status: 'ready' }).catch(() => [])
         : [];
-      return { ownerId: user.id, agent, docs, userClient: base44 };
+      // Gmail token: live from THIS user's own connection, foreground only.
+      const needsGmail = (run.steps || []).some(s =>
+        ['email.send', 'email.draft', 'email.read'].includes(s.capability_id) &&
+        (s.status === 'pending' || s.status === 'running'));
+      let gmailToken = null;
+      if (needsGmail) {
+        try {
+          const c = await base44.asServiceRole.connectors.getCurrentAppUserConnection(GMAIL_CONNECTOR_ID);
+          gmailToken = c?.accessToken || null;
+        } catch (_) {}
+      }
+      return { ownerId: user.id, agent, docs, userClient: base44, gmailToken };
     };
     const startExecution = async (run) => {
       await db.entities.AutopilotRun.update(run.id, {
-        status: 'running', lease_until: null,
+        status: 'running', lease_until: null, lease_token: null,
         audit: [...(run.audit || []), auditEntry('started', 'Execution started')],
       });
     };
@@ -83,7 +116,7 @@ export default async function(req) {
       if (p.needs_clarification && !clarification) {
         return db.entities.AutopilotRun.update(run.id, { status: 'awaiting_input', clarifying_question: p.clarifying_question, audit: [...(run.audit || []), auditEntry('clarify', 'Asked a clarifying question')] });
       }
-      const blocked = preflight(p.steps, plan, docs.length > 0);
+      const blocked = preflight(p.steps, plan, docs.length > 0, { gmailConnected: await probeGmail() });
       return db.entities.AutopilotRun.update(run.id, {
         status: blocked ? 'blocked' : 'queued', blocked_reason: blocked || null,
         plan_summary: p.plan_summary, steps: p.steps, clarifying_question: null,
@@ -123,31 +156,42 @@ export default async function(req) {
     // --- External-action pipeline: draft -> preview -> approve -> dispatch.
     if (action === 'draft_action') {
       const kind = ACTION_KINDS.includes(body.kind) ? body.kind : '';
-      if (!kind) return Response.json({ error: 'Choose A Post Or A Listing' }, { status: 400 });
+      if (!kind) return Response.json({ error: 'Choose A Post, A Listing, Or An Email' }, { status: 400 });
       if (typeof body.destination_id !== 'string') return Response.json({ error: 'Choose A Destination' }, { status: 400 });
-      const guard = destinationUsable(body.destination_id, kind, isAdmin(user));
+
+      const isEmail = EMAIL_KINDS.includes(kind);
+      const gmailConnected = isEmail ? await probeGmail() : false;
+      const guard = destinationUsable(body.destination_id, kind, isAdmin(user), { plan, gmailConnected });
       if (guard) return Response.json({ error: guard, needs_connection: true }, { status: 402 });
 
-      const attachments = Array.isArray(body.attachments)
-        ? body.attachments.filter(a => typeof a === 'string' && a.startsWith('files/')).slice(0, MAX_ATTACHMENTS) : [];
+      const attachments = isEmail ? [] : (Array.isArray(body.attachments)
+        ? body.attachments.filter(a => typeof a === 'string' && a.startsWith('files/')).slice(0, MAX_ATTACHMENTS) : []);
       const { fields, missing, errors } = validateFields(kind, body.fields || {}, attachments);
       if (errors.length) return Response.json({ error: errors[0] }, { status: 400 });
       if (missing.length) return Response.json({ error: 'Missing Required Fields', missing }, { status: 400 });
 
-      // Signed URLs for caption grounding — used as untrusted evidence only.
-      const imageUrls = [];
-      for (const uri of attachments) {
-        const signed = await db.integrations.Core.CreateFileSignedUrl({ file_uri: uri }).catch(() => null);
-        if (signed?.signed_url) imageUrls.push(signed.signed_url);
+      let copy;
+      if (isEmail) {
+        // The user's exact content — email text is never silently rewritten.
+        copy = fields.body;
+      } else {
+        // Signed URLs for caption grounding — used as untrusted evidence only.
+        const imageUrls = [];
+        for (const uri of attachments) {
+          const signed = await db.integrations.Core.CreateFileSignedUrl({ file_uri: uri }).catch(() => null);
+          if (signed?.signed_url) imageUrls.push(signed.signed_url);
+        }
+        copy = await draftCopy(db, kind, fields, imageUrls);
+        if (!copy) return Response.json({ error: 'The Draft Could Not Be Generated — Please Try Again.' }, { status: 502 });
       }
-      const copy = await draftCopy(db, kind, fields, imageUrls);
-      if (!copy) return Response.json({ error: 'The Draft Could Not Be Generated — Please Try Again.' }, { status: 502 });
 
       const draft = { kind, destination_id: body.destination_id, destination_label: DESTINATIONS[body.destination_id].label, fields, copy, attachments };
       const hash = await draftHash(draft);
-      const goal = kind === 'social_post' ? `Social post: ${fields.text || 'photo post'}` : `Marketplace listing: ${fields.item}`;
+      const goal = isEmail
+        ? `Email: ${fields.subject}`.slice(0, 300)
+        : kind === 'social_post' ? `Social post: ${fields.text || 'photo post'}` : `Marketplace listing: ${fields.item}`;
       const run = await db.entities.AutopilotRun.create({
-        owner_user_id: user.id, kind, goal, document_ids: [], steps: [],
+        owner_user_id: user.id, kind: isEmail ? 'email' : kind, goal, document_ids: [], steps: [],
         status: 'awaiting_approval', action_draft: draft,
         approval: { content_hash: hash, expires_at: new Date(Date.now() + APPROVAL_TTL_MS).toISOString(), used_at: null, claim: null },
         blocked_reason: null, plan_summary: null, clarifying_question: null,
@@ -161,19 +205,27 @@ export default async function(req) {
       if (!run || run.kind === 'task') return Response.json({ error: 'Not found' }, { status: 404 });
       if (run.receipt?.verified) return Response.json({ error: 'This Action Is Already Sent' }, { status: 409 });
       const draft = run.action_draft;
-      const attachments = Array.isArray(body.attachments)
-        ? body.attachments.filter(a => typeof a === 'string' && a.startsWith('files/')).slice(0, MAX_ATTACHMENTS)
-        : (draft?.attachments || []);
+      const isEmail = EMAIL_KINDS.includes(draft.kind);
+      const attachments = isEmail
+        ? (draft?.attachments || [])
+        : (Array.isArray(body.attachments)
+          ? body.attachments.filter(a => typeof a === 'string' && a.startsWith('files/')).slice(0, MAX_ATTACHMENTS)
+          : (draft?.attachments || []));
       const { fields, missing, errors } = validateFields(draft.kind, body.fields || draft.fields || {}, attachments);
       if (errors.length) return Response.json({ error: errors[0] }, { status: 400 });
       if (missing.length) return Response.json({ error: 'Missing Required Fields', missing }, { status: 400 });
-      const imageUrls = [];
-      for (const uri of attachments) {
-        const signed = await db.integrations.Core.CreateFileSignedUrl({ file_uri: uri }).catch(() => null);
-        if (signed?.signed_url) imageUrls.push(signed.signed_url);
+      let copy;
+      if (isEmail) {
+        copy = fields.body;
+      } else {
+        const imageUrls = [];
+        for (const uri of attachments) {
+          const signed = await db.integrations.Core.CreateFileSignedUrl({ file_uri: uri }).catch(() => null);
+          if (signed?.signed_url) imageUrls.push(signed.signed_url);
+        }
+        copy = (await draftCopy(db, draft.kind, fields, imageUrls)) || draft.copy;
       }
-      const copy = await draftCopy(db, draft.kind, fields, imageUrls);
-      const newDraft = { ...draft, fields, copy: copy || draft.copy, attachments };
+      const newDraft = { ...draft, fields, copy, attachments };
       const hash = await draftHash(newDraft);
       await db.entities.AutopilotRun.update(run.id, {
         action_draft: newDraft, approval: { content_hash: hash, expires_at: new Date(Date.now() + APPROVAL_TTL_MS).toISOString(), used_at: null, claim: null },
@@ -195,32 +247,71 @@ export default async function(req) {
       const app = run.approval || {};
       const draft = run.action_draft;
       const hash = await draftHash(draft);
-      if (app.content_hash !== hash) return Response.json({ error: 'The Draft Changed Since You Reviewed It — Please Re-Review.' }, { status: 409 });
-      if (app.used_at || app.claim) return Response.json({ error: 'This Approval Was Already Used Or Changed.' }, { status: 409 });
-      if (!app.expires_at || new Date(app.expires_at).getTime() < Date.now()) {
-        return Response.json({ error: 'Approval Expired — Please Re-Review The Draft.' }, { status: 409 });
-      }
-      // Destination is re-checked at approval time — auth may have changed.
-      const guard = destinationUsable(draft.destination_id, draft.kind, isAdmin(user));
+      const approvalError = checkApproval(app, hash, Date.now());
+      if (approvalError) return Response.json({ error: approvalError }, { status: 409 });
+
+      // Destination, plan and connection are re-checked at approval time —
+      // auth may have changed since the draft.
+      const isEmail = EMAIL_KINDS.includes(draft.kind);
+      const gmailConnected = isEmail ? await probeGmail() : false;
+      const guard = destinationUsable(draft.destination_id, draft.kind, isAdmin(user), { plan, gmailConnected });
       if (guard) return Response.json({ error: guard, needs_connection: true }, { status: 402 });
+      if (isEmail && plan !== 'ultra') {
+        return Response.json({ error: 'Gmail Actions Are An LBC AI Ultra Capability.', upgrade_required: true }, { status: 402 });
+      }
+      let gmailToken = null;
+      if (isEmail) {
+        try {
+          const c = await base44.asServiceRole.connectors.getCurrentAppUserConnection(GMAIL_CONNECTOR_ID);
+          gmailToken = c?.accessToken || null;
+        } catch (_) {}
+        if (!gmailToken) return Response.json({ error: 'Gmail Not Connected — Connect Your Account First.', needs_connection: true }, { status: 402 });
+      }
 
       const claim = randomToken(16);
-      await db.entities.AutopilotRun.update(run.id, { status: 'running', approval: { ...app, claim }, lease_until: new Date(Date.now() + 120000).toISOString(), audit: [...(run.audit || []), auditEntry('approved', `Approval bound to the exact draft (${hash.slice(0, 10)})`)] });
+      await db.entities.AutopilotRun.update(run.id, {
+        status: 'running', approval: { ...app, claim },
+        lease_until: new Date(Date.now() + 120000).toISOString(),
+        audit: [...(run.audit || []), auditEntry('approved', `Approval bound to the exact draft (${hash.slice(0, 10)})`)],
+      });
       let receipt;
       try {
-        receipt = await dispatchAction(draft, hash);
+        receipt = await dispatchAction(draft, hash, { gmailToken });
       } catch (e) {
+        if (e?.message === 'outcome_unknown') {
+          // Ambiguous dispatch (network timeout / provider 5xx): the message
+          // may still have been delivered. Consume the single-use approval so
+          // no retry can duplicate the send; the owner reconciles in Gmail.
+          await db.entities.AutopilotRun.update(run.id, {
+            status: 'blocked', lease_until: null,
+            blocked_reason: 'Outcome Unknown — Gmail Did Not Confirm In Time. Check Your Gmail Sent Or Drafts Folder Before Any Retry. Do Not Re-Approve: The Approval Was Consumed To Prevent A Duplicate.',
+            approval: { ...app, claim, used_at: new Date().toISOString() },
+            audit: [...(run.audit || []), auditEntry('dispatch_unknown', 'Gmail timed out mid-dispatch; approval consumed to prevent duplicates')],
+          });
+          return Response.json({ error: 'Outcome Unknown — Check Your Gmail Account.' }, { status: 504 });
+        }
+        if (e?.message === 'no_user_token') {
+          await db.entities.AutopilotRun.update(run.id, {
+            status: 'awaiting_approval', lease_until: null,
+            audit: [...(run.audit || []), auditEntry('dispatch_failed', 'No Gmail token available at dispatch')],
+          });
+          return Response.json({ error: 'Gmail Not Connected — Connect Your Account First.', needs_connection: true }, { status: 402 });
+        }
+        // Definitive provider rejection: return to review; approval stays unused.
         await db.entities.AutopilotRun.update(run.id, {
-          status: 'blocked', lease_until: null,
-          blocked_reason: e?.message === 'no_adapter' ? 'Integration Required: No Authorized Handler For This Destination.' : 'Destination Not Available',
-          audit: [...(run.audit || []), auditEntry('dispatch_failed', e?.message || 'no adapter')],
+          status: 'awaiting_approval', lease_until: null, blocked_reason: null,
+          audit: [...(run.audit || []), auditEntry('dispatch_failed', String(e?.message || 'dispatch failed').slice(0, 200))],
         });
-        return Response.json({ error: 'Integration Required', needs_connection: true }, { status: 402 });
+        return Response.json({ error: 'The Provider Rejected This Action — Review The Draft And Try Again.' }, { status: 402 });
       }
       await db.entities.AutopilotRun.update(run.id, {
         status: 'completed', receipt: { ...receipt, verified: true },
         approval: { ...app, claim, used_at: new Date().toISOString() }, lease_until: null,
-        final_summary: receipt.mock ? 'Sent Through The Test Sandbox (Mock) — Nothing Was Published.' : `Published: ${receipt.url || receipt.external_id}`,
+        final_summary: receipt.mock
+          ? 'Sent Through The Test Sandbox (Mock) — Nothing Was Published.'
+          : draft.kind === 'email_draft'
+            ? 'Draft Saved To Your Gmail Drafts Folder. Nothing Was Sent.'
+            : `Sent From Your Gmail (Message ${receipt.external_id || ''})`.trim(),
         audit: [...(run.audit || []), auditEntry('dispatched', `Receipt verified: ${receipt.provider}`)],
       });
       return Response.json({ ok: true, receipt, status: 'completed' });
@@ -244,11 +335,13 @@ export default async function(req) {
     }
     if (action === 'cancel') {
       if (['completed', 'cancelled'].includes(run.status)) return Response.json({ error: 'Already Finished' }, { status: 409 });
-      await db.entities.AutopilotRun.update(run.id, { status: 'cancelled', lease_until: null, audit: [...(run.audit || []), auditEntry('cancelled', 'Cancelled by owner; completed steps are kept')] });
+      await db.entities.AutopilotRun.update(run.id, { status: 'cancelled', lease_until: null, lease_token: null, audit: [...(run.audit || []), auditEntry('cancelled', 'Cancelled by owner; completed steps are kept')] });
       return Response.json({ ok: true });
     }
     if (action === 'pause') {
       if (run.status !== 'running') return Response.json({ error: 'Not Running' }, { status: 409 });
+      // The lease token is kept: an in-flight step keeps its fencing until it
+      // finishes, then records its output without resuming the run.
       await db.entities.AutopilotRun.update(run.id, { status: 'paused', audit: [...(run.audit || []), auditEntry('paused', 'Paused after current step')] });
       return Response.json({ ok: true });
     }

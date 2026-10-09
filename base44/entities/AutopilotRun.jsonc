@@ -11,7 +11,8 @@
       "enum": [
         "task",
         "social_post",
-        "marketplace_listing"
+        "marketplace_listing",
+        "email"
       ],
       "default": "task"
     },
@@ -170,6 +171,10 @@
         "external_id": {
           "type": "string"
         },
+        "thread_id": {
+          "type": "string",
+          "description": "Gmail thread id when the action was threaded"
+        },
         "url": {
           "type": "string"
         },
@@ -193,7 +198,11 @@
     "lease_until": {
       "type": "string",
       "format": "date-time",
-      "description": "Execution lease preventing concurrent double-runs"
+      "description": "Execution lease expiry preventing concurrent double-runs"
+    },
+    "lease_token": {
+      "type": "string",
+      "description": "Fencing token for the current lease holder. Every lease claim and completion is a server-side compare-and-swap on this token, so a stale worker can never complete another worker's step."
     },
     "audit": {
       "type": "array",
