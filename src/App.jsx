@@ -9,6 +9,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import AppShell from '@/components/layout/AppShell';
 import { base44 } from '@/api/base44Client';
 import RootGate from '@/components/RootGate';
+import BrandLogo from '@/components/brand/BrandLogo';
 import Landing from '@/pages/Landing';
 
 // Lazy-loaded pages (code-split per workspace).
@@ -24,7 +25,8 @@ const Templates = lazy(() => import('@/pages/Templates'));
 const Autopilot = lazy(() => import('@/pages/Autopilot'));
 
 const Loading = () => (
-  <div className="fixed inset-0 flex items-center justify-center">
+  <div className="fixed inset-0 flex flex-col items-center justify-center gap-4">
+    <BrandLogo size={48} />
     <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
   </div>
 );

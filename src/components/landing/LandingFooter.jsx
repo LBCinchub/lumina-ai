@@ -7,12 +7,17 @@ const ECOSYSTEM_LINKS = [
   { label: 'HTTPS://LBCHUB.TECH', href: 'https://lbchub.tech' },
 ];
 
+import BrandLogo from '@/components/brand/BrandLogo';
+
 // Footer — LBC ecosystem links (displayed in capitals), the honest $LBC on
 // Solana line, and copyright.
 export default function LandingFooter() {
   return (
     <footer className="border-t border-white/5 py-12">
       <div className="max-w-6xl mx-auto px-5 text-center space-y-6">
+        <div className="flex justify-center">
+          <BrandLogo size={40} />
+        </div>
         <p className="text-sm text-zinc-300">
           LBC AI Ultra — Part Of The LBC Ecosystem.
         </p>

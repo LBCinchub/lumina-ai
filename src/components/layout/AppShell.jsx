@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/useTheme';
-import LuminaMark from './LuminaMark';
+import BrandLogo from '@/components/brand/BrandLogo';
 import NotificationCenter from '@/components/notifications/NotificationCenter';
 
 // Primary workspaces visible to every user. Operations is appended only for
@@ -55,7 +55,7 @@ export default function AppShell({ children }) {
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-60 shrink-0 border-r border-border bg-sidebar flex-col">
         <div className="px-6 py-6 flex items-center gap-2.5">
-          <LuminaMark size={24} className="text-foreground" />
+          <BrandLogo size={28} />
           <span className="font-serif text-xl tracking-tight">LBC AI ULTRA</span>
         </div>
 
@@ -121,7 +121,7 @@ export default function AppShell({ children }) {
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="flex items-center justify-between px-4 h-14">
           <a href="/" className="flex items-center gap-2">
-            <LuminaMark size={20} className="text-foreground" />
+            <BrandLogo size={24} />
             <span className="font-serif text-lg tracking-tight">LBC AI ULTRA</span>
           </a>
           <div className="flex items-center gap-1">

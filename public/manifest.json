@@ -1,0 +1,14 @@
+{
+  "name": "LBC AI Ultra",
+  "short_name": "LBC AI",
+  "description": "Create A Private AI Agent With Its Own Personality, Knowledge, And Voice.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "icons": [
+    { "src": "/brand/lbc-builder-teal.v1.192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/brand/lbc-builder-teal.v1.512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
