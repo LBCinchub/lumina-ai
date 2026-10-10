@@ -11,6 +11,7 @@ import { base44 } from '@/api/base44Client';
 import RootGate from '@/components/RootGate';
 import BrandLogo from '@/components/brand/BrandLogo';
 import Landing from '@/pages/Landing';
+import OAuthConsent from '@/pages/OAuthConsent';
 
 // Lazy-loaded pages (code-split per workspace).
 const Agents = lazy(() => import('@/pages/Agents'));
@@ -70,6 +71,7 @@ const AuthenticatedApp = () => {
       <Routes>
         {/* Root gate: signed-out → public landing, signed-in → Chat in the shell. */}
         <Route path="/" element={<RootGate />} />
+        <Route path="/oauth/consent" element={<OAuthConsent />} />
         <Route element={<AppShell />}>
           <Route path="/agents" element={<Agents />} />
           <Route path="/build" element={<Build />} />
