@@ -18,7 +18,7 @@ import { base64Url, utf8Bytes, buildMimeMessage, headersOf } from '../../shared/
 // Scope truthfulness: the current grant is gmail.readonly + gmail.send +
 // gmail.compose. Reading labels works; MODIFYING message labels needs
 // gmail.modify and is refused with an explicit setup note, never faked.
-const GMAIL_CONNECTOR_ID = '6aac167efa382a764028ad72';
+const GMAIL_CONNECTOR_ID = '6ac993a978a06fb7c23b4351';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_SUBJECT_CHARS = 255;

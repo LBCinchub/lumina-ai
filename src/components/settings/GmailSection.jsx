@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Mail, RefreshCw, Send, Unplug } from 'lucide-react';
 
-const GMAIL_CONNECTOR_ID = '6aac167efa382a764028ad72';
+const GMAIL_CONNECTOR_ID = '6ac993a978a06fb7c23b4351';
 
 // Gmail — each user connects their own inbox (Ultra tier, enforced server-side).
 export default function GmailSection() {

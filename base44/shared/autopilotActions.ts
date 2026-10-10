@@ -14,7 +14,7 @@ export const CURRENCIES = ['CAD', 'USD', 'EUR', 'GBP'];
 
 // Verified APP_USER connector for per-user Gmail (registered workspace OAuth
 // app — each app user connects their OWN account; never a shared grant).
-export const GMAIL_CONNECTOR_ID = '6aac167efa382a764028ad72';
+export const GMAIL_CONNECTOR_ID = '6ac993a978a06fb7c23b4351';
 
 // Destination statuses:
 //   available   — a genuine, verified adapter + (for per_user) the owner's own

@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { invokeAutopilot } from '@/hooks/useAutopilot';
 import { Mail, Unplug } from 'lucide-react';
 
-const GMAIL_CONNECTOR_ID = '6aac167efa382a764028ad72';
+const GMAIL_CONNECTOR_ID = '6ac993a978a06fb7c23b4351';
 
 const STATUS_LABEL = {
   ready: 'Connected',
