@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import ReactMarkdown from 'react-markdown';
 import { ArrowUp, Bot, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import TypewriterMarkdown from '@/components/chat/TypewriterMarkdown';
+import JumpToLatest from '@/components/chat/JumpToLatest';
+import { useChatScroll } from '@/hooks/useChatScroll';
 
 // Messages + composer for one of the user's own agents. The detail header
 // (back button, identity, tabs) lives in AgentDetailHeader. Message history
@@ -10,14 +12,9 @@ import { cn } from '@/lib/utils';
 // client-side InvokeLLM).
 export default function AgentChat({ agent, messages, loadingMessages, sending, onSend }) {
   const [input, setInput] = useState('');
-  const scrollRef = useRef(null);
   const textareaRef = useRef(null);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, sending, loadingMessages]);
+  // Follows growing replies only while the reader is near the bottom.
+  const { scrollRef, contentRef, onScroll, atBottom, hasNew, pin } = useChatScroll(messages.length, agent.id);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -36,7 +33,8 @@ export default function AgentChat({ agent, messages, loadingMessages, sending, o
   return (
     <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-minimal">
+      <div className="relative flex-1 min-h-0 flex flex-col">
+      <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto scrollbar-minimal">
         {loadingMessages ? (
           <div className="h-full flex items-center justify-center">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground/50" strokeWidth={1.75} />
@@ -52,7 +50,7 @@ export default function AgentChat({ agent, messages, loadingMessages, sending, o
             </p>
           </div>
         ) : (
-          <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-5">
+          <div ref={contentRef} className="max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-5">
             {messages.map(m => m.role === 'user' ? (
               <div key={m.id} className="flex justify-end animate-fade-up">
                 <div className="max-w-[80%] rounded-xl rounded-tr-sm px-3.5 py-2.5 text-[13px] leading-relaxed text-white bg-gradient-to-br from-pink-500 to-purple-500">
@@ -65,7 +63,7 @@ export default function AgentChat({ agent, messages, loadingMessages, sending, o
                   <Bot className="w-4 h-4 text-foreground/50" strokeWidth={1.5} />
                 </div>
                 <div className="flex-1 min-w-0 text-[13px] text-foreground/85 prose-lumina">
-                  <ReactMarkdown>{m.content}</ReactMarkdown>
+                  <TypewriterMarkdown id={m.id} text={m.content || ''} animate={!!m.fresh} />
                 </div>
               </div>
             ))}
@@ -81,6 +79,8 @@ export default function AgentChat({ agent, messages, loadingMessages, sending, o
             )}
           </div>
         )}
+      </div>
+      <JumpToLatest visible={!loadingMessages && messages.length > 0 && !atBottom} hasNew={hasNew} onClick={pin} />
       </div>
 
       {/* Composer */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import AgentGallery from './AgentGallery';
 import AgentCreateWizard from './AgentCreateWizard';
@@ -24,6 +24,7 @@ export default function AgentWorkspace({ onBack }) {
   const [knowledgeSources, setKnowledgeSources] = useState([]);
   const [activeAgent, setActiveAgent] = useState(null);
   const [messages, setMessages] = useState([]);
+  const activeAgentIdRef = useRef(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -90,12 +91,17 @@ export default function AgentWorkspace({ onBack }) {
     return { ok: true };
   };
 
+  useEffect(() => { activeAgentIdRef.current = activeAgent?.id || null; }, [activeAgent]);
+
   const handleSend = async (text) => {
     if (!text.trim() || sending) return;
     const optimistic = { id: 'tmp-' + Date.now(), role: 'user', content: text };
     setMessages(prev => [...prev, optimistic]);
     setSending(true);
-    const res = await callFn('chatWithUserAgent', { agent_id: activeAgent.id, message: text });
+    const agentId = activeAgent.id;
+    const res = await callFn('chatWithUserAgent', { agent_id: agentId, message: text });
+    // Never insert a reply into a different agent's open thread.
+    if (activeAgentIdRef.current !== agentId) { setSending(false); return; }
     if (res.error) {
       setMessages(prev => [
         ...prev.filter(m => m.id !== optimistic.id),
@@ -106,7 +112,7 @@ export default function AgentWorkspace({ onBack }) {
       setMessages(prev => [
         ...prev.filter(m => m.id !== optimistic.id),
         optimistic,
-        { id: 'a-' + Date.now(), role: 'assistant', content: res.data?.content || '' },
+        { id: 'a-' + Date.now(), role: 'assistant', content: res.data?.content || '', fresh: true },
       ]);
     }
     setSending(false);

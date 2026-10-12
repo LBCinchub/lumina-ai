@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+import TypewriterMarkdown from '@/components/chat/TypewriterMarkdown';
 import BrandLogo from '@/components/brand/BrandLogo';
 import CopyResponse from '@/components/chat/CopyResponse';
 import markdownComponents from '@/components/chat/markdownComponents';
@@ -98,7 +98,12 @@ export default function MessageBubble({ message, isLatest }) {
         )}>
           {isImageMessage
             ? <GeneratedImage url={imageUrl} caption={imageCaption} />
-            : <ReactMarkdown components={markdownComponents}>{message.content}</ReactMarkdown>
+            : <TypewriterMarkdown
+                id={message.id}
+                text={message.content || ''}
+                animate={!!message.fresh && !isError}
+                components={markdownComponents}
+              />
           }
         </div>
         {!isImageMessage && !isError && message.content && <CopyResponse text={message.content} />}
