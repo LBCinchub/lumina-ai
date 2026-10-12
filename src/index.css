@@ -193,6 +193,11 @@
   .prose-lumina code {
     @apply px-1.5 py-0.5 rounded bg-muted text-sm;
   }
+  /* Code inside a block must not get the inline-code chip. */
+  .prose-lumina pre code {
+    @apply p-0 bg-transparent rounded-none text-[13px];
+  }
+  .prose-lumina li > p { @apply mb-1; }
   .prose-lumina blockquote {
     @apply border-l-2 border-border pl-4 italic text-muted-foreground my-3;
   }
