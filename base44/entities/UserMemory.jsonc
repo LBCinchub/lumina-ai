@@ -1,0 +1,59 @@
+{
+  "name": "UserMemory",
+  "type": "object",
+  "properties": {
+    "content": {
+      "type": "string",
+      "description": "One concise distilled memory \u2014 a durable fact, preference, goal, ongoing project, decision, or background note. Never a verbatim transcript."
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "fact",
+        "preference",
+        "goal",
+        "project",
+        "decision",
+        "background"
+      ],
+      "default": "fact",
+      "description": "What kind of memory this is"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Server-derived owner email from the authenticated session. The browser can never set or override this."
+    },
+    "source_conversation_id": {
+      "type": "string",
+      "description": "Conversation the memory was learned from (optional)"
+    },
+    "source_conversation_title": {
+      "type": "string",
+      "description": "Title of the conversation the memory was learned from (optional)"
+    },
+    "last_reinforced_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this memory was last saved or confirmed"
+    }
+  },
+  "required": [
+    "content"
+  ],
+  "rls": {
+    "read": {
+      "data.owner_email": "{{user.email}}"
+    },
+    "create": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "update": {
+      "data.owner_email": "{{user.email}}"
+    },
+    "delete": {
+      "data.owner_email": "{{user.email}}"
+    }
+  }
+}

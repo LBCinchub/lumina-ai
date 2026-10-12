@@ -3,6 +3,7 @@ import { isFounderEmail, OWNER_AUTHORITY_PROMPT } from '../../shared/security.ts
 import { getUserPlan } from '../../shared/tiers.ts';
 import { fetchPageText } from '../../shared/pageReader.ts';
 import { detectActionIntent, actionIntentReply } from '../../shared/actionIntent.ts';
+import { loadMemories, buildMemorySection, extractMemories } from '../../shared/longTermMemory.ts';
 
 // PUBLIC LBC AI Ultra system prompt.
 // No founder PII, no internal engine name ("Lumina"), no cross-platform authority,
@@ -118,6 +119,10 @@ export default async function(req) {
     } else {
       docs = await db.entities.Document.filter({ created_by: user.email, status: 'ready' }, '-created_date', 10);
     }
+
+    // --- Long-term memory (per-user, server-derived owner; concise distilled notes).
+    const memories = await loadMemories(db, user.email, 60);
+    const memSection = buildMemorySection(memories);
 
     // --- Knowledge sources (scoped to authenticated owner).
     const knowledgeSources = await db.entities.KnowledgeSource.filter(
@@ -249,7 +254,7 @@ ${roleNote}
 PERSONAL CONTEXT ABOUT THIS USER:
 ${contextBlock}
 ---
-${knowledgeSection}${docsSection}${convosSection}${pagesSection}
+${knowledgeSection}${docsSection}${convosSection}${pagesSection}${memSection || ''}
 CONVERSATION SO FAR:
 ${historyBlock}
 
@@ -311,6 +316,23 @@ Return ONLY the prompt text, nothing else.`
       await db.entities.Message.create({ conversation_id, role: 'assistant', content: assistantContent, owner_email: user.email });
     } catch (_) {}
 
+    // --- Long-term memory extraction: merge-first, bounded (max 3 entries),
+    // silent on failure. Runs synchronously so the response only ever reports
+    // memories that actually persisted.
+    let memoryUpdates = null;
+    try {
+      memoryUpdates = await extractMemories({
+        base44, db, ownerEmail: user.email,
+        conversationId: conversation_id,
+        conversationTitle: (ownedConvos[0] && ownedConvos[0].title) || '',
+        userMessage: message,
+        assistantReply: assistantContent,
+        recentHistory: history.slice(-6),
+      });
+    } catch (_) {
+      memoryUpdates = null;
+    }
+
     (async () => {
       try {
         const updates = { last_message_at: new Date().toISOString() };
@@ -328,7 +350,7 @@ Return ONLY the prompt text, nothing else.`
       } catch (_) {}
     })();
 
-    return Response.json({ content: assistantContent });
+    return Response.json({ content: assistantContent, memory: memoryUpdates });
   } catch (error) {
     // Never leak internal details or private context in error responses.
     return Response.json({ error: 'Something went wrong' }, { status: 500 });
