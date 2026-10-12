@@ -140,9 +140,9 @@ Deno.test("Toronto DST: spring day 23h, fall day 25h", () => {
 
 // ---------- current thread window ----------
 Deno.test(">200 messages: recent window keeps the newest turns in order", async () => {
-  const msgs = Array.from({ length: 250 }, (_, i) => ({ id: `c${i}`, conversation_id: "cur", created_date: new Date(1e12 + i * 1000).toISOString() }));
+  const msgs = Array.from({ length: 250 }, (_, i) => ({ id: `c${i}`, conversation_id: "cur", owner_email: A.email, created_date: new Date(1e12 + i * 1000).toISOString() }));
   const w = world({ msgs });
-  const r = await loadRecentThread(w.db, "cur", 200);
+  const r = (await loadRecentThread(w.db, A, "cur", 200)).messages;
   assertEquals(r.length, 200);
   assertEquals(r[r.length - 1].id, "c249");
   assertEquals(r[0].id, "c50");

@@ -111,7 +111,7 @@ export default function Pricing() {
       <div className="max-w-5xl mx-auto px-6 md:px-10 py-12 md:py-16">
         {/* Header */}
         <div className="mb-12 text-center">
-          <div className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-pink-500 mb-3">
+          <div className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-pink-500 dark:text-pink-300 mb-3">
             <Sparkles className="w-3.5 h-3.5" strokeWidth={2} />
             LBC AI Pricing
           </div>
@@ -153,7 +153,7 @@ export default function Pricing() {
               <ul className="space-y-2.5 mb-8 flex-1">
                 {plan.features.map((f, i) => (
                   <li key={i} className="flex items-start gap-2.5">
-                    <Check className="w-4 h-4 text-pink-500 shrink-0 mt-0.5" strokeWidth={2.5} />
+                    <Check className="w-4 h-4 text-pink-500 dark:text-pink-300 shrink-0 mt-0.5" strokeWidth={2.5} />
                     <span className="text-[13px] leading-relaxed">{f}</span>
                   </li>
                 ))}
@@ -204,7 +204,7 @@ export default function Pricing() {
                     {row.values.map((v, vi) => (
                       <td key={vi} className="px-4 md:px-6 py-3.5">
                         {v === true ? (
-                          <Check className="w-4 h-4 text-pink-500" strokeWidth={2.5} />
+                          <Check className="w-4 h-4 text-pink-500 dark:text-pink-300" strokeWidth={2.5} />
                         ) : v === false ? (
                           <X className="w-4 h-4 text-muted-foreground/40" strokeWidth={2} />
                         ) : (

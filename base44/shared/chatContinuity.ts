@@ -4,6 +4,7 @@
 import { validTimezone } from './memoryPolicy.ts';
 import { loadMemorySettings, loadEligibleMemories, buildMemorySection } from './longTermMemory.ts';
 import { recallHistory, buildRecallSection } from './historyRecall.ts';
+import { eligibleMessages } from './conversationAccess.ts';
 
 export async function assembleContinuity({ userClient, db, user, conversationId, message, timezone, nowMs }) {
   const tz = validTimezone(timezone);
@@ -26,9 +27,12 @@ export async function assembleContinuity({ userClient, db, user, conversationId,
   };
 }
 
-// Newest-N window of the current thread, returned in chronological order, so
-// long threads never lose their most recent turns.
-export async function loadRecentThread(db, conversationId, limit = 200) {
+// Newest-N window of the (already authorized) current thread, eligible
+// children only, in chronological order. `total` is the raw row count so a
+// filtered result is never mistaken for an empty thread. Throws on lookup
+// failure (fail closed).
+export async function loadRecentThread(db, user, conversationId, limit = 200) {
   const rows = await db.entities.Message.filter({ conversation_id: conversationId }, '-created_date', limit);
-  return [...rows].reverse();
+  const { messages, restricted } = await eligibleMessages(db, user, conversationId, rows || []);
+  return { messages: [...messages].reverse(), restricted, total: (rows || []).length };
 }

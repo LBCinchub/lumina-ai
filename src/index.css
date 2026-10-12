@@ -56,6 +56,21 @@
     --sidebar-accent-foreground: 175 80% 18%;
     --sidebar-border: 30 10% 86%;
     --sidebar-ring: 175 84% 25%;
+
+    /* Theme-aware logo accent shades (RGB channels, used via rgb()).
+       Light: deep teal/cyan so text on paper stays >= 4.5:1. */
+    --lbc-teal-300: 15 118 110;
+    --lbc-teal-400: 17 94 89;
+    --lbc-cyan-300: 14 116 144;
+    --lbc-cyan-400: 21 94 117;
+  }
+
+  /* Dark theme and always-dark surfaces (public landing): bright logo shades. */
+  .dark, .lbc-dark-surface {
+    --lbc-teal-300: 45 212 191;
+    --lbc-teal-400: 20 184 166;
+    --lbc-cyan-300: 34 211 238;
+    --lbc-cyan-400: 6 182 212;
   }
 
   .dark {

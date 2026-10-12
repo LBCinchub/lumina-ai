@@ -53,5 +53,26 @@ Scope: this app only. Preview only, not published. No backend, schema, data, aut
 - Hover, focus and disabled states; reduced motion. The colour changes only touched colour values, and motion rules are unchanged.
 - No new chat regression test was run; no chat logic was touched.
 
+## Follow-Up: Light-Theme Accent Contrast (2026-10-12)
+- **Fix:** teal/cyan shades 300 and 400 now follow the theme, through new variables in `src/index.css` used by `tailwind.config.js`.
+  - Light theme: deep teal #0f766e / #115e59 and cyan #0e7490 / #155e75.
+  - Dark theme and the always-dark public landing (new `lbc-dark-surface` class on `src/pages/Landing.jsx`): the previous bright shades, unchanged.
+  - Indigo is only used on always-dark admin surfaces (Operations, Deployment Engine, Protocol Guard, Resource Monitor), so it keeps its static cyan.
+- **Pricing page:** the small teal text and check icons (`text-pink-500`) measured about 3.7:1 on the dark theme, below 4.5:1. They now switch to the bright shade in dark mode (`dark:text-pink-300`).
+- **Pages affected:** Terminal and command templates, chat image captions, Devices, Notifications, Templates and GitHub Backup, Face ID dialogs, Device Verification, and Pricing.
+- **Measured contrast:**
+
+| Shade | Light: paper / card / muted | Dark: page / card / muted | Landing / dialog |
+|---|---|---|---|
+| Teal 300 | 5.16 / 5.38 / 4.72 | 10.61 / 10.03 / 9.59 | 10.69 / 9.52 |
+| Teal 400 | 7.15 / 7.45 / 6.54 | 7.93 / 7.5 / 7.18 | — |
+| Cyan 300 | 5.05 / 5.26 / 4.62 | 10.93 | — |
+| Cyan 400 | 6.86 / 7.14 / 6.27 | 8.14 | — |
+| Pricing text | 5.16 (light) | 10.61 (dark) | — |
+
+  The previously reported 2.35 failure is resolved.
+- **Remaining caveat:** text shown at reduced opacity (for example `/60` on the chat image caption) is lower than these figures and was not measured individually.
+- **Checks run:** `npx vite build` exit 0 and `npx eslint . --quiet` exit 0. The compiled CSS shows the light and dark variables and `.text-pink-400` resolving through them. No new screenshots were taken.
+
 ## Release Blockers (Unchanged)
 The high-severity recall-handler privacy findings are still open. This visual change does not resolve them.

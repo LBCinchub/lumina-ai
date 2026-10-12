@@ -15,7 +15,7 @@ export default function Landing() {
   const [earlyAccessPlan, setEarlyAccessPlan] = useState(null);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased selection:bg-pink-500/30">
+    <div className="lbc-dark-surface min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased selection:bg-pink-500/30">
       <LandingNavbar />
       <main>
         <LandingHero />

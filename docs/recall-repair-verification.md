@@ -39,5 +39,41 @@ Scope: this app only. Nothing was published. No migrations, backfill, ownership 
 - **syncConversation:** the existing cross-app push after each chat was left untouched, per scope. Only the reading endpoint was fail-closed.
 - **No rate limiting** was added beyond bounded query sizes (30 threads, 8 read, 60 messages per thread).
 
+## Handler Privacy Repair (2026-10-12, After Colour Commit 082c0138)
+The four independently reported handler failures were fixed with one shared authorization module. No records were updated, deleted, stamped or migrated, and nothing was published.
+
+### Changed Files
+- `base44/shared/conversationAccess.ts` (new). It holds the central helpers:
+  - `isOwnedConversation` / `isOwnedMessage`, moved here and re-exported from historyRecall.
+  - `sanitizeIds`: string ids up to 64 characters of `[A-Za-z0-9_-]`, deduplicated and bounded to 5 selected threads.
+  - `quarantineSet`: looks up 100 ids at a time. A full page of 500 throws rather than being silently truncated, and any lookup error throws.
+  - `authorizeConversation`: an explicit service-side read with the session-owner predicate, `human_verified` and not quarantined. Errors return null.
+  - `eligibleMessages` and `authorizeSelectedThreads`.
+- `base44/functions/chatWithLumina/entry.ts`:
+  1. **Current parent:** authorized before any save, generation or memory step. Foreign, anonymous, quarantined, malformed or unverifiable parents get a non-disclosing **404**, and admin role or RLS-visible reads grant nothing.
+  2. **Explicit selection:** goes through `authorizeSelectedThreads`, which applies the same parent and child rules as automatic recall. Quarantined parents and children are excluded. Lookup errors produce an "could not be verified" note, never inclusion. Restricted results produce a "not available" note, never "empty".
+  3. **Current thread:** uses eligible children only, in chronological order. If rows existed but were filtered, the prompt says earlier turns are unavailable rather than "no prior turns". The title is only generated when the thread truly has no rows.
+- `base44/shared/chatContinuity.ts`: `loadRecentThread(db, user, id, limit)` now applies child eligibility and returns `{ messages, restricted, total }`.
+- `base44/shared/historyRecall.ts`: uses the shared helpers and the paginated quarantine lookup. Its recall logic, five-hours wording, latest-thread selection, partial reporting and citations are unchanged.
+- `base44/shared/longTermMemory.ts`: memory source threads must now also be not quarantined, and lookup errors make memory status "error".
+- `tests/handlerIsolation.test.ts` (new). `tests/recallRepair.test.ts`: one test was updated for the new `loadRecentThread` signature, with the same assertions plus the owner stamp on the fixture rows.
+
+### Tests Run
+- **Real-entrypoint handler tests** (`tests/handlerIsolation.test.ts`): **13/13 pass.** Each test sends a real `Request` through the default export of `chatWithLumina/entry.ts`.
+  - Bundled with `esbuild --platform=node --format=cjs --external:npm:* --external:base44:* --external:jsr:*`.
+  - Only `npm:@base44/sdk` (mapped to an in-memory client) and `base44:runtime` secrets (`{}`) are mocked.
+  - Covered: A 401; B consented recall match containing the real sentence; default history off is disabled; C foreign selected child absent; D quarantined selected parent absent; quarantined selected child absent with own sibling kept; own selected thread included exactly once with duplicates removed; anonymous, foreign, missing and malformed selected ids excluded with a "not available" note; E admin with a foreign current parent gets 404 with zero writes and zero model calls; normal user with foreign, anonymous, quarantined, missing or malformed current parent gets 404 with zero writes; quarantine lookup failure fails closed (404, zero writes, zero model calls); F foreign current child absent while own children stay in order; quarantined current child absent and never reported as an empty thread.
+  - These tests were written to your outline in this sandbox. Your coordinator files (`today_lbc_verification/*`) were not accessible here, and the old code was not re-run against this harness.
+- `tests/recallRepair.test.ts`: **24/24 pass.**
+- Function bundles: `esbuild … --platform=neutral --external:npm:* --external:base44:*` gives **exit 0** for chatWithLumina and manageUserMemory.
+- `npx vite build`: **exit 0**. `npx eslint . --quiet`: **exit 0**.
+- Deep-link regression: recall citations still use `/?c=<id>`, which the chat route still reads. Checked in source; no chat UI code was changed this turn.
+
+### Not Tested
+Live auth/session behavior, real RLS, real AiDataQuarantine contents, the real model, and mobile/browser flows.
+
+### Behavior Notes
+Older messages without an owner stamp are now excluded from the prompt (fail-closed). They are not modified. The user is told earlier turns are unavailable. The other original audit items (agent/project scope, syncConversation, rate limits) stay as listed above.
+
 ## State
-Current editor source: implemented and tested as above. Deployed backend functions are auto-deployed to the dev/preview environment. **Not published.**
+Current editor source: implemented and tested as above. Backend functions auto-deploy to the dev/preview environment only. **Not published.** Synthetic test passes do not prove production behavior, and the earlier synthetic failures were not proof of a production leak.

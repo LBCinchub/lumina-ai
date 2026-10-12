@@ -11,7 +11,7 @@ import {
   classifySensitivity, containsSecret, redactSecrets, neutralize, suppressionKeys,
   isSuppressed, sensitiveAllowed, eligibilityReason, normalizeText,
 } from './memoryPolicy.ts';
-import { isOwnedConversation } from './historyRecall.ts';
+import { isOwnedConversation, quarantineSet } from './conversationAccess.ts';
 
 export const MEMORY_CATEGORIES = ['fact', 'preference', 'goal', 'project', 'decision', 'background'];
 export const MIN_CONFIDENCE = 0.7;
@@ -44,7 +44,9 @@ export async function loadEligibleMemories(db, userClient, user, settings) {
     const srcIds = [...new Set(mems.map(m => m.source_conversation_id).filter(Boolean))];
     if (srcIds.length) {
       const srcs = await userClient.entities.Conversation.filter({ id: { $in: srcIds } }, '-created_date', srcIds.length);
-      const okIds = new Set(srcs.filter(c => isOwnedConversation(c, user)).map(c => c.id));
+      const owned = srcs.filter(c => srcIds.includes(c.id) && isOwnedConversation(c, user)).map(c => c.id);
+      const q = await quarantineSet(db, 'Conversation', owned);
+      const okIds = new Set(owned.filter(id => !q.has(id)));
       mems = mems.filter(m => !m.source_conversation_id || okIds.has(m.source_conversation_id));
     }
     return { status: 'ok', memories: mems };

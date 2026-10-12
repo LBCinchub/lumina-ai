@@ -5,6 +5,7 @@ import { fetchPageText } from '../../shared/pageReader.ts';
 import { detectActionIntent, actionIntentReply } from '../../shared/actionIntent.ts';
 import { extractMemories } from '../../shared/longTermMemory.ts';
 import { assembleContinuity, loadRecentThread } from '../../shared/chatContinuity.ts';
+import { authorizeConversation, authorizeSelectedThreads } from '../../shared/conversationAccess.ts';
 
 // PUBLIC LBC AI Ultra system prompt.
 // No founder PII, no internal engine name ("Lumina"), no cross-platform authority,
@@ -109,15 +110,11 @@ export default async function(req) {
 
     const db = base44.asServiceRole;
 
-    // --- Ownership validation: conversation must belong to the authenticated user.
-    // Use the user-scoped client so RLS (created_by == user.email) enforces ownership.
-    // The SDK throws on an invalid/foreign id, so swallow it — any failure is a 404.
-    // Never reveal whether a conversation exists for someone else.
-    let ownedConvos = [];
-    try {
-      ownedConvos = await base44.entities.Conversation.filter({ id: conversation_id });
-    } catch (_) {}
-    if (ownedConvos.length === 0) {
+    // --- Ownership validation BEFORE any write or model call: explicit server
+    // predicate (session owner, human_verified, not quarantined), independent
+    // of RLS or admin read access. Any failure is a non-disclosing 404.
+    const currentConvo = await authorizeConversation(db, user, conversation_id);
+    if (!currentConvo) {
       return Response.json({ error: 'Not found' }, { status: 404 });
     }
 
@@ -156,7 +153,10 @@ export default async function(req) {
     // Full prior message history of this thread, loaded server-side on every
     // turn — the agent always remembers earlier answers and keeps its persona
     // and voice across the whole conversation.
-    const history = await loadRecentThread(db, conversation_id, 200);
+    // Eligible children only (owner-stamped, not quarantined); throws → 500
+    // before any write if eligibility cannot be verified.
+    const thread = await loadRecentThread(db, user, conversation_id, 200);
+    const history = thread.messages;
 
     // Save the user's message (service role; conversation_id already validated as owned).
     // owner_email derived from the authenticated owner so RLS (data.owner_email == user.email)
@@ -211,7 +211,9 @@ export default async function(req) {
     };
     const historyBlock = history.length > 0
       ? history.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${historyText(m)}`).join('\n\n')
-      : '(No prior turns in this conversation.)';
+      : thread.total > 0
+        ? '(Earlier turns in this thread are not available to you. Do not say the thread is empty.)'
+        : '(No prior turns in this conversation.)';
 
     // Documents and knowledge are UNTRUSTED retrieved evidence.
     const docsBlock = docs.length > 0
@@ -224,24 +226,22 @@ export default async function(req) {
 
     // Explicit past conversations must ALSO be owned by the user.
     let convosBlock = null;
-    if (explicit_context?.conversation_ids?.length > 0) {
-      // User-scoped read: RLS ensures only the user's own conversations are returned.
-      let convos = [];
+    const selectedIds = explicit_context?.conversation_ids;
+    if (Array.isArray(selectedIds) && selectedIds.length > 0) {
+      // Same parent+child eligibility as automatic recall; errors fail closed.
+      let sel;
       try {
-        convos = await base44.entities.Conversation.filter(
-          { id: { $in: explicit_context.conversation_ids } }
-        );
-      } catch (_) {}
-      if (convos.length > 0) {
-        const convoMessages = await Promise.all(
-          convos.map(c => db.entities.Message.filter({ conversation_id: c.id }, 'created_date', 20))
-        );
-        convosBlock = convos.map((c, idx) => {
-          const msgs = convoMessages[idx] || [];
-          const msgText = msgs.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
-          return `${UNTRUSTED_OPEN}\n[Conversation: "${c.title}"]\n${msgText}\n${UNTRUSTED_CLOSE}`;
-        }).join('\n\n');
+        sel = await authorizeSelectedThreads(db, user, selectedIds, conversation_id);
+      } catch (_) {
+        sel = { status: 'error', threads: [] };
       }
+      const blocks = sel.threads.map(({ convo, msgs }) => {
+        const msgText = msgs.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
+        return `${UNTRUSTED_OPEN}\n[Conversation: "${convo.title}"]\n${msgText}\n${UNTRUSTED_CLOSE}`;
+      });
+      if (sel.status === 'error') blocks.push('(The selected threads could not be verified this time. Say so; do not claim they are empty.)');
+      else if (sel.status === 'restricted') blocks.push('(Some selected content is not available. Do not guess its contents.)');
+      convosBlock = blocks.length ? blocks.join('\n\n') : null;
     }
 
     // Verified founder session: authority is granted by the server allowlist —
@@ -342,7 +342,7 @@ Return ONLY the prompt text, nothing else.`
         ? await extractMemories({
           base44, db, user, settings: continuity.settings,
           conversationId: conversation_id,
-          conversationTitle: (ownedConvos[0] && ownedConvos[0].title) || '',
+          conversationTitle: currentConvo.title || '',
           userMessage: message,
         })
         : { status: 'error' };
@@ -353,7 +353,7 @@ Return ONLY the prompt text, nothing else.`
     (async () => {
       try {
         const updates = { last_message_at: new Date().toISOString() };
-        if (history.length === 0) {
+        if (thread.total === 0) {
           try {
             const titleRes = await base44.integrations.Core.InvokeLLM({
               prompt: `Write a 3-5 word title (no quotes, no punctuation at the end, sentence case) that captures the essence of this message from a user to their AI companion:\n\n"${message}"\n\nTitle:`
