@@ -242,8 +242,10 @@ export default function Converse() {
       // Insert the full reply once, only into the thread it belongs to. If the
       // user switched threads, the server copy appears when they return.
       if (activeIdRef.current === convoId) {
-        const assistantMsg = { id: 'assistant-' + Date.now(), role: 'assistant', content, conversation_id: convoId, fresh: true };
-        setMessages(prev => [...prev, assistantMsg]);
+        const now = Date.now();
+        const extra = (result.data.images || []).map((img, i) => ({ id: `assistant-img-${now}-${i}`, role: 'assistant', content: img, conversation_id: convoId, fresh: true }));
+        const assistantMsg = { id: 'assistant-' + now, role: 'assistant', content, conversation_id: convoId, fresh: true };
+        setMessages(prev => [...prev, ...extra, assistantMsg]);
       }
 
       // Sync to shared pool if in your context

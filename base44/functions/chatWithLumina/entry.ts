@@ -7,6 +7,10 @@ import { extractMemories } from '../../shared/longTermMemory.ts';
 import { assembleContinuity, loadRecentThread } from '../../shared/chatContinuity.ts';
 import { authorizeConversation, authorizeSelectedThreads } from '../../shared/conversationAccess.ts';
 import { repairGroundingMarkers } from '../../shared/citations.ts';
+import {
+  MAIN_CHAT_MODEL, detectEditIntent, detectResearchIntent, resolveImageReference,
+  verifyReadableImage, researchQuestion, researchHasResults, sourcesFooter, synthesisPrompt,
+} from '../../shared/chatTools.ts';
 
 // PUBLIC LBC AI Ultra system prompt.
 // No founder PII, no internal engine name ("Lumina"), no cross-platform authority,
@@ -290,6 +294,66 @@ Respond directly without prefixing your role name.`;
       /\b(image|picture|photo|pic|artwork|illustration|visual|art|painting|portrait|scene|landscape|logo|icon|poster|wallpaper|drawing|render|graphic|meme|thumbnail|banner|avatar|mockup|cover|sprite|sticker)\b/i.test(message);
 
     let assistantContent;
+    const toolImages: string[] = [];
+
+    // --- Same-chat tool coordinator: explicit edit/research requests run as
+    // separate tool calls; results land in this thread. Never a silent
+    // substitute (no fresh generation passed off as an edit).
+    const msgText = typeof message === 'string' ? message : '';
+    const ref = resolveImageReference(file_urls, history, msgText);
+    const wantsEdit = detectEditIntent(msgText, ref.status !== 'none');
+    const wantsResearch = detectResearchIntent(msgText);
+    const toolNotes: string[] = [];
+
+    if (wantsEdit) {
+      if (ref.status === 'ambiguous') {
+        toolNotes.push(`There are ${ref.count} images I could edit here. Which one should I use (for example "the first one" or "the last one")?`);
+      } else if (ref.status === 'rejected') {
+        toolNotes.push('I can only edit images uploaded in this chat or ones I generated here, so I did not edit anything.');
+      } else if (ref.status === 'ok' && !(await verifyReadableImage(ref.url))) {
+        toolNotes.push('I could not read that image (it may be unavailable, too large, or not a PNG/JPEG/WebP/GIF), so I did not edit it.');
+      } else if (ref.status === 'ok') {
+        try {
+          const editPrompt = `Edit the provided reference image. Requested change: ${msgText.slice(0, 1000)}. Keep everything not mentioned unchanged.`;
+          const img = await base44.integrations.Core.GenerateImage({ prompt: editPrompt, existing_image_urls: [ref.url] });
+          if (!img?.url) throw new Error('no image');
+          toolImages.push(`__IMAGE__${img.url}__CAPTION__Edited version: ${msgText.slice(0, 300)}`);
+        } catch (_) {
+          toolNotes.push('The image edit failed, so nothing was changed. Your original is untouched; try again in a moment.');
+        }
+      }
+    }
+
+    if (wantsResearch) {
+      try {
+        const res = await base44.functions.invoke('deepSearch', { question: researchQuestion(msgText) });
+        const report = res?.data;
+        if (researchHasResults(report)) {
+          const synth = await base44.integrations.Core.InvokeLLM({
+            prompt: synthesisPrompt(LBC_SYSTEM_PROMPT, msgText, report),
+            model: MAIN_CHAT_MODEL,
+          });
+          const body = typeof synth === 'string' ? synth : String(synth?.content || '');
+          toolNotes.push(`${repairGroundingMarkers(body)}\n\n${sourcesFooter(report, new Date().toISOString().slice(0, 10))}`);
+        } else {
+          toolNotes.push('The research ran but returned no usable sources, so I have no searched answer to give. I have not substituted my own knowledge for a search.');
+        }
+      } catch (e) {
+        const msg = e?.response?.data?.error;
+        toolNotes.push(msg ? `Deep research did not run: ${String(msg).slice(0, 200)}.` : 'Deep research failed before returning results. Nothing was searched; please try again.');
+      }
+    }
+
+    if (wantsEdit || wantsResearch) {
+      for (const marker of toolImages) {
+        await db.entities.Message.create({ conversation_id, role: 'assistant', content: marker, owner_email: user.email });
+      }
+      const text = toolNotes.join('\n\n');
+      if (text) await db.entities.Message.create({ conversation_id, role: 'assistant', content: text, owner_email: user.email });
+      (async () => { try { await base44.entities.Conversation.update(conversation_id, { last_message_at: new Date().toISOString() }); } catch (_) {} })();
+      const primary = text || toolImages[toolImages.length - 1];
+      return Response.json({ content: primary, images: text ? toolImages : toolImages.slice(0, -1) });
+    }
 
     if (hasImageIntent) {
       try {
@@ -319,8 +383,9 @@ Return ONLY the prompt text, nothing else.`
     } else {
       const llmCall = {
         prompt: fullPrompt,
-        add_context_from_internet: webEnabled,
-        model: webEnabled ? 'gemini_3_flash' : 'claude_opus_5_5',
+        // Attachments and live web search are never combined in one call.
+        add_context_from_internet: webEnabled && !(file_urls && file_urls.length),
+        model: webEnabled && !(file_urls && file_urls.length) ? 'gemini_3_flash' : MAIN_CHAT_MODEL,
         ...(file_urls && file_urls.length ? { file_urls } : {}),
       };
       const llmResponse = await base44.integrations.Core.InvokeLLM(llmCall);
