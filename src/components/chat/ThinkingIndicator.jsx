@@ -1,17 +1,15 @@
 import React from 'react';
-import LuminaMark from '@/components/layout/LuminaMark';
+import BrandLogo from '@/components/brand/BrandLogo';
 
+// Shown only while a reply request is genuinely in flight.
 export default function ThinkingIndicator() {
   return (
-    <div className="flex gap-4 animate-fade-up">
-      <div className="shrink-0 mt-1">
-        <LuminaMark size={22} className="text-foreground/80" />
-      </div>
-      <div className="flex items-center gap-1.5 py-2">
-        <span className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-pulse-soft" style={{ animationDelay: '0ms' }} />
-        <span className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-pulse-soft" style={{ animationDelay: '200ms' }} />
-        <span className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-pulse-soft" style={{ animationDelay: '400ms' }} />
-      </div>
+    <div className="flex gap-3 md:gap-4 items-center" role="status" aria-live="polite">
+      <span className="relative shrink-0">
+        <span className="absolute -inset-1 rounded-xl bg-primary/20 animate-pulse-soft motion-reduce:animate-none" aria-hidden="true" />
+        <BrandLogo size={26} alt="" className="relative" />
+      </span>
+      <span className="text-[13px] text-muted-foreground">LBC AI Is Working On A Reply…</span>
     </div>
   );
 }

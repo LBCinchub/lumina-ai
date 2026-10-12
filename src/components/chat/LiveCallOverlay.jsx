@@ -1,9 +1,23 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { PhoneOff } from 'lucide-react';
-import LuminaMark from '@/components/layout/LuminaMark';
+import BrandLogo from '@/components/brand/BrandLogo';
 import { cn } from '@/lib/utils';
 
 export default function LiveCallOverlay({ speaking, listening, isSending, onEnd }) {
+  const endRef = useRef(null);
+  const onEndRef = useRef(onEnd);
+  onEndRef.current = onEnd;
+  // Escape ends the call; focus moves into the overlay and returns on close.
+  useEffect(() => {
+    const prev = document.activeElement;
+    endRef.current?.focus();
+    const onKey = (e) => { if (e.key === 'Escape') onEndRef.current(); };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      if (prev && typeof prev.focus === 'function') prev.focus();
+    };
+  }, []);
   const status = speaking
     ? 'Speaking…'
     : listening
@@ -31,7 +45,7 @@ export default function LiveCallOverlay({ speaking, listening, isSending, onEnd 
         {/* Outer pulse ring */}
         <div className={cn(
           "absolute rounded-full border border-foreground/10 transition-all duration-500 pointer-events-none",
-          (speaking || listening) ? "w-48 h-48 opacity-100 animate-ping" : "w-36 h-36 opacity-0"
+          (speaking || listening) ? "w-48 h-48 opacity-100 animate-ping motion-reduce:animate-none" : "w-36 h-36 opacity-0"
         )} style={{ animationDuration: '2s' }} />
         <div className={cn(
           "absolute rounded-full border border-foreground/15 transition-all duration-700 pointer-events-none",
@@ -44,13 +58,7 @@ export default function LiveCallOverlay({ speaking, listening, isSending, onEnd 
           speaking && "scale-110",
           listening && "scale-105"
         )}>
-          <LuminaMark
-            size={52}
-            className={cn(
-              "transition-all duration-300",
-              speaking ? "text-foreground opacity-100" : "text-foreground/70 opacity-80"
-            )}
-          />
+          <BrandLogo size={64} alt="LBC AI" rounded />
         </div>
       </div>
 
@@ -75,6 +83,7 @@ export default function LiveCallOverlay({ speaking, listening, isSending, onEnd 
 
       {/* End call button */}
       <button
+        ref={endRef}
         onClick={onEnd}
         className={cn(
           "w-16 h-16 rounded-full flex items-center justify-center",

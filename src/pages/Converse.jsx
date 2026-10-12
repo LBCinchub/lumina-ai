@@ -5,7 +5,9 @@ import ConversationList from '@/components/chat/ConversationList';
 import MessageBubble from '@/components/chat/MessageBubble';
 import ThinkingIndicator from '@/components/chat/ThinkingIndicator';
 import Composer from '@/components/chat/Composer';
-import LuminaMark from '@/components/layout/LuminaMark';
+import BrandLogo from '@/components/brand/BrandLogo';
+import JumpToLatest from '@/components/chat/JumpToLatest';
+import { useChatScroll } from '@/hooks/useChatScroll';
 import ContextToggle from '@/components/converse/ContextToggle';
 import ContextSelector from '@/components/converse/ContextSelector';
 import { PanelLeft, Download, ImageIcon, Search, FileText } from 'lucide-react';
@@ -47,8 +49,8 @@ export default function Converse() {
   const [sisterMessages, setSisterMessages] = useState([]);
   const [selectedContext, setSelectedContext] = useState({ documents: [], conversations: [] });
 
-  const scrollRef = useRef(null);
   const activeIdRef = useRef(null);
+  const [sendingConvoId, setSendingConvoId] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(null); // null = checking
   const [voiceMode, setVoiceMode] = useState(false);
   const [listening, setListening] = useState(false);
@@ -90,6 +92,8 @@ export default function Converse() {
     }
     setIsLoadingMessages(true);
     const data = await base44.entities.Message.filter({ conversation_id: convoId }, 'created_date', 200);
+    // Ignore a late load for a thread the user already left.
+    if (activeIdRef.current !== convoId) return;
     setMessages(data);
     setIsLoadingMessages(false);
   }, []);
@@ -119,11 +123,15 @@ export default function Converse() {
     }
   }, [convoIdFromUrl, loadMessages]);
 
+  const { scrollRef, contentRef, onScroll, atBottom, hasNew, pin } = useChatScroll(messages.length, activeId);
+
+  // Escape closes the mobile threads drawer.
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-    }
-  }, [messages, isSending]);
+    if (!sidebarOpen) return;
+    const onKey = (e) => { if (e.key === 'Escape') setSidebarOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [sidebarOpen]);
 
   // Keep ref in sync so callbacks don't close over stale voiceMode
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
@@ -204,20 +212,17 @@ export default function Converse() {
     }
 
     // Optimistic user message
-    const optimistic = { id: 'tmp-' + Date.now(), role: 'user', content: displayText, conversation_id: convoId, file_urls: fileUrls };
+    const optimistic = { id: 'tmp-' + Date.now(), role: 'user', content: displayText, conversation_id: convoId, file_urls: fileUrls, fresh: true };
     setMessages(prev => [...prev, optimistic]);
     isSendingRef.current = true;
     setIsSending(true);
+    setSendingConvoId(convoId);
+    pin();
 
     try {
-      let result = null;
-      let retries = 0;
-      const maxRetries = 2;
-
-      // Retry logic for reliability
-      while (retries <= maxRetries) {
-        try {
-          result = await base44.functions.invoke('chatWithLumina', { 
+      // Single request: the server saves the turn, so an automatic client
+      // retry could generate a duplicate reply. The user retries manually.
+      const result = await base44.functions.invoke('chatWithLumina', { 
             conversation_id: convoId, 
             message: displayText, 
             file_urls: fileUrls,
@@ -227,25 +232,19 @@ export default function Converse() {
               conversation_ids: selectedContext.conversations.map(c => c.id)
             }
           });
-          break; // Success, exit retry loop
-        } catch (err) {
-          retries++;
-          if (retries > maxRetries) throw err;
-          // Wait before retrying (exponential backoff)
-          await new Promise(resolve => setTimeout(resolve, 1000 * retries));
-        }
-      }
 
-      // Only proceed if we got a valid response
       if (!result?.data?.content) {
-        throw new Error('Empty response from Lumina');
+        throw new Error('Empty response from LBC AI');
       }
 
       const content = result.data.content;
 
-      // Optimistically show assistant response immediately
-      const assistantMsg = { id: 'assistant-' + Date.now(), role: 'assistant', content, conversation_id: convoId };
-      setMessages(prev => [...prev.filter(m => m.id !== optimistic.id), { ...optimistic, id: optimistic.id }, assistantMsg]);
+      // Insert the full reply once, only into the thread it belongs to. If the
+      // user switched threads, the server copy appears when they return.
+      if (activeIdRef.current === convoId) {
+        const assistantMsg = { id: 'assistant-' + Date.now(), role: 'assistant', content, conversation_id: convoId, fresh: true };
+        setMessages(prev => [...prev, assistantMsg]);
+      }
 
       // Sync to shared pool if in your context
       if (currentContext === 'yours') {
@@ -268,15 +267,21 @@ export default function Converse() {
         setIsAuthenticated(false);
         return;
       }
+      // Keep the user's words: put them back in the composer for a manual retry.
+      if (text) setInput(prev => prev || text);
       const serverError = err?.response?.data?.error || err?.data?.error || err?.error;
-      setMessages(prev => [...prev, { 
-        id: 'error-' + Date.now(), 
-        role: 'assistant', 
-        content: `⚠️ ${serverError || 'Message Failed To Send — Please Try Again'}` 
-      }]);
+      if (activeIdRef.current === convoId) {
+        setMessages(prev => [...prev, {
+          id: 'error-' + Date.now(),
+          role: 'assistant',
+          fresh: true,
+          content: serverError || 'The Reply Did Not Arrive. Your Message Is Back In The Box Below, So You Can Send It Again.'
+        }]);
+      }
     } finally {
       isSendingRef.current = false;
       setIsSending(false);
+      setSendingConvoId(null);
     }
   };
 
@@ -315,8 +320,8 @@ export default function Converse() {
   if (isAuthenticated === false) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-screen px-6 text-center animate-fade-up">
-        <LuminaMark size={56} className="text-foreground/70 mb-8" />
-        <h1 className="font-serif text-3xl tracking-tight mb-3">Welcome to LBC AI</h1>
+        <BrandLogo size={56} alt="LBC AI" className="mb-8" />
+        <h1 className="font-serif text-3xl tracking-tight mb-3">Welcome To LBC AI</h1>
         <p className="text-sm text-muted-foreground max-w-xs leading-relaxed mb-8">
           Sign in to start a conversation.
         </p>
@@ -359,7 +364,7 @@ export default function Converse() {
         onEnd={toggleVoiceMode}
       />
     )}
-    <div className="flex h-[calc(100vh-3.5rem)] md:h-screen">
+    <div className="flex h-[calc(100dvh-3.5rem)] md:h-[100dvh] overflow-hidden">
       {/* Conversation sidebar */}
       <aside className={cn(
         "w-72 shrink-0 border-r border-border bg-sidebar/60 flex-col",
@@ -447,13 +452,15 @@ export default function Converse() {
         </div>
 
         {/* Messages */}
+        <div className="flex-1 min-h-0 relative">
         <div
           ref={scrollRef}
-          className="flex-1 overflow-y-auto scrollbar-minimal pt-14"
+          onScroll={onScroll}
+          className="h-full overflow-y-auto overscroll-contain scrollbar-minimal pt-14"
         >
           {showEmpty ? (
             <div className="h-full flex flex-col items-center justify-center px-6 animate-fade-up">
-              <LuminaMark size={56} className="text-foreground/70 mb-8" />
+              <BrandLogo size={56} alt="LBC AI" className="mb-8" />
               <h1 className="font-serif text-3xl md:text-4xl tracking-tight text-center mb-3">
                 {opener}
               </h1>
@@ -473,7 +480,7 @@ export default function Converse() {
               )}
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto px-5 md:px-8 py-8 space-y-6">
+            <div ref={contentRef} className="max-w-3xl mx-auto px-5 md:px-8 py-8 space-y-7">
               {isLoadingMessages ? (
                 <div className="text-center text-sm text-muted-foreground">Loading…</div>
               ) : (
@@ -482,13 +489,15 @@ export default function Converse() {
                   return <MessageBubble key={m.id} message={m} isLatest={i === msgs.length - 1} />;
                 })
               )}
-              {isSending && <ThinkingIndicator />}
+              {isSending && sendingConvoId === activeId && <ThinkingIndicator />}
             </div>
           )}
         </div>
+        <JumpToLatest visible={!showEmpty && !atBottom} hasNew={hasNew} onClick={pin} />
+        </div>
 
         {/* Composer */}
-        <div className="shrink-0 border-t border-border/60 bg-background/80 backdrop-blur-xl">
+        <div className="shrink-0 border-t border-border/60 bg-background/80 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
           <div className="max-w-3xl mx-auto px-5 md:px-8 py-3">
             <div className="flex items-center justify-between mb-2">
               <ContextSelector onContextChange={setSelectedContext} />

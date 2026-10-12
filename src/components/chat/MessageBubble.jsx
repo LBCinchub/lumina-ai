@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import LuminaMark from '@/components/layout/LuminaMark';
-import { Zap, Download, RefreshCw } from 'lucide-react';
+import BrandLogo from '@/components/brand/BrandLogo';
+import CopyResponse from '@/components/chat/CopyResponse';
+import markdownComponents from '@/components/chat/markdownComponents';
+import { Download, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function GeneratedImage({ url, caption }) {
@@ -60,7 +62,7 @@ export default function MessageBubble({ message, isLatest }) {
 
   if (isUser) {
     return (
-      <div className="flex justify-end animate-fade-up">
+      <div className={cn("flex justify-end", message.fresh && "animate-fade-up motion-reduce:animate-none")}>
         <div className="max-w-[85%] md:max-w-[75%] space-y-2">
           {fileUrls.map((url, i) => {
             const isImage = /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(url);
@@ -83,20 +85,23 @@ export default function MessageBubble({ message, isLatest }) {
     );
   }
 
+  const isError = String(message.id).startsWith('error-');
   return (
-    <div className={cn("flex gap-4 animate-fade-up", isLatest && "mb-2")}>
-      <div className="shrink-0 mt-1">
-        <LuminaMark size={22} className="text-foreground/80" />
+    <div className={cn("flex gap-3 md:gap-4", message.fresh && "animate-fade-up motion-reduce:animate-none", isLatest && "mb-2")}>
+      <div className="shrink-0 mt-0.5">
+        <BrandLogo size={26} alt="LBC AI" />
       </div>
-      <div className="flex-1 min-w-0 prose-lumina text-[15px] text-foreground/90 rounded-xl px-4 py-3 bg-card border border-white/10">
-        <div className="flex gap-2 items-center mb-2 border-b border-border pb-2">
-          <Zap className="w-3.5 h-3.5 text-pink-400 fill-pink-400" />
-          <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-mono">LBC AI</span>
+      <div className="flex-1 min-w-0">
+        <div className={cn(
+          "prose-lumina text-[15px] leading-7 text-foreground/90 max-w-[68ch] break-words",
+          isError && "text-destructive"
+        )}>
+          {isImageMessage
+            ? <GeneratedImage url={imageUrl} caption={imageCaption} />
+            : <ReactMarkdown components={markdownComponents}>{message.content}</ReactMarkdown>
+          }
         </div>
-        {isImageMessage
-          ? <GeneratedImage url={imageUrl} caption={imageCaption} />
-          : <ReactMarkdown>{message.content}</ReactMarkdown>
-        }
+        {!isImageMessage && !isError && message.content && <CopyResponse text={message.content} />}
       </div>
     </div>
   );
