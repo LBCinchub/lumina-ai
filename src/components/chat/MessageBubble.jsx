@@ -17,7 +17,7 @@ function GeneratedImage({ url, caption }) {
   };
   return (
     <div className="space-y-3">
-      <div className="relative rounded-2xl overflow-hidden border border-purple-400/25 shadow-[0_0_30px_rgba(168,85,247,0.12)]">
+      <div className="relative rounded-2xl overflow-hidden border border-purple-400/25 shadow-[0_0_24px_rgba(20,184,166,0.10)]">
         {!loaded && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60">
             <div className="flex flex-col items-center gap-2">

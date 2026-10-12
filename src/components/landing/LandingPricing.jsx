@@ -63,7 +63,7 @@ export default function LandingPricing({ onChoosePlan }) {
               className={cn(
                 'relative flex flex-col rounded-2xl p-6',
                 plan.highlight
-                  ? 'border border-pink-500/40 bg-gradient-to-b from-pink-500/10 to-purple-600/10 shadow-[0_0_40px_rgba(236,72,153,0.15)]'
+                  ? 'border border-pink-500/40 bg-gradient-to-b from-pink-500/10 to-purple-600/10 shadow-[0_0_32px_rgba(20,184,166,0.12)]'
                   : 'border border-white/5 bg-white/[0.02]'
               )}
             >

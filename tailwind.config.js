@@ -1,3 +1,6 @@
+const lbcTeal = { 50: '#f0fdfa', 100: '#ccfbf1', 200: '#99f6e4', 300: '#2dd4bf', 400: '#14b8a6', 500: '#0f766e', 600: '#0f766e', 700: '#115e59', 800: '#134e4a', 900: '#042f2e', 950: '#021a19' };
+const lbcCyan = { 50: '#ecfeff', 100: '#cffafe', 200: '#a5f3fc', 300: '#22d3ee', 400: '#06b6d4', 500: '#0e7490', 600: '#0e7490', 700: '#155e75', 800: '#164e63', 900: '#083344', 950: '#04222c' };
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ["class"],
@@ -14,6 +17,12 @@ module.exports = {
         sm: 'calc(var(--radius) - 4px)'
       },
       colors: {
+        // LBC logo palette remap: legacy decorative pink/fuchsia → teal and
+        // purple/violet/indigo → cyan. Steps 400+ are one-to-two shades darker
+        // than stock so white text on 500/600 and text on light surfaces keep
+        // ≥ 4.5:1. Red/rose/amber/green/blue (semantic) are untouched.
+        pink: lbcTeal, fuchsia: lbcTeal,
+        purple: lbcCyan, violet: lbcCyan, indigo: lbcCyan,
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         card: {

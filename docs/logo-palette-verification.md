@@ -1,0 +1,57 @@
+# LBC AI Ultra: Logo Palette Recolour
+
+Scope: this app only. Preview only, not published. No backend, schema, data, auth, memory/recall or chat-scroll changes. The logo file (`/brand/lbc-builder-teal.v1.512.png`) and `BrandLogo` are untouched.
+
+## Palette (Taken From The Teal/Cyan Logo On Black)
+- Dark theme: primary teal `173 80% 40%` (#14b8a6), with near-black text on it. Primary buttons use a teal → cyan gradient (#14b8a6 → #06b6d4). The active nav uses a teal tint (`176 35% 11%`) with teal text (`170 70% 65%`). Focus rings are teal. Surfaces stay neutral near-black.
+- Light theme: darker teal primary `175 84% 25%` with white text. The accent is a pale teal tint with deep teal text. Focus rings are dark teal. The warm paper background is unchanged.
+- Untouched: destructive red, amber/green/blue/rose (semantic) colours, chart category tokens, and uploaded or generated content.
+
+## Changed Files
+- `src/index.css`: light and dark primary, accent, ring and sidebar tokens; the primary gradient; the active-nav ring (outer glow removed).
+- `tailwind.config.js`: the theme remaps the legacy decorative `pink`/`fuchsia` scales to teal and `purple`/`violet`/`indigo` to cyan. Steps 400+ are darker than stock for contrast. Every existing pink/purple class on reachable surfaces now renders in the logo palette, with no blanket filter and no layout changes. This covers chat user bubbles, the shell/nav, the landing hero/pricing/features/navbar/footer, the early-access dialog, Pricing, Face ID dialogs, Terminal and Operations. Class names in source still read "pink"/"purple" but render teal/cyan.
+- Hardcoded values replaced:
+  - `components/chat/MessageBubble.jsx`: the image glow is now a soft teal.
+  - `components/landing/LandingPricing.jsx`: the featured plan's glow is now teal.
+  - `pages/Pricing.jsx`: the featured border gradient is now teal → cyan.
+  - `components/context/LBCFamilyTree.jsx`: the decorative stroke is now teal.
+- Not changed: `components/lumina/*` (legacy orb; still unreachable) and `components/layout/LuminaMark` (uses currentColor, so it follows the theme).
+
+## Tests Run
+- `npx vite build`: exit 0. `npx eslint . --quiet`: exit 0.
+- Leftover scan:
+  - Built CSS: 0 matches for the old pink/purple hex and rgba values.
+  - `src` (excluding the unreachable `components/lumina`): 0 matches.
+- WCAG contrast (computed):
+
+| Pair | Ratio | Result |
+|---|---|---|
+| Light: white on primary | 5.56 | Pass |
+| Light: primary link on background | 5.25 | Pass |
+| Light: active nav text | 7.59 | Pass |
+| Light: focus ring vs background | 5.25 | Pass |
+| Dark: button text on teal | 7.93 | Pass |
+| Dark: button text on cyan | 8.14 | Pass |
+| Dark: link on background | 7.93 | Pass |
+| Dark: active nav text | 10.21 | Pass |
+| Dark: focus ring vs card | 7.5 | Pass |
+| White on remapped pink-500 | 5.47 | Pass |
+| White on remapped purple-600 | 5.36 | Pass |
+| Remapped 300 text on dark | 10.61 | Pass |
+| Remapped 400 text on dark | 7.93 | Pass |
+| Remapped 600 text on light | 5.16 | Pass |
+| **Remapped 400 on a light background** | **2.35** | **Fails** |
+
+  The last row fails if any light-mode surface uses `pink-400`/`purple-400` text. Most of these accents sit on dark-only surfaces (landing, terminal). This was not audited per-component.
+
+## Screenshots
+- Captured: the signed-out landing page on mobile. It shows the teal → cyan headline, teal CTA buttons and teal chat-preview bubbles, with no pink or purple left.
+- Desktop capture failed (tool error).
+
+## Not Verified
+- Signed-in surfaces in a browser: chat bubbles, composer, jump-to-latest, sidebar, toggles, dialogs, settings, desktop and light mode. The preview is signed out.
+- Hover, focus and disabled states; reduced motion. The colour changes only touched colour values, and motion rules are unchanged.
+- No new chat regression test was run; no chat logic was touched.
+
+## Release Blockers (Unchanged)
+The high-severity recall-handler privacy findings are still open. This visual change does not resolve them.

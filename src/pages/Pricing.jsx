@@ -134,7 +134,7 @@ export default function Pricing() {
                   ? "border-transparent bg-card md:-mt-3 md:mb-3"
                   : "border-border bg-card/40"
               )}
-              style={plan.featured ? { borderWidth: 1.5, borderImage: 'linear-gradient(135deg, #ec4899, #9333ea) 1' } : undefined}
+              style={plan.featured ? { borderWidth: 1.5, borderImage: 'linear-gradient(135deg, #14b8a6, #06b6d4) 1' } : undefined}
             >
               {plan.featured && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white text-[10.5px] font-semibold uppercase tracking-wider inline-flex items-center gap-1">

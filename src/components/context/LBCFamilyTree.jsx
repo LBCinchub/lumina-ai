@@ -175,7 +175,7 @@ function FamilyTreeLines() {
         y1="192px"
         x2="75%"
         y2="256px"
-        stroke="#f472b6"
+        stroke="#2dd4bf"
         strokeWidth="2"
         strokeDasharray="6,3"
         opacity="0.5"
