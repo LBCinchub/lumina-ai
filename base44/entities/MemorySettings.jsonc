@@ -1,0 +1,66 @@
+{
+  "name": "MemorySettings",
+  "type": "object",
+  "properties": {
+    "owner_user_id": {
+      "type": "string",
+      "description": "Server-derived owner id. Never client-set."
+    },
+    "memory_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Long-term memory on/off"
+    },
+    "history_access_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Allow LBC AI to search the user's own past chats when asked"
+    },
+    "sensitive_memory_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Explicit opt-in to remember sensitive topics"
+    },
+    "sensitive_scopes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "financial",
+          "health",
+          "legal",
+          "personal_hardship"
+        ]
+      },
+      "default": [],
+      "description": "Which sensitive categories may be remembered"
+    },
+    "changed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "owner_user_id"
+  ],
+  "rls": {
+    "read": {
+      "data.owner_user_id": "{{user.id}}"
+    },
+    "create": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "name": "MemorySuppression",
+  "type": "object",
+  "properties": {
+    "owner_user_id": {
+      "type": "string",
+      "description": "Server-derived owner id. Never client-set."
+    },
+    "key_hash": {
+      "type": "string",
+      "description": "SHA-256 tombstone of a forgotten memory. No memory content is stored."
+    }
+  },
+  "required": [
+    "owner_user_id",
+    "key_hash"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    }
+  }
+}
