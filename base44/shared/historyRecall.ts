@@ -12,21 +12,57 @@ const CUE = /\b(what did (we|i|you) (discuss|talk about|say|cover|decide)|we (di
 
 const NUM = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
 const UNIT_MS = { minute: 60000, hour: 3600000, day: 86400000, week: 604800000 };
-const STOP = new Set('what did we discuss talk about talked said say cover covered decide decided earlier today yesterday conversation conversations chat chats thread session discussion previous last other past continue remember when where pick that this the our your you and with from for into hours hour minutes minute days day weeks week ago time told suggested recommended before can could would please about tell again were was have has had just some there their them they then than been also more most very really'.split(' '));
+const STOP = new Set('what did we discuss talk about talked said say cover covered decide decided earlier today yesterday conversation conversations chat chats chatted thread session discussion previous last latest prior recent other past continue remember when where pick that this the our your you and with from for into hours hour minutes minute mins days day weeks week ago back time told suggested recommended before around roughly like can could would please about tell again were was have has had just some there their them they then than been also more most very really morning night spoke recall'.split(' '));
 
+const NUM_RE = '(\\d{1,3}|an?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)';
+const UNIT_RE = '(minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|wks?|w)';
+// "5 hours ago", "5h ago", "five hours back", "before 5 hours", "about 5 hours earlier"
+const AGO_A = new RegExp(`\\b${NUM_RE}\\s*${UNIT_RE}\\s+(ago|back|earlier|before)\\b`, 'i');
+const AGO_B = new RegExp(`\\b(before|about|around|like|roughly)\\s+${NUM_RE}\\s*${UNIT_RE}\\b`, 'i');
+const LATEST = /\b((last|latest|previous|most recent|other|earlier|prior) (chat|conversation|thread|session|discussion|talk)|continue (our|the|where|from)|pick up where)\b/i;
+const NEGATION = /\b(don'?t|do not|never|stop|no need to)\s+(remember|recall|look (at|back)|search|bring up|mention)\b/i;
+const CHAT_REF = /\b(we|our|us)\b.*\b(chat|chatted|talk|talked|spoke|discuss|discussed|conversation|said)\b|\bwhat was (that|it) about\b/i;
+
+function unitMs(u) {
+  const x = u.toLowerCase();
+  if (x.startsWith('m')) return UNIT_MS.minute;
+  if (x.startsWith('h')) return UNIT_MS.hour;
+  if (x.startsWith('d')) return UNIT_MS.day;
+  return UNIT_MS.week;
+}
+
+// Normalizes ordinary paraphrases/typos: case, repeated words ("a a"),
+// punctuation. Quoted segments are removed so quoted examples never trigger.
+export function normalizeRecallText(message) {
+  return String(message || '')
+    .replace(/["“”][^"“”]*["“”]/g, ' ')
+    .toLowerCase()
+    .replace(/[’]/g, "'")
+    .replace(/[^a-z0-9'\s]/g, ' ')
+    .replace(/\b(\w+)(\s+\1\b)+/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Language recognition only — it never selects identity or permissions.
 export function detectRecallIntent(message) {
-  const m = String(message || '');
-  if (!CUE.test(m)) return null;
-  const intent = { agoMs: null, dayOffset: null, lastWeek: false, terms: [] };
-  const ago = m.match(/\b(\d{1,3}|an?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(minute|hour|day|week)s?\s+ago\b/i);
+  const m = normalizeRecallText(message);
+  if (!m || NEGATION.test(m)) return null;
+  const ago = m.match(AGO_A) || m.match(AGO_B);
+  const latest = LATEST.test(m);
+  const timeRef = !!ago || /\b(yesterday|last night|earlier today|this morning|last week)\b/.test(m);
+  if (!CUE.test(m) && !latest && !(timeRef && CHAT_REF.test(m))) return null;
+  const intent = { agoMs: null, dayOffset: null, lastWeek: false, latest, terms: [] };
   if (ago) {
-    const n = /^\d+$/.test(ago[1]) ? Number(ago[1]) : NUM[ago[1].toLowerCase()];
-    intent.agoMs = n * UNIT_MS[ago[2].toLowerCase()];
+    const numTok = ago[0].match(new RegExp(NUM_RE, 'i'))[1].toLowerCase();
+    const unitTok = ago[0].slice(ago[0].toLowerCase().indexOf(numTok) + numTok.length).trim().split(/\s+/)[0];
+    const n = /^\d+$/.test(numTok) ? Number(numTok) : NUM[numTok];
+    intent.agoMs = n * unitMs(unitTok);
   } else if (/\b(yesterday|last night)\b/i.test(m)) intent.dayOffset = -1;
   else if (/\b(earlier today|this morning|today)\b/i.test(m)) intent.dayOffset = 0;
   else if (/\blast week\b/i.test(m)) intent.lastWeek = true;
-  const words = m.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
-  intent.terms = [...new Set(words.filter(w => w.length > 3 && !STOP.has(w) && !NUM[w] && !/^\d+$/.test(w)))].slice(0, 8);
+  const words = m.replace(/'/g, '').split(/\s+/);
+  intent.terms = [...new Set(words.filter(w => w.length > 3 && !STOP.has(w) && !NUM[w] && !/^\d+\w?$/.test(w)))].slice(0, 8);
   return intent;
 }
 
@@ -159,11 +195,16 @@ export async function recallHistory({ userClient, db, user, settings, currentCon
     const qMsgs = await quarantineSet(db, 'Message', threads.flatMap(t => t.msgs.map(m => m.id)));
     for (const t of threads) t.msgs = t.msgs.filter(m => !qMsgs.has(m.id));
 
-    const scored = threads
+    const lastAt = (t) => t.msgs.map(m => String(m.created_date || '')).sort().pop() || '';
+    const withMsgs = threads
       .filter(t => t.msgs.length > 0)
-      .map(t => ({ ...t, score: scoreThread(t.convo.title, t.msgs, intent.terms) }))
-      .filter(t => win || t.score > 0)
-      .sort((a, b) => b.score - a.score);
+      .map(t => ({ ...t, score: scoreThread(t.convo.title, t.msgs, intent.terms), last: lastAt(t) }));
+    // Explicit "last / previous thread" with no topic hit and no time window:
+    // the most recent eligible prior thread by REAL message timestamps.
+    const latestOnly = intent.latest && !win && withMsgs.every(t => t.score === 0);
+    const scored = latestOnly
+      ? withMsgs.sort((a, b) => b.last.localeCompare(a.last)).slice(0, 1)
+      : withMsgs.filter(t => win || t.score > 0).sort((a, b) => b.score - a.score || b.last.localeCompare(a.last));
     if (scored.length === 0) return { status: 'no_match', partial, searched: candidates.length, window: win };
 
     const toRef = (t) => {

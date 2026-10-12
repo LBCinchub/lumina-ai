@@ -8,7 +8,16 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Brain, Pencil, Trash2, RefreshCw, X, Check, Loader2 } from 'lucide-react';
+import { Brain, Pencil, Trash2, RefreshCw, X, Check, Loader2, ShieldCheck } from 'lucide-react';
+import MemoryControls from '@/components/settings/MemoryControls';
+
+const REVIEW_LABELS = {
+  needs_review: 'Not Used — Saved Before Consent Controls',
+  scope_unknown: 'Not Used — Unknown Scope',
+  inactive: 'Not Used — Inactive',
+  contains_secret: 'Not Used — Looks Like A Credential',
+  sensitive_not_consented: 'Not Used — Sensitive Memory Is Off',
+};
 
 // Memory — view, edit, and delete the durable facts, preferences, goals and
 // decisions LBC AI remembers across conversations. Always reflects what is
@@ -21,11 +30,39 @@ export default function MemorySection() {
   const [editDraft, setEditDraft] = useState('');
   const [busyId, setBusyId] = useState(null);
   const [clearing, setClearing] = useState(false);
+  const [settings, setSettings] = useState(null);
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  const updateSettings = async (patch) => {
+    setSavingSettings(true);
+    setError('');
+    try {
+      const res = await base44.functions.invoke('manageUserMemory', { action: 'setSettings', settings: patch });
+      setSettings(res.data.settings);
+      await load();
+    } catch (_) {
+      setError('Could Not Save — Your Previous Setting Is Still Active.');
+    }
+    setSavingSettings(false);
+  };
+
+  const approve = async (m) => {
+    setBusyId(m.id);
+    setError('');
+    try {
+      const res = await base44.functions.invoke('manageUserMemory', { action: 'approve', id: m.id });
+      setMemories(list => list.map(x => (x.id === m.id ? res.data.memory : x)));
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Could Not Approve This Memory.');
+    }
+    setBusyId(null);
+  };
 
   const load = async () => {
     setError('');
     try {
       const res = await base44.functions.invoke('manageUserMemory', { action: 'list' });
+      setSettings(res?.data?.settings || null);
       setMemories(res?.data?.memories || []);
     } catch (_) {
       setError('Could Not Load Memories — Please Try Again.');
@@ -52,8 +89,8 @@ export default function MemorySection() {
         setMemories(list => list.map(m => (m.id === editingId ? res.data.memory : m)));
       }
       setEditingId(null);
-    } catch (_) {
-      setError('Could Not Save This Memory — Please Try Again.');
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Could Not Save This Memory — Please Try Again.');
     }
     setBusyId(null);
   };
@@ -97,6 +134,8 @@ export default function MemorySection() {
           LBC AI Remembers Durable Facts, Preferences, Goals And Decisions Across Conversations — Distilled, Never Full Transcripts. Yours Only.
         </p>
 
+        <MemoryControls settings={settings} saving={savingSettings} onUpdate={updateSettings} />
+
         {error && <p className="text-[12px] text-destructive">{error}</p>}
 
         {loading && (
@@ -116,7 +155,17 @@ export default function MemorySection() {
             {memories.map(m => (
               <div key={m.id} className="rounded-lg border border-border p-3">
                 <div className="flex items-start justify-between gap-2">
-                  <Badge variant="secondary" className="shrink-0 capitalize text-[10px]">{m.category || 'fact'}</Badge>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge variant="secondary" className="shrink-0 capitalize text-[10px]">{m.category || 'fact'}</Badge>
+                    {m.ineligible_reason && (
+                      <Badge variant="outline" className="text-[10px]">{REVIEW_LABELS[m.ineligible_reason] || 'Not Used'}</Badge>
+                    )}
+                    {m.ineligible_reason === 'needs_review' && (
+                      <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={() => approve(m)} disabled={busyId === m.id}>
+                        <ShieldCheck className="h-3 w-3" /> Use This Memory
+                      </Button>
+                    )}
+                  </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {editingId === m.id ? (
                       <>

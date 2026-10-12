@@ -221,6 +221,7 @@ export default function Converse() {
             conversation_id: convoId, 
             message: displayText, 
             file_urls: fileUrls,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             explicit_context: {
               document_ids: selectedContext.documents.map(d => d.id),
               conversation_ids: selectedContext.conversations.map(c => c.id)
