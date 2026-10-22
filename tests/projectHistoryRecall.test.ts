@@ -15,6 +15,8 @@ const db = (rows: any) => ({ entities: { ProjectHistoryEntry: { list: async () =
 test('past-work questions are detected; ordinary chat is not', () => {
   expect(asksAboutPast('Why did we change the GitHub routing?')).toBe(true);
   expect(asksAboutPast('What decision did we make about Telegram?')).toBe(true);
+  expect(asksAboutPast('What should we work on next?')).toBe(true);
+  expect(asksAboutPast('Suggest next steps for the app')).toBe(true);
   expect(asksAboutPast('Write me a poem about the sea')).toBe(false);
 });
 
