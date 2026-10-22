@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Activity, Shield, Zap, Layout, Server, Globe } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import ReleasePanel from '@/components/release/ReleasePanel';
 
 const NodeStatus = ({ name, status, latency }) => (
   <div className="flex items-center justify-between p-4 bg-slate-900/50 border border-slate-800 rounded-lg">
@@ -69,6 +70,7 @@ export default function LBCCommandCenter() {
               <p>No active deployments in this sector.</p>
             </div>
           </div>
+          <ReleasePanel />
         </div>
 
         <div className="space-y-6">
