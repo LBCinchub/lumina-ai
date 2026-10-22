@@ -5,8 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import ReactMarkdown from 'react-markdown';
 import { createTypewriter, splitGraphemes } from '../src/lib/typewriter.js';
 
-const results = [];
-const test = (name, fn) => { try { fn(); results.push(['PASS', name]); } catch (e) { results.push(['FAIL', name, e.message]); } };
+import { test } from 'vitest';
 
 function fakeClock() {
   let now = 0, seq = 0; const q = new Map();
@@ -130,8 +129,3 @@ test('completed text equals authoritative text (copy/persist untouched)', () => 
   assert.equal(msg.content, REPLY); // displayed prefix never written back
   assert.notEqual(frames.at(-1), REPLY);
 });
-
-for (const r of results) console.log(r.join(' | '));
-const failed = results.filter(r => r[0] === 'FAIL').length;
-console.log(`${results.length - failed}/${results.length} pass`);
-process.exit(failed ? 1 : 0);

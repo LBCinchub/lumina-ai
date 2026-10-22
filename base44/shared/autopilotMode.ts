@@ -4,7 +4,7 @@
 // so duplicates are DETECTED and refused (409) rather than guessed or deleted.
 
 export const BACKGROUND_BLOCKER =
-  'Background Setup Required: no trusted scheduler credential and no per-user offline Gmail grant are verified, so runs advance only while the Autopilot screen is open.';
+  'Background Partially Available: the 5-minute scheduler runs as the app admin and can advance internal planning and drafting steps, but steps that save to your library or use your Gmail need you signed in, because no revocable per-user offline grant exists. Those steps pause until you return.';
 
 export class ModeError extends Error {
   code: string; status: number;

@@ -14,6 +14,7 @@ import { draftHash, APPROVAL_TTL_MS } from './autopilotActions.ts';
 import { gmailDispatch, headersOf, EMAIL_RE } from './gmailMime.ts';
 import { runFeature, FEATURE_IDS } from './autopilotFeatures.ts';
 import { availabilityFor } from './autopilotRegistry.ts';
+import { guardPlanSteps } from './planGuard.ts';
 
 export const MAX_STEPS = 6;
 export const MAX_ATTEMPTS = 2;
@@ -76,7 +77,7 @@ ${caps}
 Attached documents: ${docTitles.length ? docTitles.map(t => `"${t}"`).join(', ') : 'none'}
 Task: ${goal}${clarification ? `\nUser's answer to your earlier question: ${clarification}` : ''}`,
   });
-  const steps = (Array.isArray(res?.steps) ? res.steps : [])
+  const proposed = (Array.isArray(res?.steps) ? res.steps : [])
     .filter(s => s && CAPABILITY_IDS.includes(s.capability_id))
     .slice(0, MAX_STEPS)
     .map(s => ({
@@ -85,6 +86,7 @@ Task: ${goal}${clarification ? `\nUser's answer to your earlier question: ${clar
       input: String(s.input || '').slice(0, 1500),
       status: 'pending', attempts: 0,
     }));
+  const steps = guardPlanSteps(goal, proposed, MAX_STEPS);
   return {
     needs_clarification: !!res?.needs_clarification && !!res?.clarifying_question,
     clarifying_question: String(res?.clarifying_question || '').slice(0, 500),

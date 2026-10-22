@@ -130,7 +130,7 @@ test('no client-side writes to AutopilotRun', () => {
 });
 
 test('scheduled workers refuse to execute without a verified admin session', () => {
-  for (const f of ['autopilotWorker', 'runUserAgentTasks']) {
+  for (const f of ['runUserAgentTasks']) {
     const src = readFileSync(`base44/functions/${f}/entry.ts`, 'utf8');
     assert.match(src, /scheduler_auth_blocker/, f);
     // The gate must reject a MISSING user, not only non-admins.

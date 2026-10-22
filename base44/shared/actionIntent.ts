@@ -1,7 +1,22 @@
 // Detects real external-action requests in chat so they route to Autopilot's
 // typed pipeline instead of a model claiming it posted or listed something.
+//
+// Every detector runs on DIRECTIVE text only: quoted examples and negated
+// clauses ("do not send email", "without posting") are removed first, so a
+// prohibition can never open the flow it prohibits.
+const QUOTED = /"[^"\n]*"|“[^”\n]*”|`[^`\n]*`|'[^'\n]{3,}'/g;
+const NEGATED = /\b(do not|don't|dont|never|must not|should not|shouldn't|no need to|without|avoid|not to|nor)\b[^.;!?\n]*/gi;
+export function directiveText(message) {
+  return String(message || '').replace(QUOTED, ' ').replace(NEGATED, ' ').replace(/\s+/g, ' ').trim();
+}
+const ADVICE = /\b(advice|advise|opinion|thoughts on|what do you think|tips? (for|on)|how (do|can|should) i)\b/;
+function isQuestionOrAdvice(t) {
+  return (QUESTION_START.test(t) && !/^(can|could|would|will) you\b/.test(t)) || ADVICE.test(t);
+}
+
 export function detectActionIntent(message) {
-  const t = String(message || '').toLowerCase();
+  const t = directiveText(message).toLowerCase();
+  if (isQuestionOrAdvice(t)) return null;
   const listing = /\b(list|sell|put|place|post)\b[^.?!]{0,60}\b(marketplace|for sale|listing)\b/.test(t) || /\b(marketplace)\b[^.?!]{0,40}\b(list|sell|listing)\b/.test(t);
   if (listing) return 'marketplace_listing';
   const email = /\b(send|draft|compose|write|reply to)\b[^.?!]{0,40}\b(e-?mails?)\b/.test(t) || /\b(e-?mails?)\b[^.?!]{0,30}\b(send|draft|compose)\b/.test(t);
@@ -20,15 +35,17 @@ const WORK_VERB = /\b(research|investigate|analy[sz]e|compile|summari[sz]e|revie
 const DELIVERABLE = /\b(report|brief(ing)?|summary|plan|document|doc|memo|proposal|outline|replies|deck|presentation|analysis|roadmap|checklist)\b/;
 export function detectDelegation(message) {
   const raw = String(message || '').trim();
-  const t = raw.toLowerCase().replace(/^(please|pls|hey|ok|okay|lbc( ai)?)[,\s]+/, '');
-  if (t.length < 12 || t.length > 3000) return null;
-  const prefixed = t.match(/^(autopilot|run (this )?as a task|delegate|do this for me)\s*[:,-]\s*(.{5,})$/s);
-  if (prefixed) return raw.slice(raw.length - prefixed[3].length).trim();
-  if (QUESTION_START.test(t) && !/^(can|could|would|will) you\b/.test(t)) return null;
-  if (/\b(advice|advise|opinion|thoughts on|what do you think)\b/.test(t)) return null;
+  if (raw.length < 12 || raw.length > 3000) return null;
+  const prefixed = raw.match(/^(?:please[,\s]+)?(autopilot|run (this )?as a task|delegate|do this for me)\s*[:,-]\s*(.{5,})$/is);
+  if (prefixed) return prefixed[3].trim();
+  const t = directiveText(raw).toLowerCase().replace(/^(please|pls|hey|ok|okay|lbc( ai)?)[,\s]+/, '');
+  if (isQuestionOrAdvice(t)) return null;
   if (!WORK_VERB.test(t) || !DELIVERABLE.test(t)) return null;
-  // Needs a chained or explicit hand-off ("... and prepare", "for me").
-  if (!/\b(and (then )?(prepare|write|create|make|draft|give|produce|send me|turn)|for me|into a)\b/.test(t)) return null;
+  // Needs a chained or explicit hand-off ("... and prepare", "for me",
+  // "save it as a document", "using autopilot").
+  if (!/\b(and (then )?(prepare|write|create|make|draft|give|produce|send me|turn|save)|for me|into a|save (it|this|that|them|the (result|plan|checklist|output))|as an? (internal |markdown )*(draft|document|doc)|(using|with|via|in) autopilot)\b/.test(t)) return null;
+  // The full message (constraints included) is the goal; the planner guard
+  // enforces its prohibitions deterministically.
   return raw;
 }
 

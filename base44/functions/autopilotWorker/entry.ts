@@ -4,19 +4,12 @@ import { NEEDS_ONLINE_IDS } from '../../shared/autopilotRegistry.ts';
 
 // Scheduled Autopilot continuation worker.
 //
-// SETUP BLOCKER (verified this pass): the platform documents NO credential
-// that a function can use to verify that an unauthenticated invocation came
-// from the trusted scheduler, and this endpoint accepts direct anonymous
-// POSTs (tested: HTTP 200 with an empty body). "No user" is therefore NOT
-// authentication. Background execution stays DISABLED until a trusted
-// scheduler credential exists. A verified admin session may still run it in
-// the foreground.
-const SETUP_BLOCKER = {
-  disabled: true,
-  reason: 'scheduler_auth_blocker',
-  detail: 'Background Continuation Is Disabled: No Verified Scheduler Credential Exists For This Endpoint. Absence Of A User Is Not Authentication.',
-  setup_required: 'A Platform-Supported Trusted Scheduler Credential Or Request Signature For Scheduled invoke_backend_function Targets.',
-};
+// Scheduler authentication (per the current platform workflow guide): a
+// scheduled invoke_backend_function step calls this function AS THE
+// WORKFLOW'S CREATOR, an app admin, while the URL stays public. So the gate is
+// auth.me(): 401 with no user, 403 for a non-admin, and only then service
+// role. Anonymous calls never run anything. Steps needing the owner's own
+// session (library writes, Gmail) are paused, never run with another identity.
 
 export default async function(req) {
   try {
@@ -26,9 +19,8 @@ export default async function(req) {
     // absent, expired, or non-admin identity never triggers any run.
     let user = null;
     try { user = await base44.auth.me(); } catch (_) {}
-    if (!user || user.role !== 'admin') {
-      return Response.json(SETUP_BLOCKER, { status: 503 });
-    }
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (user.role !== 'admin') return Response.json({ error: 'Forbidden' }, { status: 403 });
 
     const service = base44.asServiceRole;
     const prefs = await service.entities.AutopilotPreference.filter(
