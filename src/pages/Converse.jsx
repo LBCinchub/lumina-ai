@@ -410,7 +410,7 @@ export default function Converse() {
               onImage={() => setImageOpen(true)}
             />
           ) : (
-            <div ref={contentRef} className="max-w-3xl mx-auto px-5 md:px-8 py-8 space-y-7">
+            <div ref={contentRef} className="max-w-2xl mx-auto px-5 md:px-6 py-8 space-y-7">
               {isLoadingMessages ? (
                 <div className="text-center text-sm text-muted-foreground">Loading…</div>
               ) : (
@@ -428,7 +428,7 @@ export default function Converse() {
 
         {/* Composer */}
         <div className="shrink-0 border-t border-border/60 bg-background md:pb-[env(safe-area-inset-bottom)]">
-          <div className="max-w-3xl mx-auto px-3 md:px-8 py-3">
+          <div className="max-w-2xl mx-auto px-3 md:px-6 py-3">
             <div className="flex items-center justify-between mb-2">
               <ContextSelector onContextChange={setSelectedContext} />
               {selectedContext.documents.length > 0 || selectedContext.conversations.length > 0 ? (

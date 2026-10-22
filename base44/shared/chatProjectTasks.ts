@@ -33,12 +33,11 @@ async function propose({ base44, db, user, conversationId, message, history }: a
   const tasks = (res?.tasks || []).map((x: any) => ({ title: clean(x.title, 120), details: clean(x.details, 400) })).filter((x: any) => x.title).slice(0, 8);
   if (!tasks.length) return 'I Did Not Find Any Clear Tasks In This Conversation Yet. Nothing Was Saved.';
 
-  await db.entities.TaskProposal.updateMany({ owner_email: user.email, conversation_id: conversationId, status: 'pending' }, { $set: { status: 'used' } });
-  await db.entities.TaskProposal.create({
-    owner_email: user.email, conversation_id: conversationId, project_id: project.id, project_title: project.title,
-    tasks, status: 'pending', expires_at: new Date(Date.now() + 30 * 60e3).toISOString(),
-  });
-  return `Here Are ${tasks.length} Tasks For **${clean(project.title, 60)}**:\n\n${tasks.map((x: any) => `- **${x.title}**${x.details ? ` — ${x.details}` : ''}`).join('\n')}\n\nReply **Confirm Tasks** To Add Them To The Project. Nothing Is Saved Until You Confirm (Expires In 30 Minutes).`;
+  // Internal, reversible action: created right away (no confirm step).
+  await db.entities.ProjectTask.bulkCreate(tasks.map((t: any) => ({
+    project_id: project.id, title: t.title, details: t.details || '', status: 'todo', owner_email: user.email, source_conversation_id: conversationId,
+  })));
+  return `Added ${tasks.length} Task${tasks.length === 1 ? '' : 's'} To **${clean(project.title, 60)}**:\n\n${tasks.map((x: any) => `- **${x.title}**${x.details ? ` — ${x.details}` : ''}`).join('\n')}\n\nYou Can Tick Off Or Delete Them In [Build](/build).`;
 }
 
 async function confirm({ db, user, conversationId }: any) {
