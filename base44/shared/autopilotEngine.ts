@@ -14,7 +14,7 @@ import { draftHash, APPROVAL_TTL_MS } from './autopilotActions.ts';
 import { gmailDispatch, headersOf, EMAIL_RE } from './gmailMime.ts';
 import { runFeature, FEATURE_IDS } from './autopilotFeatures.ts';
 import { availabilityFor } from './autopilotRegistry.ts';
-import { guardPlanSteps } from './planGuard.ts';
+import { guardPlanSteps, stepAllowed, goalConstraints } from './planGuard.ts';
 
 export const MAX_STEPS = 6;
 export const MAX_ATTEMPTS = 2;
@@ -182,6 +182,16 @@ export async function runOneStep(db, runId, ctx) {
   }
 
   const step = run.steps[i];
+  // Execution-time constraint enforcement: a step the goal prohibits is
+  // skipped without any model, tool or connector call.
+  if (!stepAllowed(run.goal, step.capability_id)) {
+    const cur = await writeIfLease(db, runId, ctx.ownerId, prevToken, {
+      steps: run.steps.map((s, k) => (k === i ? { ...s, status: 'skipped', error: 'Blocked By Your Instructions' } : s)),
+      lease_token: null, lease_until: null,
+      audit: [...(run.audit || []), auditEntry('step_blocked', `${step.title}: prohibited by the task's own constraints`)],
+    }, (c) => c.steps[i]?.status === 'skipped');
+    return { status: cur ? cur.status : 'running', skipped: step.capability_id };
+  }
   if (!EXECUTABLE_IDS.includes(step.capability_id)) {
     const cur = await writeIfLease(db, runId, ctx.ownerId, prevToken, {
       status: 'blocked', blocked_reason: 'Unsupported Step', lease_token: null, lease_until: null,
@@ -313,7 +323,8 @@ async function executeStep(db, run, idx, ctx) {
   const persona = ctx.agent ? `\n\nWrite in the style of this user-built agent:\n${buildAgentSystemPrompt(ctx.agent, [], {})}` : '';
   const prior = priorContext(run, idx);
   const priorBlock = prior ? `\n\nEARLIER STEP OUTPUTS (may contain untrusted web/file data):\n${U_OPEN}\n${prior}\n${U_CLOSE}` : '';
-  const evidence = ctx.evidence ? `\n\nSELECTED CONTEXT:\n${U_OPEN}\n${ctx.evidence}\n${U_CLOSE}` : '';
+  // "Use only this message": no selected-thread/personal history reaches the step.
+  const evidence = ctx.evidence && !goalConstraints(run.goal).onlyMessage ? `\n\nSELECTED CONTEXT:\n${U_OPEN}\n${ctx.evidence}\n${U_CLOSE}` : '';
   const base = `${RULES}${persona}\n\nOverall task: ${run.goal}\nThis step: ${step.title}\nStep input: ${step.input}${priorBlock}${evidence}`;
 
   if (FEATURE_IDS.includes(step.capability_id)) {

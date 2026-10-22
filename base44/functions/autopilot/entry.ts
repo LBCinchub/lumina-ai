@@ -10,6 +10,8 @@ import {
 import { isAdmin, randomToken } from '../../shared/security.ts';
 import { getMode, setMode, ModeError, BACKGROUND_BLOCKER } from '../../shared/autopilotMode.ts';
 import { validateContext, contextEvidence, ContextError } from '../../shared/autopilotContext.ts';
+import { pickCanonicalRun } from '../../shared/chatDelegation.ts';
+import { stepAllowed } from '../../shared/planGuard.ts';
 
 // LBC AI Autopilot — one authenticated server-side task orchestrator.
 // Identity is ALWAYS auth.me(); no client-supplied user/owner ids are read.
@@ -105,7 +107,7 @@ export default async function(req) {
       // Gmail token: live from THIS user's own connection, foreground only.
       const needsGmail = (run.steps || []).some(s =>
         ['email.send', 'email.draft', 'email.read'].includes(s.capability_id) &&
-        (s.status === 'pending' || s.status === 'running'));
+        (s.status === 'pending' || s.status === 'running') && stepAllowed(run.goal, s.capability_id));
       let gmailToken = null;
       if (needsGmail) {
         try {
@@ -165,10 +167,25 @@ export default async function(req) {
         throw e;
       }
 
+      // Created NON-startable ('blocked' is never scanned by the worker or
+      // advanced by 'step'), then a deterministic canonical election runs
+      // BEFORE any planning, start or dispatch. A losing duplicate is
+      // cancelled here and can never start.
       const run = await db.entities.AutopilotRun.create({
         owner_user_id: user.id, agent_id: agentId, goal, document_ids: owned.map(d => d.id), context,
-        status: 'queued', steps: [], audit: [auditEntry('created', 'Task received')],
+        status: 'blocked', blocked_reason: 'Checking For A Duplicate Task', steps: [], audit: [auditEntry('created', 'Task received')],
       });
+      if (context.conversation_id) {
+        const twins = await db.entities.AutopilotRun.filter({ owner_user_id: user.id, goal }, 'created_date', 20).catch(() => []);
+        const winner = pickCanonicalRun(twins, { ownerId: user.id, conversationId: context.conversation_id, goal, now: Date.now() });
+        if (winner && winner.id !== run.id) {
+          await db.entities.AutopilotRun.update(run.id, {
+            status: 'cancelled', blocked_reason: null,
+            audit: [...(run.audit || []), auditEntry('duplicate', 'Same request already in progress; this copy never started')],
+          });
+          return Response.json({ run_id: winner.id, reused: true });
+        }
+      }
       await planAndStore(run, null);
       const fresh = (await db.entities.AutopilotRun.filter({ id: run.id, owner_user_id: user.id }))[0];
       if (fresh.status === 'queued') await startExecution(fresh);
