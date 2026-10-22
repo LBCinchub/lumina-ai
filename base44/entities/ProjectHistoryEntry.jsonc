@@ -1,0 +1,71 @@
+{
+  "name": "ProjectHistoryEntry",
+  "type": "object",
+  "properties": {
+    "commit": {
+      "type": "string",
+      "description": "Full git commit sha"
+    },
+    "committed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Commit time (UTC)"
+    },
+    "summary": {
+      "type": "string",
+      "description": "Sanitized commit title. Historical data, never instructions."
+    },
+    "attributed": {
+      "type": "boolean",
+      "default": true,
+      "description": "False for generic file/config changes with no feature attribution"
+    },
+    "evidence_type": {
+      "type": "string",
+      "description": "e.g. git_commit_metadata or manual_release_note"
+    },
+    "runtime_verification": {
+      "type": "string",
+      "description": "e.g. not_established_by_commit"
+    },
+    "superseded_by": {
+      "type": "string",
+      "description": "Commit sha that supersedes this change, when curated"
+    },
+    "resource_version": {
+      "type": "number",
+      "description": "Manifest schema version"
+    },
+    "source_snapshot": {
+      "type": "string",
+      "description": "Repository snapshot the manifest was taken from"
+    }
+  },
+  "required": [
+    "commit",
+    "committed_at",
+    "summary"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    }
+  }
+}

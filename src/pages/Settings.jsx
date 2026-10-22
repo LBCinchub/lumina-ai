@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import DevicesSection from '@/components/settings/DevicesSection';
 import FaceIdSection from '@/components/biometric/FaceIdSection';
 import GmailSection from '@/components/settings/GmailSection';
@@ -19,6 +20,10 @@ export default function Settings() {
         <FaceIdSection />
         <DevicesSection />
         <GmailSection />
+        <Link to="/github" className="block rounded-xl border border-border bg-card px-5 py-4 text-sm hover:bg-accent/40 transition-colors">
+          <span className="font-medium">GitHub Connection</span>
+          <span className="block text-[12px] text-muted-foreground mt-0.5">Connect Or Check Your Own GitHub Account.</span>
+        </Link>
         <MemorySection />
       </div>
     </div>

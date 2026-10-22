@@ -5,6 +5,7 @@ import { fetchPageText } from '../../shared/pageReader.ts';
 import { detectActionIntent, actionIntentReply, detectDelegation, AUTOPILOT_MARKER } from '../../shared/actionIntent.ts';
 import { startDelegatedRun, delegationMessage, stripDelegationMarker } from '../../shared/chatDelegation.ts';
 import { matchAgentMention } from '../../shared/agentMention.ts';
+import { detectControlIntent, handleControl } from '../../shared/chatControl.ts';
 import { extractMemories } from '../../shared/longTermMemory.ts';
 import { assembleContinuity, loadRecentThread } from '../../shared/chatContinuity.ts';
 import { authorizeConversation, authorizeSelectedThreads } from '../../shared/conversationAccess.ts';
@@ -185,6 +186,16 @@ export default async function(req) {
       await db.entities.Message.create({ conversation_id, role: 'assistant', content: reply, owner_email: user.email });
       (async () => { try { await db.entities.Conversation.update(conversation_id, { last_message_at: new Date().toISOString() }); } catch (_) {} })();
       return Response.json({ content: reply });
+    }
+
+    // --- Chat control point: catalog, connections, own records, owner-only
+    // history. Deterministic and read-only; never starts or writes anything.
+    const controlIntent = detectControlIntent(message);
+    if (controlIntent) {
+      const content = await handleControl({ base44, db, user, conversationId: conversation_id, intent: controlIntent });
+      await db.entities.Message.create({ conversation_id, role: 'assistant', content, owner_email: user.email });
+      (async () => { try { await db.entities.Conversation.update(conversation_id, { last_message_at: new Date().toISOString() }); } catch (_) {} })();
+      return Response.json({ content, control: controlIntent.kind });
     }
 
     // --- Chat-first delegation: an explicit multi-step work request starts

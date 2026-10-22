@@ -166,3 +166,23 @@ export function publicRegistry(opts: any = {}) {
     };
   });
 }
+
+// App-wide feature catalog for chat discovery. Same file = one truth source.
+// Autopilot step handlers stay in REGISTRY above (the planner's allowlist);
+// these entries are explain/route-only — chat never executes them directly.
+// mode: read | draft | action | route. confirmation mirrors the real flow.
+export const FEATURE_CATALOG = [
+  { id: 'chat.research', label: 'Chat And Web Research', mode: 'read', route: '/', aliases: ['research', 'web search'], min_plan: 'superagent', confirmation: 'none', autopilot: 'research.web', how: 'Ask In Chat. Live Web Search Needs Superagent Or Ultra.' },
+  { id: 'research.deep', label: 'Deep Research With Citations', mode: 'read', route: '/', aliases: ['deep research', 'deep search'], min_plan: 'ultra', confirmation: 'none', autopilot: 'research.deep', how: 'Ask Me To Deep Research A Question.' },
+  { id: 'documents', label: 'Documents And Knowledge Sources', mode: 'route', route: '/knowledge', aliases: ['documents', 'knowledge', 'library'], min_plan: 'free', confirmation: 'none', how: 'Add Sources In Knowledge Sources. Autopilot Can Save Markdown Documents For You.' },
+  { id: 'memory', label: 'Personal Memory Controls', mode: 'route', route: '/settings', aliases: ['memory', 'forget', 'history access'], min_plan: 'free', confirmation: 'none', how: 'Turn Memory And Past-Chat Recall On Or Off In Settings.' },
+  { id: 'agents', label: 'Agents And Agent Tasks', mode: 'route', route: '/agents', aliases: ['agents', 'agent tasks'], min_plan: 'free', confirmation: 'none', how: 'Create Agents In Agents, Or Mention One Here With @AgentName.' },
+  { id: 'build', label: 'Build And Projects', mode: 'route', route: '/build', aliases: ['build', 'projects'], min_plan: 'superagent', confirmation: 'none', autopilot: 'build.design', how: 'Open Build For Projects. Autopilot Can Draft A Design, Never Push Or Deploy.' },
+  { id: 'images', label: 'Image Generation And Editing', mode: 'draft', route: '/', aliases: ['image', 'images'], min_plan: 'free', confirmation: 'none', autopilot: 'image.generate', how: 'Ask For An Image In Chat. Edits Keep The Original.' },
+  { id: 'gmail', label: 'Gmail (Your Own Account)', mode: 'action', route: '/autopilot', aliases: ['gmail', 'email', 'inbox'], min_plan: 'ultra', confirmation: 'exact_plan', autopilot: 'email.send', connection: 'gmail', how: 'Connect Your Own Gmail In Autopilot. Sending Always Needs Your Approval Of The Exact Message.' },
+  { id: 'github', label: 'GitHub Connection', mode: 'route', route: '/github', aliases: ['github', 'repository'], min_plan: 'free', confirmation: 'none', connection: 'github', how: 'Connect Your Own GitHub On The GitHub Connection Screen. Chat Never Pushes Code.' },
+  { id: 'templates.backup', label: 'Template Backup To GitHub', mode: 'action', route: '/templates', aliases: ['template backup', 'backup'], min_plan: 'free', confirmation: 'exact_plan', connection: 'github', admin_only: true, how: 'Open Templates And Choose Back Up To GitHub. You Review The Exact Backup Before Anything Is Committed.' },
+  { id: 'templates', label: 'Templates And Terminal', mode: 'route', route: '/templates', aliases: ['templates', 'terminal'], min_plan: 'free', confirmation: 'none', how: 'Save And Run Command Templates In Templates And Terminal. Chat Never Runs Commands.' },
+  { id: 'autopilot', label: 'Autopilot Runs And Approvals', mode: 'action', route: '/autopilot', aliases: ['autopilot', 'tasks', 'approvals'], min_plan: 'free', confirmation: 'exact_plan', how: 'Ask Me To Do A Multi-Step Task. Anything That Sends, Posts Or Spends Waits For Your Approval.' },
+  { id: 'settings', label: 'Devices And Settings', mode: 'route', route: '/settings', aliases: ['settings', 'devices', 'face id'], min_plan: 'free', confirmation: 'none', how: 'Manage Devices, Face ID, Theme And Memory In Settings.' },
+];

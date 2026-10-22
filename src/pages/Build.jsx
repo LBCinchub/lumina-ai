@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import JSZip from 'jszip';
 import { base44 } from '@/api/base44Client';
+import { Link } from 'react-router-dom';
 import {
   Code2, ArrowUp, Copy, Check, ChevronDown, ChevronUp,
   Monitor, Eye, Plus, Trash2, FolderOpen, Github,
@@ -648,6 +649,13 @@ export default function Build() {
             >
               <ExternalLink className="w-3.5 h-3.5" strokeWidth={1.75} />
             </button>
+            <Link
+              to="/github"
+              className="p-1.5 rounded-md hover:bg-accent/40 text-muted-foreground/70 hover:text-foreground transition-colors"
+              title="GitHub Connection"
+            >
+              <Github className="w-3.5 h-3.5" strokeWidth={1.75} />
+            </Link>
             {activeProject?.github_repo && (
               <button
                 onClick={pushToGithub}
