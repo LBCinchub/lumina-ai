@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Switch } from '@/components/ui/switch';
+import PersistentModeToggle from '@/components/autopilot/PersistentModeToggle';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { invokeAutopilot, useAutopilotRuns, useAutopilotDriver } from '@/hooks/useAutopilot';
@@ -29,26 +29,15 @@ export default function Autopilot() {
         setDestinations(res.data?.destinations || []);
       })
       .catch(() => setCapabilities([]));
-    invokeAutopilot({ action: 'get_mode' })
-      .then(res => setMode(!!res.data?.enabled))
-      .catch(() => setMode(false));
   }, []);
 
   const activeRun = runs.find(r => r.status === 'running') || runs[0] || null;
   useAutopilotDriver(activeRun?.status === 'running' ? activeRun : null, refresh);
 
-  const toggleMode = async (enabled) => {
-    setBusy(true); setError(null);
-    try {
-      await invokeAutopilot({ action: 'set_mode', enabled });
-      setMode(enabled);
-      if (!enabled) refresh();
-    } catch (e) {
-      setError(e?.message || 'Could Not Update The Mode');
-    } finally {
-      setBusy(false);
-    }
-  };
+  const onModeConfirmed = useCallback((enabled) => {
+    setMode(enabled);
+    if (enabled === false) refresh();
+  }, [refresh]);
 
   const doAction = useCallback(async (action, runId) => {
     setBusy(true); setError(null);
@@ -83,13 +72,7 @@ export default function Autopilot() {
           <h1 className="font-serif text-2xl tracking-tight">Autopilot</h1>
           <p className="text-sm text-muted-foreground mt-1">Typed, Server-Side Task Orchestration — Draft, Preview, Approve, Execute, Verify.</p>
         </div>
-        <div className="text-right shrink-0">
-          <div className="text-xs text-muted-foreground">Persistent Mode</div>
-          <Switch checked={mode === true} disabled={busy || mode === null} onCheckedChange={toggleMode} />
-          <div className="text-[11px] text-muted-foreground mt-1 max-w-[160px]">
-            {mode ? 'On — Open Runs Continue Server-Side.' : 'Off — Runs Advance Only While This Screen Is Open.'}
-          </div>
-        </div>
+        <PersistentModeToggle onConfirmedChange={onModeConfirmed} />
       </div>
 
       {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>}
@@ -151,7 +134,7 @@ function TaskStarter({ mode, onCreated, busy, setBusy, setError }) {
       <Button disabled={busy || goal.trim().length < 5} onClick={create}>
         {busy ? 'Starting…' : 'Start Task'}
       </Button>
-      <p className="text-xs text-muted-foreground">Steps Advance While This Screen Is Open{mode === true ? ' — And Server-Side While Persistent Mode Is On' : ''}.</p>
+      <p className="text-xs text-muted-foreground">Steps Advance While This Screen Is Open{mode === true ? ' — Persistent Mode Is Saved On, But Background Setup Is Required Before Runs Continue Server-Side' : ''}.</p>
     </div>
   );
 }

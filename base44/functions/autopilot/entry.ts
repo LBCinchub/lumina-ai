@@ -8,6 +8,7 @@ import {
   validateFields, draftHash, draftCopy, checkApproval, dispatchAction, APPROVAL_TTL_MS,
 } from '../../shared/autopilotActions.ts';
 import { isAdmin, randomToken } from '../../shared/security.ts';
+import { getMode, setMode, ModeError, BACKGROUND_BLOCKER } from '../../shared/autopilotMode.ts';
 
 // LBC AI Autopilot — one authenticated server-side task orchestrator.
 // Identity is ALWAYS auth.me(); no client-supplied user/owner ids are read.
@@ -55,15 +56,20 @@ export default async function(req) {
       return Response.json({ plan, accounts: publicAccounts({ gmailConnected, plan }) });
     }
 
-    if (action === 'get_mode') {
-      const rows = await base44.entities.AutopilotPreference.filter({ owner_user_id: user.id }).catch(() => []);
-      return Response.json({ enabled: !!rows[0]?.enabled });
-    }
-    if (action === 'set_mode') {
-      const enabled = !!body.enabled;
-      await db.entities.AutopilotPreference.updateMany(
-        { owner_user_id: user.id }, { $set: { enabled, changed_at: new Date().toISOString() } }
-      ).catch(() => {});
+    if (action === 'get_mode' || action === 'set_mode') {
+      // Background execution readiness is separate from the saved preference.
+      const background = { ready: false, blocker: BACKGROUND_BLOCKER };
+      let state;
+      try {
+        state = action === 'get_mode'
+          ? await getMode(db, user.id)
+          : await setMode(db, user.id, body.enabled);
+      } catch (e) {
+        if (e instanceof ModeError) return Response.json({ error: e.message, code: e.code }, { status: e.status });
+        throw e;
+      }
+      if (action === 'get_mode') return Response.json({ ...state, background });
+      const enabled = state.enabled;
       if (!enabled) {
         // Turning off stops new work and background continuation of pending
         // runs. Already-completed external actions are never undone.
@@ -75,7 +81,7 @@ export default async function(req) {
           audit: [...(r.audit || []), auditEntry('paused', 'Persistent mode turned off — resume in the Autopilot screen')],
         })));
       }
-      return Response.json({ enabled });
+      return Response.json({ ...state, background });
     }
 
     const loadOwned = async () => {
