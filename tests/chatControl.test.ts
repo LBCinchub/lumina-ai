@@ -71,9 +71,11 @@ test('connections are probed live for the current user; missing grants are truth
   expect(a).toMatch(/\*\*Gmail\*\* — Not Connected/);
   expect(a).toMatch(/\*\*GitHub\*\* — Not Connected/);
   expect(a).toMatch(/No Calendar Connection/);
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ login: 'me', emailAddress: 'me@example.invalid' }), { status: 200 })));
   const on = await env({ gmail: true, github: true }).run('my connections');
-  expect(on).toMatch(/\*\*Gmail\*\* — Connected/);
-  expect(on).toMatch(/\*\*GitHub\*\* — Connected/);
+  vi.unstubAllGlobals();
+  expect(on).toMatch(/\*\*Gmail\*\* — Connected And Verified/);
+  expect(on).toMatch(/\*\*GitHub\*\* — Connected And Verified/);
 });
 
 test('project history: owner allowed, other users and admins denied', async () => {
@@ -97,7 +99,7 @@ test('history topic/month filter, unattributed count, injection rendered inert',
 });
 
 test('lists use the user-scoped client only', async () => {
-  const e = env({ user: U, own: { TerminalCommandTemplate: [{ name: 'ls *x*' }] } });
+  const e = env({ user: U, own: { TerminalCommandTemplate: [{ name: 'ls *x*', created_by_id: U.id }] } });
   const out = await e.run('show my templates');
   expect(out).toMatch(/- ls x/);
   expect(await env({ user: U }).run('show my projects')).toMatch(/No Projects Yet/);
@@ -119,7 +121,7 @@ test('continue: only an owned live run in this conversation, never a new job', a
 test('template backup prep: admin-gated, zero templates, never commits', async () => {
   expect(await env({ user: U }).run('prepare a template backup')).toMatch(/Owner And Admins Only/);
   expect(await env().run('prepare a template backup')).toMatch(/No Saved Templates/);
-  const e = env({ github: false, own: { TerminalCommandTemplate: [{ name: 'a' }, { name: 'b' }] } });
+  const e = env({ github: false, own: { TerminalCommandTemplate: [{ name: 'a', created_by_id: OWNER.id }, { name: 'b', created_by_id: OWNER.id }] } });
   const out = await e.run('back up my templates');
   expect(out).toMatch(/2 Saved Templates.*Not Connected/s);
   expect(out).toMatch(/Nothing Has Been Committed/);
