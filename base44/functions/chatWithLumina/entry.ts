@@ -8,6 +8,7 @@ import { matchAgentMention } from '../../shared/agentMention.ts';
 import { detectControlIntent, handleControl } from '../../shared/chatControl.ts';
 import { extractMemories } from '../../shared/longTermMemory.ts';
 import { projectHistoryEvidence } from '../../shared/projectHistoryRecall.ts';
+import { meetingEvidence } from '../../shared/meetingContext.ts';
 import { assembleContinuity, loadRecentThread } from '../../shared/chatContinuity.ts';
 import { authorizeConversation, authorizeSelectedThreads } from '../../shared/conversationAccess.ts';
 import { repairGroundingMarkers } from '../../shared/citations.ts';
@@ -307,6 +308,7 @@ export default async function(req) {
       : '';
 
     const historySection = await projectHistoryEvidence(db, user, typeof message === 'string' ? message : '');
+    const meetingSection = await meetingEvidence(base44, typeof message === 'string' ? message : '').catch(() => '');
 
     const fullPrompt = `${LBC_SYSTEM_PROMPT}
 ${roleNote}
@@ -314,7 +316,7 @@ ${roleNote}
 PERSONAL CONTEXT ABOUT THIS USER:
 ${contextBlock}
 ---
-${knowledgeSection}${docsSection}${convosSection}${pagesSection}${memSection || ''}${recallSection || ''}${historySection || ''}
+${knowledgeSection}${docsSection}${convosSection}${pagesSection}${memSection || ''}${recallSection || ''}${historySection || ''}${meetingSection || ''}
 CONVERSATION SO FAR:
 ${historyBlock}
 
