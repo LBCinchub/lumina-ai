@@ -41,6 +41,37 @@ export const REGISTRY = {
     timeout_ms: 60000, retries: 1, idempotent: true, verify: 'saved record re-read and non-empty',
     note: 'needs_user_session',
   },
+  'research.deep': {
+    label: 'Deep Research With Citations', status: 'available', risk: 'read', min_plan: 'ultra',
+    confirmation: 'none', integration: 'LBC AI Deep Search', source: 'Public web (untrusted, cited)',
+    input: 'research question', output: 'answer + named source links', idempotent: false,
+    note: 'needs_user_session', handler: 'deepSearch',
+    reason: 'Runs The Existing Deep Search Under Your Own Session And Plan Limits. Only Counts As Done When Real Sources Return.',
+  },
+  'build.design': {
+    label: 'Draft A Build Design', status: 'available', risk: 'draft', min_plan: 'superagent',
+    confirmation: 'none', integration: 'Build Workspace', source: 'Task + selected project',
+    input: 'what to design', output: 'design description + preview image (no push, no deploy)', idempotent: true,
+    note: 'needs_user_session', handler: 'orchestrateBuild',
+    reason: 'Drafts A Design In The Build Workspace Style. Never Pushes Code Or Deploys.',
+  },
+  'image.generate': {
+    label: 'Generate An Image', status: 'available', risk: 'generate', min_plan: 'free',
+    confirmation: 'none', integration: 'Image Studio', source: 'Task',
+    input: 'image description', output: 'image saved to your image library', idempotent: false,
+    note: 'needs_user_session', handler: 'lbcTwinImage',
+  },
+  'image.edit': {
+    label: 'Edit A Selected Image', status: 'available', risk: 'generate', min_plan: 'free',
+    confirmation: 'none', integration: 'Image Studio', source: 'Your selected image',
+    input: 'requested change', output: 'edited copy (original kept)', idempotent: false,
+    note: 'needs_user_session', handler: 'lbcTwinImage', needs_context: 'image_ref',
+  },
+  'knowledge.ingest': {
+    label: 'Add To Knowledge Sources', status: 'blocked', risk: 'generate', min_plan: 'free',
+    confirmation: 'none',
+    reason: 'Handoff Only: Add Sources Explicitly In Knowledge Sources, Where URL And Content Checks Run. Autopilot Never Ingests On Its Own.',
+  },
   'email.send': {
     label: 'Send Email (Your Gmail)', status: 'available', risk: 'external_write', min_plan: 'ultra',
     confirmation: 'exact_plan', integration: 'Gmail (Owner-Connected)', requires: 'gmail_connection',
@@ -106,10 +137,32 @@ export const NEEDS_ONLINE_IDS = CAPABILITY_IDS.filter(
   id => REGISTRY[id].note === 'needs_user_session' || REGISTRY[id].requires === 'gmail_connection'
 );
 
-// Public-safe view for the UI (no internals).
-export function publicRegistry() {
+// No trusted scheduler credential is verified, so nothing is background
+// eligible. Changing this requires proven scheduler authentication.
+export const SCHEDULER_VERIFIED = false;
+
+const PLAN_RANK = { free: 0, superagent: 1, ultra: 2 };
+
+// Per-user availability: the single source of truth for UI and planner.
+// opts: { plan, gmailConnected, context: { image_ref } }. null = usable now.
+export function availabilityFor(id, opts: any = {}) {
+  const c = REGISTRY[id];
+  if (!c) return 'Unknown Capability.';
+  if (c.status !== 'available') return c.reason || 'Not Available.';
+  if ((PLAN_RANK[opts.plan] ?? 0) < PLAN_RANK[c.min_plan]) return `Requires LBC AI ${c.min_plan === 'ultra' ? 'Ultra' : 'Superagent'}.`;
+  if (c.requires === 'gmail_connection' && !opts.gmailConnected) return 'Connect Your Gmail In Autopilot First.';
+  if (c.needs_context === 'image_ref' && !opts.context?.image_ref) return 'Select An Image First (Use Edit With Autopilot On An Image).';
+  return null;
+}
+
+// Public-safe view for the UI (no internals, no handler names).
+export function publicRegistry(opts: any = {}) {
   return CAPABILITY_IDS.map(id => {
     const c = REGISTRY[id];
-    return { id, label: c.label, status: c.status, risk: c.risk, min_plan: c.min_plan, reason: c.reason || null };
+    return {
+      id, label: c.label, status: c.status, risk: c.risk, min_plan: c.min_plan, reason: c.reason || null,
+      blocker: availabilityFor(id, opts), confirmation: c.confirmation || 'none',
+      background_eligible: SCHEDULER_VERIFIED && !NEEDS_ONLINE_IDS.includes(id),
+    };
   });
 }
