@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
+import PageHeader from '@/components/layout/PageHeader';
+import DisclosureSection from '@/components/autopilot/DisclosureSection';
 import PersistentModeToggle from '@/components/autopilot/PersistentModeToggle';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -66,23 +68,21 @@ export default function Autopilot() {
   }, [refresh]);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-serif text-2xl tracking-tight">Autopilot</h1>
-          <p className="text-sm text-muted-foreground mt-1">Typed, Server-Side Task Orchestration — Draft, Preview, Approve, Execute, Verify.</p>
-        </div>
-        <PersistentModeToggle onConfirmedChange={onModeConfirmed} />
-      </div>
+    <div className="max-w-3xl mx-auto px-4 md:px-6 py-8 space-y-6">
+      <PageHeader
+        title="Autopilot"
+        description="Typed, Server-Side Task Orchestration: Draft, Preview, Approve, Execute, Verify."
+        actions={<Link to="/autopilot/dashboard" className="inline-flex items-center min-h-[44px] px-3 rounded-lg border border-border text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Open Dashboard</Link>}
+      />
 
-      {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>}
+      <PersistentModeToggle onConfirmedChange={onModeConfirmed} />
 
-      {capabilities && <CapabilityMatrix capabilities={capabilities} destinations={destinations} />}
+      {error && <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>}
 
-      <ConnectedAccounts />
-
+      <section aria-labelledby="new-task" className="rounded-xl border border-border bg-card p-4 md:p-5">
+      <h2 id="new-task" className="text-sm font-medium mb-3">New Task</h2>
       <Tabs value={kind} onValueChange={setKind}>
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="task">General Task</TabsTrigger>
           <TabsTrigger value="email_send">Email</TabsTrigger>
           <TabsTrigger value="social_post">Social Post</TabsTrigger>
@@ -96,15 +96,24 @@ export default function Autopilot() {
           {kind !== 'task' && <ActionDraftForm key={kind} kind={kind} destinations={destinations} onDrafted={refresh} />}
         </TabsContent>
       </Tabs>
+      </section>
 
-      <div className="space-y-3">
-        <div className="text-sm font-medium">Your Tasks</div>
+      <section aria-labelledby="your-tasks" className="space-y-3">
+        <h2 id="your-tasks" className="text-sm font-medium">Your Tasks</h2>
         {loading && <div className="text-sm text-muted-foreground">Loading…</div>}
-        {!loading && runs.length === 0 && <div className="text-sm text-muted-foreground">No Autopilot Tasks Yet.</div>}
+        {!loading && runs.length === 0 && <div className="rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground text-center">No Autopilot Tasks Yet.</div>}
         {runs.map(run => (
           <TaskRunCard key={run.id} run={run} onAction={doAction} onAnswer={doAnswer} busy={busy} />
         ))}
-      </div>
+      </section>
+
+      <DisclosureSection title="Capabilities" hint="What Autopilot Can Do On Your Plan, As Reported By The Server">
+        {capabilities ? <CapabilityMatrix capabilities={capabilities} destinations={destinations} /> : <div className="text-sm text-muted-foreground">Loading…</div>}
+      </DisclosureSection>
+
+      <DisclosureSection title="Connections" hint="Accounts Autopilot May Use After Your Approval">
+        <ConnectedAccounts />
+      </DisclosureSection>
     </div>
   );
 }
@@ -126,8 +135,9 @@ function TaskStarter({ mode, onCreated, busy, setBusy, setError }) {
   return (
     <div className="space-y-3">
       <textarea
-        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm h-24"
-        placeholder="Describe The Task — Research, Planning, Analysis, Or A Document"
+        aria-label="Task Description"
+        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm h-24 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        placeholder="Describe The Task: Research, Planning, Analysis, Or A Document"
         value={goal}
         onChange={e => setGoal(e.target.value)}
       />

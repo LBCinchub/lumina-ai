@@ -75,14 +75,14 @@
 
   .dark {
     /* LBC AI premium dark — near-black base, logo teal/cyan accents */
-    --background: 240 20% 5%;
+    --background: 220 8% 6%;
     --foreground: 240 8% 92%;
 
-    /* Cards slightly lighter than the page for subtle elevation */
-    --card: 240 12% 8%;
+    /* Graphite cards slightly lighter than the page for subtle elevation */
+    --card: 220 7% 9%;
     --card-foreground: 240 8% 92%;
 
-    --popover: 240 12% 8%;
+    --popover: 220 7% 9%;
     --popover-foreground: 240 8% 92%;
 
     /* LBC logo teal primary; near-black text on it (≈ 8.5:1) */
@@ -103,8 +103,8 @@
     --destructive-foreground: 0 0% 100%;
 
     /* Subtle low-contrast borders */
-    --border: 240 9% 15%;
-    --input: 240 9% 15%;
+    --border: 220 6% 16%;
+    --input: 220 6% 18%;
     --ring: 173 80% 40%;
 
     --chart-1: 330 81% 60%;
@@ -113,13 +113,13 @@
     --chart-4: 258 90% 66%;
     --chart-5: 350 89% 60%;
 
-    --sidebar-background: 240 20% 4%;
+    --sidebar-background: 220 8% 5%;
     --sidebar-foreground: 240 8% 92%;
     --sidebar-primary: 173 80% 40%;
     --sidebar-primary-foreground: 240 20% 5%;
     --sidebar-accent: 176 35% 11%;
     --sidebar-accent-foreground: 170 70% 65%;
-    --sidebar-border: 240 9% 12%;
+    --sidebar-border: 220 6% 13%;
     --sidebar-ring: 173 80% 40%;
   }
 }

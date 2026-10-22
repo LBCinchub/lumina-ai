@@ -17,7 +17,7 @@ export default function ConversationList({ conversations, activeId, onSelect, on
           )}
         >
           <Plus className="w-4 h-4" strokeWidth={1.75} />
-          New thread
+          New Chat
         </button>
       </div>
 
@@ -30,7 +30,7 @@ export default function ConversationList({ conversations, activeId, onSelect, on
           <div className="px-3 py-8 text-center text-xs text-muted-foreground">Loading…</div>
         ) : conversations.length === 0 ? (
           <div className="px-3 py-8 text-center text-xs text-muted-foreground">
-            No conversations yet.
+            No Conversations Found
           </div>
         ) : (
           conversations.map(c => (

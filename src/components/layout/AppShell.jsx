@@ -1,189 +1,98 @@
 import React, { useState } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
-import { Bot, MessageSquare, Code2, Database, FolderKanban, Terminal as TerminalIcon, Settings, SlidersHorizontal, Menu, X, Sun, Moon, LogIn, Zap, LayoutDashboard } from 'lucide-react';
+import { Outlet, NavLink, Link } from 'react-router-dom';
+import { Menu } from 'lucide-react';
 import DeviceVerification from '@/components/device/DeviceVerification';
 import { cn } from '@/lib/utils';
 import { base44 } from '@/api/base44Client';
-import { Button } from '@/components/ui/button';
-import { useTheme } from '@/hooks/useTheme';
 import BrandLogo from '@/components/brand/BrandLogo';
 import NotificationCenter from '@/components/notifications/NotificationCenter';
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import NavSections from './NavSections';
+import AccountFooter from './AccountFooter';
+import { MOBILE_BAR } from './navConfig';
 
-// Primary workspaces visible to every user. Operations is appended only for
-// server-verified admins (role === 'admin'); founder-only gating is enforced
-// server-side in the backend functions, never via client-side PII.
-const PRIMARY_NAV = [
-  { to: '/agents', label: 'My Agents', icon: Bot, end: true },
-  { to: '/', label: 'Chat', icon: MessageSquare, end: true },
-  { to: '/build', label: 'Build', icon: Code2 },
-  { to: '/knowledge', label: 'Knowledge', icon: Database },
-  { to: '/projects', label: 'Projects', icon: FolderKanban },
-  { to: '/autopilot', label: 'Autopilot', icon: Zap },
-  { to: '/terminal', label: 'Terminal', icon: TerminalIcon },
-];
+// Owner Operations is listed only for role === 'admin'; the route stays
+// behind AdminGate and founder checks stay server-side.
+function Brand({ size = 28 }) {
+  return (
+    <Link to="/" className="flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <BrandLogo size={size} />
+      <span className="font-serif text-lg tracking-tight">LBC AI</span>
+    </Link>
+  );
+}
 
 export default function AppShell({ children }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [user, setUser] = useState(null);
-  const { theme, toggle } = useTheme();
 
   React.useEffect(() => {
     base44.auth.me().then(setUser).catch(() => {});
   }, []);
 
-  const handleLogin = async () => {
-    await base44.auth.redirectToLogin();
-  };
-
-  const handleLogout = async () => {
-    try {
-      await base44.auth.logout('/');
-    } catch (_) {}
-  };
-
   const isAdmin = user?.role === 'admin';
-  const desktopNav = [
-    ...PRIMARY_NAV.map(i => (i.to === '/autopilot' ? { ...i, end: true } : i)),
-    { to: '/autopilot/dashboard', label: 'Autopilot Dashboard', icon: LayoutDashboard },
-    { to: '/templates', label: 'Templates', icon: Zap },
-    { to: '/settings', label: 'Settings', icon: SlidersHorizontal },
-    ...(isAdmin ? [{ to: '/operations', label: 'Operations', icon: Settings }] : []),
-  ];
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">
       <DeviceVerification />
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-60 shrink-0 border-r border-border bg-sidebar flex-col">
-        <div className="px-6 py-6 flex items-center gap-2.5">
-          <BrandLogo size={28} />
-          <span className="font-serif text-xl tracking-tight">LBC AI ULTRA</span>
-        </div>
 
-        <nav className="px-3 flex-1 flex flex-col gap-0.5">
-          {desktopNav.map(item => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) => cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
-                isActive && "bg-sidebar-accent text-sidebar-foreground font-medium"
-              )}
-            >
-              <item.icon className="w-4 h-4" strokeWidth={1.5} />
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className="p-4 border-t border-sidebar-border space-y-2">
-          <NotificationCenter />
-          <div className="flex items-center justify-between -mx-1">
-            <button
-              onClick={toggle}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
-            >
-              {theme === 'dark'
-                ? <Sun className="w-3.5 h-3.5" strokeWidth={1.5} />
-                : <Moon className="w-3.5 h-3.5" strokeWidth={1.5} />}
-              {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-            </button>
-          </div>
-
-          <div className="text-xs text-muted-foreground truncate pt-1">
-            {user?.email || '—'}
-          </div>
-          {user ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="w-full justify-start text-xs text-muted-foreground hover:text-foreground -ml-2"
-            >
-              Sign out
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogin}
-              className="w-full justify-start text-xs text-muted-foreground hover:text-foreground -ml-2"
-            >
-              <LogIn className="w-3 h-3 mr-2" />
-              Sign in
-            </Button>
-          )}
-        </div>
+      <aside className="hidden md:flex w-64 shrink-0 border-r border-sidebar-border bg-sidebar flex-col h-[100dvh] sticky top-0">
+        <div className="px-5 h-16 flex items-center"><Brand /></div>
+        <NavSections isAdmin={isAdmin} />
+        <AccountFooter user={user} />
       </aside>
 
       {/* Mobile header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border">
-        <div className="flex items-center justify-between px-4 h-14">
-          <a href="/" className="flex items-center gap-2">
-            <BrandLogo size={24} />
-            <span className="font-serif text-lg tracking-tight">LBC AI ULTRA</span>
-          </a>
-          <div className="flex items-center gap-1">
-            <NotificationCenter />
-            {isAdmin && (
-              <button
-                onClick={() => setMobileOpen(!mobileOpen)}
-                className="p-2 -mr-2 text-foreground"
-                aria-label="Operations menu"
-              >
-                {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
-            )}
-          </div>
+      <header className="md:hidden fixed top-0 inset-x-0 z-40 bg-background/95 border-b border-border pt-[env(safe-area-inset-top)]">
+        <div className="flex items-center justify-between px-3 h-14">
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="w-11 h-11 -ml-1 flex items-center justify-center rounded-lg text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Open Navigation"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <Brand size={24} />
+          <NotificationCenter />
         </div>
+      </header>
 
-        {mobileOpen && isAdmin && (
-          <div className="border-t border-border bg-background animate-fade-up">
-            <nav className="p-3 flex flex-col gap-1">
-              <NavLink
-                to="/operations"
-                onClick={() => setMobileOpen(false)}
-                className={({ isActive }) => cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-foreground/70",
-                  isActive && "bg-accent text-foreground font-medium"
-                )}
-              >
-                <Settings className="w-4 h-4" strokeWidth={1.5} />
-                Operations
-              </NavLink>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-muted-foreground mt-2 border-t border-border pt-4"
-              >
-                Sign out
-              </button>
-            </nav>
-          </div>
-        )}
-      </div>
+      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <SheetContent side="left" className="w-[86vw] max-w-[320px] p-0 bg-sidebar flex flex-col">
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <SheetDescription className="sr-only">LBC AI Workspaces And Tools</SheetDescription>
+          <div className="px-5 h-16 flex items-center"><Brand /></div>
+          <NavSections isAdmin={isAdmin} onNavigate={() => setDrawerOpen(false)} />
+          <AccountFooter user={user} showNotifications={false} />
+        </SheetContent>
+      </Sheet>
 
-      <main className="flex-1 flex flex-col min-w-0 pt-14 md:pt-0 pb-16 md:pb-0">
+      <main className="flex-1 flex flex-col min-w-0 pt-14 md:pt-0 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
         {children ?? <Outlet />}
       </main>
 
-      {/* Mobile bottom nav — four workspaces */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/90 backdrop-blur-xl border-t border-border flex">
-        {PRIMARY_NAV.map(item => (
+      <nav aria-label="Primary" className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-background/95 border-t border-border flex pb-[env(safe-area-inset-bottom)]">
+        {MOBILE_BAR.map(item => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.end}
             className={({ isActive }) => cn(
-              "flex-1 flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] transition-colors",
-              isActive ? "text-foreground" : "text-muted-foreground"
+              'flex-1 min-h-[56px] flex flex-col items-center justify-center gap-1 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+              isActive ? 'text-primary font-medium' : 'text-muted-foreground'
             )}
           >
-            <item.icon className="w-5 h-5" strokeWidth={1.5} />
+            <item.icon className="w-5 h-5" strokeWidth={1.6} aria-hidden="true" />
             {item.label}
           </NavLink>
         ))}
+        <button
+          onClick={() => setDrawerOpen(true)}
+          className="flex-1 min-h-[56px] flex flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        >
+          <Menu className="w-5 h-5" strokeWidth={1.6} aria-hidden="true" />
+          More
+        </button>
       </nav>
     </div>
   );

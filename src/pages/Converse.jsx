@@ -1,25 +1,23 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useSearchParams } from 'react-router-dom';
-import ConversationList from '@/components/chat/ConversationList';
+import ChatHistoryDrawer from '@/components/chat/ChatHistoryDrawer';
+import ChatContextDrawer from '@/components/chat/ChatContextDrawer';
+import ChatHeader from '@/components/chat/ChatHeader';
+import ChatEmptyState from '@/components/chat/ChatEmptyState';
 import MessageBubble from '@/components/chat/MessageBubble';
 import ThinkingIndicator from '@/components/chat/ThinkingIndicator';
 import Composer from '@/components/chat/Composer';
 import BrandLogo from '@/components/brand/BrandLogo';
 import JumpToLatest from '@/components/chat/JumpToLatest';
 import { useChatScroll } from '@/hooks/useChatScroll';
-import ContextToggle from '@/components/converse/ContextToggle';
 import ContextSelector from '@/components/converse/ContextSelector';
-import { PanelLeft, Download, ImageIcon, Search, FileText } from 'lucide-react';
 import DeepSearchDialog from '@/components/research/DeepSearchDialog';
 import DocumentDialog from '@/components/documents/DocumentDialog';
-import { cn } from '@/lib/utils';
 import { useExportPDF } from '@/hooks/useExportPDF';
 import { useSpeechOutput } from '@/hooks/useSpeechOutput';
 import LiveCallOverlay from '@/components/chat/LiveCallOverlay';
 import ExportDialog from '@/components/chat/ExportDialog';
-import TwinPanel from '@/components/twin/TwinPanel';
-import TwinRecommendations from '@/components/twin/TwinRecommendations';
 import ImageStudio from '@/components/twin/ImageStudio';
 import { useTwinLearning } from '@/components/twin/useTwinLearning';
 
@@ -43,6 +41,7 @@ export default function Converse() {
   const [isLoadingConvos, setIsLoadingConvos] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
   const [hasContext, setHasContext] = useState(null);
   const [opener] = useState(() => OPENERS[Math.floor(Math.random() * OPENERS.length)]);
   const [currentContext, setCurrentContext] = useState('yours');
@@ -125,13 +124,6 @@ export default function Converse() {
 
   const { scrollRef, contentRef, onScroll, atBottom, hasNew, pin } = useChatScroll(messages.length, activeId);
 
-  // Escape closes the mobile threads drawer.
-  useEffect(() => {
-    if (!sidebarOpen) return;
-    const onKey = (e) => { if (e.key === 'Escape') setSidebarOpen(false); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [sidebarOpen]);
 
   // Keep ref in sync so callbacks don't close over stale voiceMode
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
@@ -288,7 +280,7 @@ export default function Converse() {
   };
 
   const { exportThread } = useExportPDF();
-  const activeTitle = activeId ? (conversations.find(c => c.id === activeId)?.title || 'Conversation') : 'New thread';
+  const activeTitle = activeId ? (conversations.find(c => c.id === activeId)?.title || 'Conversation') : 'New Chat';
 
   const handleExportClick = () => {
     setExportOpen(true);
@@ -366,92 +358,42 @@ export default function Converse() {
         onEnd={toggleVoiceMode}
       />
     )}
-    <div className="flex h-[calc(100dvh-3.5rem)] md:h-[100dvh] overflow-hidden">
-      {/* Conversation sidebar */}
-      <aside className={cn(
-        "w-72 shrink-0 border-r border-border bg-sidebar/60 flex-col",
-        "hidden lg:flex",
-        sidebarOpen && "fixed inset-y-0 left-0 md:left-60 z-30 flex bg-sidebar shadow-xl lg:shadow-none lg:static"
-      )}>
-        <ConversationList
-          conversations={conversations}
-          activeId={activeId}
-          onSelect={handleSelect}
-          onNew={handleNew}
-          isLoading={isLoadingConvos}
-          voiceMode={voiceMode}
-          speaking={speaking}
-          listening={listening}
-          onToggleVoice={toggleVoiceMode}
-        />
-        <ContextToggle
-          currentContext={currentContext}
-          onContextChange={handleContextChange}
-          myPlatform="lbchub.site"
-        />
-        <TwinPanel />
-      </aside>
-
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/20 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
-
+    <ChatHistoryDrawer
+      open={sidebarOpen}
+      onOpenChange={setSidebarOpen}
+      conversations={conversations}
+      activeId={activeId}
+      onSelect={handleSelect}
+      onNew={handleNew}
+      isLoading={isLoadingConvos}
+      voiceMode={voiceMode}
+      speaking={speaking}
+      listening={listening}
+      onToggleVoice={toggleVoiceMode}
+    />
+    <ChatContextDrawer
+      open={contextOpen}
+      onOpenChange={setContextOpen}
+      currentContext={currentContext}
+      onContextChange={handleContextChange}
+      onRecommendation={(r) => logInteraction(r.vertical, r.action_type, { recommendation: r.id })}
+    />
+    <div className="flex h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom))] md:h-[100dvh] overflow-hidden">
       {/* Main chat */}
       <div className="flex-1 flex flex-col min-w-0 relative">
-        <div className="absolute top-0 left-0 right-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border/60">
-          <div className="flex items-center justify-between px-5 h-14">
-            <button
-              onClick={() => setSidebarOpen(s => !s)}
-              className="lg:hidden p-1.5 -ml-1.5 text-foreground/70 hover:text-foreground"
-              aria-label="Threads"
-            >
-              <PanelLeft className="w-4 h-4" />
-            </button>
-            <div className="flex-1 text-center lg:text-left lg:pl-0">
-              <div className="text-sm font-medium text-foreground/80 truncate px-8 lg:px-0">
-                {activeTitle}
-              </div>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setDeepSearchOpen(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                title="Deep Search"
-              >
-                <Search className="w-3.5 h-3.5" strokeWidth={1.75} />
-                <span className="hidden sm:inline">Deep Search</span>
-              </button>
-              {activeId && messages.length > 0 && (
-                <button
-                  onClick={() => setDocOpen(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                  title="Draft Document"
-                >
-                  <FileText className="w-3.5 h-3.5" strokeWidth={1.75} />
-                  <span className="hidden sm:inline">Draft</span>
-                </button>
-              )}
-              <button
-                onClick={() => setImageOpen(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                title="Image Studio"
-              >
-                <ImageIcon className="w-3.5 h-3.5" strokeWidth={1.75} />
-                <span className="hidden sm:inline">Image</span>
-              </button>
-              {activeId && messages.length > 0 && (
-                <button
-                  onClick={handleExportClick}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                  title="Export thread"
-                >
-                  <Download className="w-3.5 h-3.5" strokeWidth={1.75} />
-                  <span className="hidden sm:inline">Export</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <ChatHeader
+          title={activeTitle}
+          hasThread={!!activeId && messages.length > 0}
+          voiceMode={voiceMode}
+          onHistory={() => setSidebarOpen(true)}
+          onNew={handleNew}
+          onContext={() => setContextOpen(true)}
+          onDeepSearch={() => setDeepSearchOpen(true)}
+          onDraft={() => setDocOpen(true)}
+          onImage={() => setImageOpen(true)}
+          onExport={handleExportClick}
+          onVoice={toggleVoiceMode}
+        />
 
         {/* Messages */}
         <div className="flex-1 min-h-0 relative">
@@ -461,26 +403,12 @@ export default function Converse() {
           className="h-full overflow-y-auto overscroll-contain scrollbar-minimal pt-14"
         >
           {showEmpty ? (
-            <div className="h-full flex flex-col items-center justify-center px-6 animate-fade-up">
-              <BrandLogo size={56} alt="LBC AI" className="mb-8" />
-              <h1 className="font-serif text-3xl md:text-4xl tracking-tight text-center mb-3">
-                {opener}
-              </h1>
-              <p className="text-sm text-muted-foreground text-center max-w-md leading-relaxed">
-                Converse, build, and grow with LBC AI.
-              </p>
-              <div className="w-full max-w-md mt-8 text-left">
-                <TwinRecommendations onAct={(r) => logInteraction(r.vertical, r.action_type, { recommendation: r.id })} />
-              </div>
-              {hasContext === false && (
-                <a
-                  href="/knowledge"
-                  className="mt-6 text-xs uppercase tracking-[0.14em] text-foreground/70 hover:text-foreground border-b border-foreground/30 hover:border-foreground pb-0.5"
-                >
-                  Build your context
-                </a>
-              )}
-            </div>
+            <ChatEmptyState
+              opener={opener}
+              hasContext={hasContext}
+              onDeepSearch={() => setDeepSearchOpen(true)}
+              onImage={() => setImageOpen(true)}
+            />
           ) : (
             <div ref={contentRef} className="max-w-3xl mx-auto px-5 md:px-8 py-8 space-y-7">
               {isLoadingMessages ? (
@@ -499,8 +427,8 @@ export default function Converse() {
         </div>
 
         {/* Composer */}
-        <div className="shrink-0 border-t border-border/60 bg-background/80 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
-          <div className="max-w-3xl mx-auto px-5 md:px-8 py-3">
+        <div className="shrink-0 border-t border-border/60 bg-background md:pb-[env(safe-area-inset-bottom)]">
+          <div className="max-w-3xl mx-auto px-3 md:px-8 py-3">
             <div className="flex items-center justify-between mb-2">
               <ContextSelector onContextChange={setSelectedContext} />
               {selectedContext.documents.length > 0 || selectedContext.conversations.length > 0 ? (
@@ -523,7 +451,7 @@ export default function Converse() {
               onBargeIn={stopSpeaking}
             />
             <p className="text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground/60 text-center mt-3">
-              LBC AI · Reflects · not advises
+              LBC AI · Reflects · Not Advises
             </p>
           </div>
         </div>
