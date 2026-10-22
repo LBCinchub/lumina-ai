@@ -3,6 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Loader2, Github, CheckCircle2, ExternalLink } from 'lucide-react';
+import { normalizeRepo } from '@/lib/githubRepo';
 
 // Back up every saved command template to a GitHub repository. Runs through
 // the server-side confirmation flow — the preview step shows exactly what
@@ -43,12 +44,18 @@ export default function GitHubBackup({ open, onOpenChange, templateCount }) {
   const handleError = (err) =>
     setError(err?.response?.data?.error || err?.data?.error || err?.error || 'The Backup Failed — Please Try Again.');
 
+  // Any edit invalidates a pending review; the server token simply expires.
+  const edit = (setter) => (v) => { setter(v); setError(null); setPreview(null); setToken(''); };
+
   const handleStart = async () => {
+    if (!(templateCount > 0)) { setError('No Saved Templates To Back Up. Save A Template First.'); return; }
+    const norm = normalizeRepo(repo);
+    if (!norm.ok) { setError(norm.error); return; }
     setBusy(true);
     setError(null);
     try {
       const data = await invoke({
-        repo: repo.trim(),
+        repo: norm.repo,
         path: path.trim() || DEFAULT_PATH,
         branch: branch.trim() || 'main',
       });
@@ -73,16 +80,21 @@ export default function GitHubBackup({ open, onOpenChange, templateCount }) {
         repo: preview.repo,
         path: preview.path,
         branch: preview.branch,
+        message: preview.message,
         confirmation_token: token,
       });
-      if (data.success) {
+      if (data.success && data.commit) {
         setResult(data);
         setStep('success');
       } else {
-        setError(data.error || 'The Backup Failed — Please Try Again.');
+        throw { error: data.error || 'The Backup Failed. Nothing Was Backed Up.' };
       }
     } catch (err) {
+      // The token is single-use: return to the form (inputs kept) for a fresh review.
       handleError(err);
+      setStep('form');
+      setPreview(null);
+      setToken('');
     }
     setBusy(false);
   };
@@ -98,15 +110,17 @@ export default function GitHubBackup({ open, onOpenChange, templateCount }) {
             <DialogHeader>
               <DialogTitle>Back Up Templates To GitHub</DialogTitle>
               <DialogDescription>
-                All {templateCount} Saved Templates Are Exported As One Versioned JSON Backup.
+                {templateCount > 0
+                  ? `All ${templateCount} Saved Templates Will Be Exported As One Versioned JSON Backup After You Confirm.`
+                  : 'No Saved Templates To Back Up. Save A Template First.'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
               <div>
-                <label className={labelClass}>Repository — owner/repo</label>
+                <label className={labelClass}>Repository — Owner/Repo Or GitHub URL</label>
                 <input
                   value={repo}
-                  onChange={e => setRepo(e.target.value)}
+                  onChange={e => edit(setRepo)(e.target.value)}
                   placeholder="LBCinchub/automation"
                   spellCheck={false}
                   autoComplete="off"
@@ -118,7 +132,7 @@ export default function GitHubBackup({ open, onOpenChange, templateCount }) {
                   <label className={labelClass}>Branch</label>
                   <input
                     value={branch}
-                    onChange={e => setBranch(e.target.value)}
+                    onChange={e => edit(setBranch)(e.target.value)}
                     spellCheck={false}
                     autoComplete="off"
                     className={inputClass}
@@ -128,7 +142,7 @@ export default function GitHubBackup({ open, onOpenChange, templateCount }) {
                   <label className={labelClass}>File Path</label>
                   <input
                     value={path}
-                    onChange={e => setPath(e.target.value)}
+                    onChange={e => edit(setPath)(e.target.value)}
                     spellCheck={false}
                     autoComplete="off"
                     className={inputClass}
@@ -141,7 +155,7 @@ export default function GitHubBackup({ open, onOpenChange, templateCount }) {
               <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={busy}>
                 Cancel
               </Button>
-              <Button onClick={handleStart} disabled={busy || !repo.trim()}>
+              <Button onClick={handleStart} disabled={busy || !repo.trim() || !(templateCount > 0)}>
                 {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 <Github className="w-3.5 h-3.5" /> Continue
               </Button>
@@ -181,7 +195,7 @@ export default function GitHubBackup({ open, onOpenChange, templateCount }) {
             </div>
             {error && <div className="text-[12px] text-destructive">{error}</div>}
             <DialogFooter className="gap-2">
-              <Button variant="outline" onClick={() => { setStep('form'); setError(null); }} disabled={busy}>
+              <Button variant="outline" onClick={() => { setStep('form'); setError(null); setPreview(null); setToken(''); }} disabled={busy}>
                 Back
               </Button>
               <Button onClick={handleConfirm} disabled={busy}>

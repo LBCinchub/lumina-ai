@@ -24,6 +24,7 @@ const Terminal = lazy(() => import('@/pages/Terminal'));
 const Settings = lazy(() => import('@/pages/Settings'));
 const Templates = lazy(() => import('@/pages/Templates'));
 const Autopilot = lazy(() => import('@/pages/Autopilot'));
+const GitHub = lazy(() => import('@/pages/GitHub'));
 const AutopilotDashboard = lazy(() => import('@/pages/AutopilotDashboard'));
 
 const Loading = () => (
@@ -92,7 +93,7 @@ const AuthenticatedApp = () => {
           <Route path="/insights" element={<Navigate to="/knowledge" replace />} />
           <Route path="/resources" element={<Navigate to="/knowledge" replace />} />
           <Route path="/dashboard" element={<Navigate to="/projects" replace />} />
-          <Route path="/github" element={<Navigate to="/operations" replace />} />
+          <Route path="/github" element={<GitHub />} />
           <Route path="/vps" element={<Navigate to="/operations" replace />} />
           <Route path="/deploy" element={<Navigate to="/operations" replace />} />
           <Route path="/lbc-command-center" element={<Navigate to="/operations" replace />} />

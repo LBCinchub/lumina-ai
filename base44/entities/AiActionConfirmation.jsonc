@@ -18,6 +18,10 @@
       "type": "string",
       "description": "SHA-256 hash of the bound payload content"
     },
+    "payload_meta": {
+      "type": "string",
+      "description": "Server-stored JSON metadata needed to rebuild the exact previewed payload (e.g. its export timestamp). Never browser-supplied."
+    },
     "token_hash": {
       "type": "string",
       "description": "SHA-256 hash of the issued bearer token (plaintext never stored)"

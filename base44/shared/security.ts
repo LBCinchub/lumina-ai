@@ -73,7 +73,7 @@ export function requireSecret(name) {
 
 // --- Confirmation tokens (plan -> preview -> confirm -> execute) ------------
 
-export async function issueConfirmation(db, { actorEmail, actionType, target, payloadHash, ttlSeconds = 300 }) {
+export async function issueConfirmation(db, { actorEmail, actionType, target, payloadHash, ttlSeconds = 300, meta = null }) {
   const token = randomToken(32);
   const tokenHash = await sha256Hex(token);
   const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
@@ -85,8 +85,29 @@ export async function issueConfirmation(db, { actorEmail, actionType, target, pa
     token_hash: tokenHash,
     expires_at: expiresAt,
     status: "pending",
+    ...(meta ? { payload_meta: JSON.stringify(meta) } : {}),
   });
   return token;
+}
+
+// Reads (does NOT consume) a pending confirmation owned by this actor, so the
+// server can rebuild the exact previewed payload from server-stored metadata.
+export async function peekConfirmation(db, { token, actorEmail, actionType }) {
+  if (!token || typeof token !== "string") return null;
+  const tokenHash = await sha256Hex(token);
+  const rows = await db.entities.AiActionConfirmation.filter(
+    { token_hash: tokenHash, status: "pending" }, "-created_date", 5
+  ).catch(() => []);
+  return (rows || []).find(r => r.actor_email === actorEmail && r.action_type === actionType) || null;
+}
+
+export async function hasGitHubConnection(base44) {
+  try {
+    const conn = await base44.asServiceRole.connectors.getCurrentAppUserConnection(GITHUB_CONNECTOR_ID);
+    return !!conn?.accessToken;
+  } catch (_) {
+    return false;
+  }
 }
 
 export async function verifyConfirmation(db, { token, actorEmail, actionType, target, payloadHash }) {
@@ -242,7 +263,8 @@ export async function executeGitHubCommit(base44, { repo, path, content, message
   }
 
   const encodedContent = btoa(unescape(encodeURIComponent(content)));
-  const safePath = encodeURIComponent(path);
+  // Encode each segment so directory separators stay real path separators.
+  const safePath = String(path).split("/").map(encodeURIComponent).join("/");
   const safeBranch = encodeURIComponent(branch);
 
   // Resolve existing SHA for updates
