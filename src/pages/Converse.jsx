@@ -393,6 +393,7 @@ export default function Converse() {
           onImage={() => setImageOpen(true)}
           onExport={handleExportClick}
           onVoice={toggleVoiceMode}
+          onToTasks={() => !isSending && handleSubmit('Turn this conversation into tasks')}
         />
 
         {/* Messages */}

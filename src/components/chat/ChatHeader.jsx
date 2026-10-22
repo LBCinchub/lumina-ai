@@ -1,5 +1,5 @@
 import React from 'react';
-import { History, Plus, SlidersHorizontal, Search, FileText, ImageIcon, Download, Phone } from 'lucide-react';
+import { History, Plus, SlidersHorizontal, Search, FileText, ImageIcon, Download, Phone, ListChecks } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function Btn({ icon: Icon, label, onClick, showLabel = true, active }) {
@@ -20,7 +20,7 @@ function Btn({ icon: Icon, label, onClick, showLabel = true, active }) {
   );
 }
 
-export default function ChatHeader({ title, hasThread, voiceMode, onHistory, onNew, onContext, onDeepSearch, onDraft, onImage, onExport, onVoice }) {
+export default function ChatHeader({ title, hasThread, voiceMode, onHistory, onNew, onContext, onDeepSearch, onDraft, onImage, onExport, onVoice, onToTasks }) {
   return (
     <div className="absolute top-0 inset-x-0 z-10 bg-background/90 border-b border-border/70">
       <div className="flex items-center gap-1 px-2 md:px-4 h-14">
@@ -30,6 +30,7 @@ export default function ChatHeader({ title, hasThread, voiceMode, onHistory, onN
         <div className="flex-1 min-w-0 px-2 text-sm font-medium text-foreground/85 truncate">{title}</div>
         <div className="flex items-center gap-0.5 overflow-x-auto">
           <Btn icon={Search} label="Deep Search" onClick={onDeepSearch} />
+          {hasThread && <Btn icon={ListChecks} label="To Tasks" onClick={onToTasks} />}
           {hasThread && <Btn icon={FileText} label="Draft" onClick={onDraft} />}
           <Btn icon={ImageIcon} label="Image" onClick={onImage} />
           {hasThread && <Btn icon={Download} label="Export" onClick={onExport} />}
