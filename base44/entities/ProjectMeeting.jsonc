@@ -1,0 +1,52 @@
+{
+  "name": "ProjectMeeting",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string"
+    },
+    "event_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "start": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "attendees": {
+      "type": "number"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Server-derived owner email. Never client-set."
+    }
+  },
+  "required": [
+    "project_id",
+    "event_id",
+    "title",
+    "owner_email"
+  ],
+  "rls": {
+    "read": {
+      "data.owner_email": "{{user.email}}"
+    },
+    "create": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "delete": {
+      "data.owner_email": "{{user.email}}"
+    }
+  }
+}

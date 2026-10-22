@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import JSZip from 'jszip';
-import ProjectTasks from '@/components/build/ProjectTasks';
+import ProjectSidePanels from '@/components/build/ProjectSidePanels';
 import { base44 } from '@/api/base44Client';
 import { Link } from 'react-router-dom';
 import {
@@ -456,7 +456,7 @@ export default function Build() {
             ))
           )}
         </div>
-        {activeProjectId && <ProjectTasks projectId={activeProjectId} />}
+        {activeProjectId && <ProjectSidePanels projectId={activeProjectId} />}
       </aside>
 
       {/* CENTER PANEL — Chat + Code Editor (~55%) */}

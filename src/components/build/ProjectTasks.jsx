@@ -3,11 +3,12 @@ import { base44 } from '@/api/base44Client';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Trash2 } from 'lucide-react';
 
-export default function ProjectTasks({ projectId }) {
+export default function ProjectTasks({ projectId, refreshKey }) {
   const [tasks, setTasks] = useState(null);
 
   const load = () => base44.entities.ProjectTask.filter({ project_id: projectId }, '-created_date', 100).then(setTasks);
   useEffect(() => { setTasks(null); load(); }, [projectId]);
+  useEffect(() => { if (refreshKey) load(); }, [refreshKey]);
 
   const toggle = async (t) => {
     const status = t.status === 'done' ? 'todo' : 'done';

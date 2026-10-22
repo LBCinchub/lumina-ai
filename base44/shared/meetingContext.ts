@@ -30,6 +30,7 @@ export async function fetchMeetings(base44: any, { pastDays = 7, futureDays = 2 
   if (!res.ok) return { status: 'error', events: [] };
   const data = await res.json();
   const events = (data.items || []).filter((e: any) => e.status !== 'cancelled').map((e: any) => ({
+    id: String(e.id || ''),
     title: clean(e.summary, 120) || 'Untitled',
     start: e.start?.dateTime || e.start?.date || '',
     notes: clean(e.description, 1500),
