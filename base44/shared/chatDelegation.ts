@@ -19,7 +19,7 @@ export function findReusableRun(runs: any[], { ownerId, conversationId, goal, no
     now - new Date(r.created_date).getTime() < DEDUPE_WINDOW_MS) || null;
 }
 
-export async function startDelegatedRun({ base44, db, user, conversationId, goal }: any) {
+export async function startDelegatedRun({ base44, db, user, conversationId, goal, agentId }: any) {
   const recent = await db.entities.AutopilotRun.filter(
     { owner_user_id: user.id, goal: goal.trim().slice(0, 3000) }, '-created_date', 10
   ).catch(() => []);
@@ -28,6 +28,7 @@ export async function startDelegatedRun({ base44, db, user, conversationId, goal
   try {
     const res = await base44.functions.invoke('autopilot', {
       action: 'create', goal, context: { conversation_id: conversationId },
+      ...(agentId ? { agent_id: agentId } : {}),
     });
     const runId = res?.data?.run_id;
     if (!runId) return { error: res?.data?.error || 'The Task Could Not Be Started.' };
@@ -38,13 +39,16 @@ export async function startDelegatedRun({ base44, db, user, conversationId, goal
 }
 
 // Marker line carries only the run id; the rest is the plain-language reply.
-export function delegationMessage(outcome: any) {
+export function delegationMessage(outcome: any, agentName?: string) {
+  const who = agentName ? `${agentName} here. ` : '';
   if (!outcome?.run_id) {
-    return `I could not start this as a task: ${outcome?.error || 'unknown error'}. Nothing was sent or posted. You can ask again once that is resolved, or I can answer it here in chat instead.`;
+    return `${who}I could not start this as a task: ${outcome?.error || 'unknown error'}. Nothing was sent or posted. You can ask again once that is resolved, or I can answer it here in chat instead.`;
   }
   const lead = outcome.reused
-    ? 'This task is already in progress, so I did not start a duplicate.'
-    : 'On it. I started this as a task and I will keep working through the research, analysis and drafting steps while you are signed in.';
+    ? `${who}This task is already in progress, so I did not start a duplicate.`
+    : agentName
+      ? `${who}Got it, I have taken this on. You can follow my progress on the card below while you are signed in.`
+      : 'On it. I started this as a task and I will keep working through the research, analysis and drafting steps while you are signed in.';
   return `${AUTOPILOT_MARKER}${outcome.run_id}\n${lead} Anything that sends, posts or spends stays locked until you approve the exact content.`;
 }
 

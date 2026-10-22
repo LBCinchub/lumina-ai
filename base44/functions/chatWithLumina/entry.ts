@@ -4,6 +4,7 @@ import { getUserPlan } from '../../shared/tiers.ts';
 import { fetchPageText } from '../../shared/pageReader.ts';
 import { detectActionIntent, actionIntentReply, detectDelegation, AUTOPILOT_MARKER } from '../../shared/actionIntent.ts';
 import { startDelegatedRun, delegationMessage, stripDelegationMarker } from '../../shared/chatDelegation.ts';
+import { matchAgentMention } from '../../shared/agentMention.ts';
 import { extractMemories } from '../../shared/longTermMemory.ts';
 import { assembleContinuity, loadRecentThread } from '../../shared/chatContinuity.ts';
 import { authorizeConversation, authorizeSelectedThreads } from '../../shared/conversationAccess.ts';
@@ -189,10 +190,15 @@ export default async function(req) {
     // --- Chat-first delegation: an explicit multi-step work request starts
     // ONE Autopilot run bound to this verified user + this owned conversation,
     // via the existing authenticated autopilot planner (no second engine).
-    const delegatedGoal = detectDelegation(message);
+    // "@AgentName ..." assigns the task to one of the user's own agents
+    // (loaded through the user's RLS scope; autopilot re-verifies ownership).
+    const mention = message.includes('@')
+      ? matchAgentMention(message, await base44.entities.UserAgent.list('-created_date', 100).catch(() => []))
+      : null;
+    const delegatedGoal = mention && mention.goal.length >= 5 ? mention.goal : detectDelegation(message);
     if (delegatedGoal) {
-      const outcome = await startDelegatedRun({ base44, db, user, conversationId: conversation_id, goal: delegatedGoal });
-      const content = delegationMessage(outcome);
+      const outcome = await startDelegatedRun({ base44, db, user, conversationId: conversation_id, goal: delegatedGoal, agentId: mention?.agent.id });
+      const content = delegationMessage(outcome, mention?.agent.name);
       await db.entities.Message.create({ conversation_id, role: 'assistant', content, owner_email: user.email });
       (async () => { try { await db.entities.Conversation.update(conversation_id, { last_message_at: new Date().toISOString() }); } catch (_) {} })();
       return Response.json({ content, autopilot_run_id: outcome.run_id || null });
