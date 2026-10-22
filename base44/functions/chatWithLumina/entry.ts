@@ -9,6 +9,7 @@ import { detectControlIntent, handleControl } from '../../shared/chatControl.ts'
 import { extractMemories } from '../../shared/longTermMemory.ts';
 import { projectHistoryEvidence } from '../../shared/projectHistoryRecall.ts';
 import { meetingEvidence } from '../../shared/meetingContext.ts';
+import { detectTaskIntent, handleTaskIntent } from '../../shared/chatProjectTasks.ts';
 import { assembleContinuity, loadRecentThread } from '../../shared/chatContinuity.ts';
 import { authorizeConversation, authorizeSelectedThreads } from '../../shared/conversationAccess.ts';
 import { repairGroundingMarkers } from '../../shared/citations.ts';
@@ -188,6 +189,14 @@ export default async function(req) {
       await db.entities.Message.create({ conversation_id, role: 'assistant', content: reply, owner_email: user.email });
       (async () => { try { await db.entities.Conversation.update(conversation_id, { last_message_at: new Date().toISOString() }); } catch (_) {} })();
       return Response.json({ content: reply });
+    }
+
+    // --- Chat → Build project tasks (propose, then explicit confirm).
+    const taskIntent = detectTaskIntent(message);
+    if (taskIntent) {
+      const content = await handleTaskIntent(taskIntent, { base44, db, user, conversationId: conversation_id, message, history });
+      await db.entities.Message.create({ conversation_id, role: 'assistant', content, owner_email: user.email });
+      return Response.json({ content });
     }
 
     // --- Chat control point: catalog, connections, own records, owner-only

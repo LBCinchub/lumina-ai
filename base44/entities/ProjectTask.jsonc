@@ -1,0 +1,52 @@
+{
+  "name": "ProjectTask",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Owned BuildProject id"
+    },
+    "title": {
+      "type": "string"
+    },
+    "details": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "todo",
+        "done"
+      ],
+      "default": "todo"
+    },
+    "owner_email": {
+      "type": "string",
+      "description": "Server-derived owner email. Never client-set."
+    },
+    "source_conversation_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "project_id",
+    "title",
+    "owner_email"
+  ],
+  "rls": {
+    "read": {
+      "data.owner_email": "{{user.email}}"
+    },
+    "create": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "update": {
+      "data.owner_email": "{{user.email}}"
+    },
+    "delete": {
+      "data.owner_email": "{{user.email}}"
+    }
+  }
+}
