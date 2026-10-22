@@ -28,14 +28,6 @@ test('draft-only email asks still go to the approval pipeline, never a send', ()
   expect(detectActionIntent('draft an email to my landlord')).toBe('email_send');
 });
 
-test('chat delegation creates exactly ONE run with server-bound conversation', async () => {
-  const client = mockClient({ data: { run_id: 'run_abc123' } });
-  const out = await startDelegatedRun({ base44: client, db: mockDb(), user: U1, conversationId: 'conv1', goal: 'Research X and prepare a report' });
-  expect(out).toEqual({ run_id: 'run_abc123', reused: false });
-  expect(client.functions.invoke).toHaveBeenCalledTimes(1);
-  expect(client.functions.invoke.mock.calls[0][1]).toEqual({ action: 'create', goal: 'Research X and prepare a report', context: { conversation_id: 'conv1' } });
-});
-
 test('double click / retry / second tab reuses the run instead of creating another', async () => {
   const existing = { id: 'run_abc123', owner_user_id: 'user1', goal: 'Research X and prepare a report', context: { conversation_id: 'conv1' }, status: 'running', created_date: new Date().toISOString() };
   const client = mockClient({ data: { run_id: 'NEW' } });
@@ -51,9 +43,7 @@ test('two users / two conversations never reuse each other\'s run', () => {
 });
 
 test('server refusal is reported honestly, no run marker', async () => {
-  const client = { functions: { invoke: vi.fn(async () => { throw { response: { data: { error: 'One Autopilot Task Is Already Running' } } }; }) } };
-  const out = await startDelegatedRun({ base44: client, db: mockDb(), user: U1, conversationId: 'c', goal: 'Research X and prepare a report' });
-  const msg = delegationMessage(out);
+  const msg = delegationMessage({ error: 'One Autopilot Task Is Already Running' });
   expect(parseDelegationMarker(msg)).toBeNull();
   expect(msg).toMatch(/Already Running/);
   expect(msg).toMatch(/Nothing was sent/);

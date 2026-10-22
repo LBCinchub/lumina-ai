@@ -10,7 +10,7 @@ import {
 import { isAdmin, randomToken } from '../../shared/security.ts';
 import { getMode, setMode, ModeError, BACKGROUND_BLOCKER } from '../../shared/autopilotMode.ts';
 import { validateContext, contextEvidence, ContextError } from '../../shared/autopilotContext.ts';
-import { pickCanonicalRun } from '../../shared/chatDelegation.ts';
+import { createAutopilotRun, planAndStore as planAndStoreCore, startExecution as startExecutionCore } from '../../shared/autopilotCreate.ts';
 import { stepAllowed } from '../../shared/planGuard.ts';
 
 // LBC AI Autopilot — one authenticated server-side task orchestrator.
@@ -120,76 +120,12 @@ export default async function(req) {
       const { context, evidence } = await contextEvidence(db, base44, user, run.context || null);
       return { ownerId: user.id, agent, docs, userClient: base44, gmailToken, context, evidence };
     };
-    const startExecution = async (run) => {
-      await db.entities.AutopilotRun.update(run.id, {
-        status: 'running', lease_until: null, lease_token: null,
-        audit: [...(run.audit || []), auditEntry('started', 'Execution started')],
-      });
-    };
-    const planAndStore = async (run, clarification) => {
-      const { docs, context } = await loadCtx(run);
-      const gmailConnected = await probeGmail();
-      const p = await planTask(db, { goal: run.goal, docTitles: docs.map(d => d.title), clarification, availability: { plan, gmailConnected, context } });
-      if (p.needs_clarification && !clarification) {
-        return db.entities.AutopilotRun.update(run.id, { status: 'awaiting_input', clarifying_question: p.clarifying_question, audit: [...(run.audit || []), auditEntry('clarify', 'Asked a clarifying question')] });
-      }
-      const blocked = preflight(p.steps, plan, docs.length > 0, { gmailConnected, context });
-      return db.entities.AutopilotRun.update(run.id, {
-        status: blocked ? 'blocked' : 'queued', blocked_reason: blocked || null,
-        plan_summary: p.plan_summary, steps: p.steps, clarifying_question: null,
-        audit: [...(run.audit || []), auditEntry(blocked ? 'blocked' : 'planned', blocked || `${p.steps.length} steps`)],
-      });
-    };
+    const startExecution = (run) => startExecutionCore(db, run);
+    const planAndStore = (run, clarification) => planAndStoreCore({ base44, db, user, plan }, run, clarification);
 
     if (action === 'create') {
-      const goal = typeof body.goal === 'string' ? body.goal.trim().slice(0, MAX_GOAL_CHARS) : '';
-      if (goal.length < 5) return Response.json({ error: 'Describe The Task In A Few Words' }, { status: 400 });
-
-      const startIso = new Date(new Date().toISOString().slice(0, 10)).toISOString();
-      const today = await db.entities.AutopilotRun.filter({ owner_user_id: user.id, created_date: { $gte: startIso } }, 'created_date', 100).catch(() => []);
-      if (today.length >= (DAILY_LIMIT[plan] || 5)) return Response.json({ error: 'Daily Autopilot Limit Reached' }, { status: 429 });
-      if (today.some(r => r.status === 'running')) return Response.json({ error: 'One Autopilot Task Is Already Running' }, { status: 429 });
-
-      let agentId = null;
-      if (typeof body.agent_id === 'string' && body.agent_id) {
-        const a = (await base44.entities.UserAgent.filter({ id: body.agent_id }).catch(() => []))?.[0];
-        if (!a || a.status === 'archived') return Response.json({ error: 'Not found' }, { status: 404 });
-        agentId = a.id;
-      }
-      const requested = Array.isArray(body.document_ids) ? body.document_ids.filter(x => typeof x === 'string').slice(0, MAX_DOCS) : [];
-      const owned = requested.length ? await base44.entities.Document.filter({ id: { $in: requested } }).catch(() => []) : [];
-      if (owned.length !== requested.length) return Response.json({ error: 'Not found' }, { status: 404 });
-
-      // Explicit selected context — rejected BEFORE any model/tool call.
-      let context;
-      try { context = await validateContext(db, base44, user, body.context); } catch (e) {
-        if (e instanceof ContextError) return Response.json({ error: 'Not found' }, { status: 404 });
-        throw e;
-      }
-
-      // Created NON-startable ('blocked' is never scanned by the worker or
-      // advanced by 'step'), then a deterministic canonical election runs
-      // BEFORE any planning, start or dispatch. A losing duplicate is
-      // cancelled here and can never start.
-      const run = await db.entities.AutopilotRun.create({
-        owner_user_id: user.id, agent_id: agentId, goal, document_ids: owned.map(d => d.id), context,
-        status: 'blocked', blocked_reason: 'Checking For A Duplicate Task', steps: [], audit: [auditEntry('created', 'Task received')],
-      });
-      if (context.conversation_id) {
-        const twins = await db.entities.AutopilotRun.filter({ owner_user_id: user.id, goal }, 'created_date', 20).catch(() => []);
-        const winner = pickCanonicalRun(twins, { ownerId: user.id, conversationId: context.conversation_id, goal, now: Date.now() });
-        if (winner && winner.id !== run.id) {
-          await db.entities.AutopilotRun.update(run.id, {
-            status: 'cancelled', blocked_reason: null,
-            audit: [...(run.audit || []), auditEntry('duplicate', 'Same request already in progress; this copy never started')],
-          });
-          return Response.json({ run_id: winner.id, reused: true });
-        }
-      }
-      await planAndStore(run, null);
-      const fresh = (await db.entities.AutopilotRun.filter({ id: run.id, owner_user_id: user.id }))[0];
-      if (fresh.status === 'queued') await startExecution(fresh);
-      return Response.json({ run_id: run.id });
+      const r = await createAutopilotRun({ base44, db, user, plan }, body);
+      return Response.json(r.body, { status: r.status });
     }
 
     // --- External-action pipeline: draft -> preview -> approve -> dispatch.

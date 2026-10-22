@@ -4,6 +4,7 @@
 // Identity comes only from the request session; the conversation id is
 // already owner-verified by the caller and re-validated by autopilot itself.
 import { AUTOPILOT_MARKER } from './actionIntent.ts';
+import { createAutopilotRun } from './autopilotCreate.ts';
 
 export const DEDUPE_WINDOW_MS = 10 * 60 * 1000;
 const TERMINAL = ['failed', 'cancelled'];
@@ -33,30 +34,27 @@ export async function startDelegatedRun({ base44, db, user, conversationId, goal
   const key = () => ({ ownerId: user.id, conversationId, goal: g, now: Date.now() });
   const reuse = findReusableRun(await load(), key());
   if (reuse) return { run_id: reuse.id, reused: true };
-  let runId = null;
+  // In-process: the same create core the `autopilot` handler uses, with this
+  // request's already-verified session. Identity, ownership, limits, context
+  // and canonical election are all enforced inside the core.
+  let r: any;
   try {
-    // The user's own session is forwarded — autopilot re-derives identity,
-    // re-validates the conversation and applies its own limits.
-    const res = await base44.functions.invoke('autopilot', {
-      action: 'create', goal: g, context: { conversation_id: conversationId },
-      ...(agentId ? { agent_id: agentId } : {}),
+    r = await createAutopilotRun({ base44, db, user }, {
+      goal: g, context: { conversation_id: conversationId }, ...(agentId ? { agent_id: agentId } : {}),
     });
-    runId = res?.data?.run_id || null;
-    if (!runId) return { error: res?.data?.error || 'The Task Could Not Be Started.' };
   } catch (e: any) {
-    // A concurrent twin may have won (e.g. "already running"): reuse it.
+    // Sanitized diagnostic only: error class + status. No tokens/headers/PII.
+    console.warn('delegation_create_failed', JSON.stringify({ class: e?.name || typeof e, status: e?.status || e?.response?.status || null }));
+    r = { status: 500, body: { error: 'The Task Could Not Be Started.' } };
+  }
+  if (r.body?.run_id) return { run_id: r.body.run_id, reused: !!r.body.reused };
+  if (r.status !== 404) {
+    // e.g. "already running": a concurrent twin of THIS request may have won.
     const twin = findReusableRun(await load(), key());
     if (twin) return { run_id: twin.id, reused: true };
-    return { error: String(e?.response?.data?.error || 'The Task Could Not Be Started.').slice(0, 200) };
   }
-  // Post-create convergence: if a simultaneous request created an earlier
-  // twin, cancel ours (it is the caller's own fresh run) and use the winner.
-  const winner = pickCanonicalRun(await load(), key());
-  if (winner && winner.id !== runId) {
-    await base44.functions.invoke('autopilot', { action: 'cancel', run_id: runId }).catch(() => null);
-    return { run_id: winner.id, reused: true };
-  }
-  return { run_id: runId, reused: false };
+  console.warn('delegation_create_rejected', JSON.stringify({ status: r.status }));
+  return { error: String(r.body?.error || 'The Task Could Not Be Started.').slice(0, 200) };
 }
 
 // Marker line carries only the run id; the rest is the plain-language reply.

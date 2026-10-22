@@ -18,7 +18,9 @@ const HANDLERS: any = { autopilot, chatWithLumina: chat, autopilotWorker: worker
 const REPRO_EMAIL = 'Research three ways to organize a home office and prepare a short summary for me. Do not send email or contact anyone.';
 const REPRO_DESK = 'Prepare A Three-Step Plan For Organizing A Fictional Desk And Save It As A Markdown Document. Use Only The Details In This Message.';
 
-let store: any, seq: number, llmCalls: any[], connectorCalls: number, gmailSends: number, plannerScript: any;
+const REPRO_LIVE = 'Plan And Draft A Three-Step Checklist For Organizing A Fictional Desk Using Autopilot. Save The Result As An Internal Draft. This Is A Verification Task: Use Only This Message, Do Not Read Personal History Or External Accounts, Do Not Send Email, Post, Publish, Spend Or Contact Anyone.';
+
+let store: any, seq: number, llmCalls: any[], connectorCalls: number, gmailSends: number, plannerScript: any, nestedInvokes = 0;
 
 const eq = (x: any, v: any) => (x ?? null) === (v ?? null);
 function match(rec: any, q: any) {
@@ -48,6 +50,7 @@ function table(name: string, session: any) {
     list: async (sort?: any, limit = 50) => sortRows(rows().filter(scoped), sort).slice(0, limit),
     get: async (id: string) => rows().find(r => r.id === id && scoped(r)),
     create: async (d: any) => {
+      if (name === 'AutopilotRun' && (globalThis as any).__failCreate) throw Object.assign(new Error('synthetic store failure'), { status: 503 });
       const r = { ...d, id: `${name}-${++seq}`, created_date: new Date(Date.now() + seq).toISOString(), ...(session ? { created_by: session.email, created_by_id: session.id } : {}) };
       rows().push(r); return { ...r };
     },
@@ -78,9 +81,12 @@ function clientFor(session: any) {
     entities: entities(session),
     integrations,
     functions: {
+      // Reproduces the live failure: a nested server-side invoke does NOT
+      // carry the user's session. Chat must never depend on it.
       invoke: async (name: string, body: any) => {
-        const res = await call(HANDLERS[name], session, body);
-        if (res.status >= 400) throw { response: { data: res.body, status: res.status } };
+        nestedInvokes++;
+        const res = await call(HANDLERS[name], null, body);
+        if (res.status >= 400) throw Object.assign(new Error('Request failed'), { name: 'AxiosError', response: { data: res.body, status: res.status } });
         return { data: res.body };
       },
     },
@@ -108,7 +114,7 @@ const sub = (u: any) => ({ id: `sub-${u.id}`, plan: 'superagent', subscription_s
 const runsOf = (u: any) => (store.AutopilotRun || []).filter((r: any) => r.owner_user_id === u.id);
 
 beforeEach(() => {
-  seq = 0; llmCalls = []; connectorCalls = 0; gmailSends = 0;
+  seq = 0; llmCalls = []; connectorCalls = 0; gmailSends = 0; nestedInvokes = 0;
   // Adversarial planner: ignores constraints and proposes research + email.
   plannerScript = () => ({
     needs_clarification: false, plan_summary: 'Synthetic plan',
@@ -276,6 +282,53 @@ test('pause, mode-off and revocation stop execution', async () => {
   store.AiDataQuarantine.push({ id: 'q1', entity_type: 'Conversation', record_id: 'conv-a1', resolved: false });
   expect((await call(autopilot, A, { action: 'step', run_id: id })).body.status).toBe('blocked');
   expect(store.Document.length).toBe(0);
+});
+
+test('live repro A: NEW goal via chat creates a real run in-process (no nested invoke), same as direct create', async () => {
+  // The nested-invoke path loses auth in this harness, exactly as live.
+  expect((await clientFor(A).functions.invoke('autopilot', { action: 'create', goal: REPRO_LIVE }).catch((e: any) => e.response.status))).toBe(401);
+  nestedInvokes = 0;
+  const r = await call(chat, A, { conversation_id: 'conv-a1', message: REPRO_LIVE });
+  expect(r.status).toBe(200);
+  expect(nestedInvokes).toBe(0);
+  const runId = r.body.autopilot_run_id;
+  expect(runId).toBeTruthy();
+  expect(r.body.content.startsWith(`${AUTOPILOT_MARKER}${runId}\n`)).toBe(true);
+  const run = store.AutopilotRun.find((x: any) => x.id === runId);
+  expect(run.owner_user_id).toBe(A.id);
+  expect(run.audit.filter((a: any) => a.event === 'created').length).toBe(1);
+  expect(runsOf(A).length).toBe(1);
+  expect(run.steps.some((s: any) => s.capability_id.startsWith('email.') || s.capability_id === 'research.web')).toBe(false);
+  await drive(A, runId);
+  expect(run.status).toBe('completed');
+  expect(run.approval).toBeUndefined();
+  expect(run.action_draft).toBeUndefined();
+  expect(gmailSends).toBe(0);
+  // Retry of the same request reuses this run, never a second one.
+  const again = await call(chat, A, { conversation_id: 'conv-a1', message: REPRO_LIVE });
+  expect(again.body.autopilot_run_id).toBe(runId);
+  expect(runsOf(A).length).toBe(1);
+});
+
+test('creation failure (thrown store error) is a clear error, no marker, no run claimed', async () => {
+  (globalThis as any).__failCreate = true;
+  const r = await call(chat, A, { conversation_id: 'conv-a1', message: REPRO_LIVE });
+  (globalThis as any).__failCreate = false;
+  expect(r.status).toBe(200);
+  expect(r.body.autopilot_run_id).toBeNull();
+  expect(r.body.content).not.toContain(AUTOPILOT_MARKER);
+  expect(r.body.content).toMatch(/could not start/);
+  expect(r.body.content).not.toMatch(/complete|awaiting approval/i);
+  expect(runsOf(A).length).toBe(0);
+});
+
+test('limit refusal surfaces the real reason, foreign conversation stays 404 with no run', async () => {
+  store.AutopilotRun.push({ id: 'busy1', owner_user_id: A.id, goal: 'other', status: 'running', context: {}, steps: [], audit: [], created_date: new Date().toISOString() });
+  const r = await call(chat, A, { conversation_id: 'conv-a1', message: REPRO_LIVE });
+  expect(r.body.autopilot_run_id).toBeNull();
+  expect(r.body.content).toMatch(/Already Running/);
+  expect((await call(chat, B, { conversation_id: 'conv-a1', message: REPRO_LIVE })).status).toBe(404);
+  expect(runsOf(B).length).toBe(0);
 });
 
 test('mode truth + worker auth: preference on is not readiness; library step pauses offline', async () => {
