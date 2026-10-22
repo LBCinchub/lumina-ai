@@ -10,6 +10,7 @@ import { extractMemories } from '../../shared/longTermMemory.ts';
 import { projectHistoryEvidence } from '../../shared/projectHistoryRecall.ts';
 import { meetingEvidence } from '../../shared/meetingContext.ts';
 import { detectTaskIntent, handleTaskIntent } from '../../shared/chatProjectTasks.ts';
+import { detectGmailRead, handleGmailRead } from '../../shared/gmailChatRead.ts';
 import { assembleContinuity, loadRecentThread } from '../../shared/chatContinuity.ts';
 import { authorizeConversation, authorizeSelectedThreads } from '../../shared/conversationAccess.ts';
 import { repairGroundingMarkers } from '../../shared/citations.ts';
@@ -170,6 +171,16 @@ export default async function(req) {
       await db.entities.Message.create({ conversation_id, role: 'assistant', content: reply, owner_email: user.email });
       (async () => { try { await db.entities.Conversation.update(conversation_id, { last_message_at: new Date().toISOString() }); } catch (_) {} })();
       return Response.json({ content: reply });
+    }
+
+    // --- Read-only Gmail: the signed-in user's own mailbox, answered in chat
+    // before control/delegation/LLM fallback can swallow it. Never writes.
+    const gmailIntent = detectGmailRead(msgStr);
+    if (gmailIntent) {
+      const content = await handleGmailRead(base44, user, gmailIntent, { timezone });
+      await db.entities.Message.create({ conversation_id, role: 'assistant', content, owner_email: user.email });
+      (async () => { try { await db.entities.Conversation.update(conversation_id, { last_message_at: new Date().toISOString() }); } catch (_) {} })();
+      return Response.json({ content, gmail: true });
     }
 
     // --- Chat → Build project tasks (created right away; internal only).
