@@ -5,7 +5,7 @@ import DisclosureSection from '@/components/autopilot/DisclosureSection';
 import PersistentModeToggle from '@/components/autopilot/PersistentModeToggle';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { invokeAutopilot, useAutopilotRuns, useAutopilotDriver } from '@/hooks/useAutopilot';
+import { invokeAutopilot, useAutopilotRuns } from '@/hooks/useAutopilot';
 import CapabilityMatrix from '@/components/autopilot/CapabilityMatrix';
 import ConnectedAccounts from '@/components/autopilot/ConnectedAccounts';
 import ActionDraftForm from '@/components/autopilot/ActionDraftForm';
@@ -33,8 +33,7 @@ export default function Autopilot() {
       .catch(() => setCapabilities([]));
   }, []);
 
-  const activeRun = runs.find(r => r.status === 'running') || runs[0] || null;
-  useAutopilotDriver(activeRun?.status === 'running' ? activeRun : null, refresh);
+  // Steps are advanced by the single app-wide session driver in the shell.
 
   const onModeConfirmed = useCallback((enabled) => {
     setMode(enabled);
@@ -144,7 +143,7 @@ function TaskStarter({ mode, onCreated, busy, setBusy, setError }) {
       <Button disabled={busy || goal.trim().length < 5} onClick={create}>
         {busy ? 'Starting…' : 'Start Task'}
       </Button>
-      <p className="text-xs text-muted-foreground">Steps Advance While This Screen Is Open{mode === true ? ' — Persistent Mode Is Saved On, But Background Setup Is Required Before Runs Continue Server-Side' : ''}.</p>
+      <p className="text-xs text-muted-foreground">Tip: You Can Also Just Ask In Chat. Steps Advance While You Are Signed In On Any Page — Not Offline{mode === true ? '. Persistent Mode Is Saved On, But Offline Background Execution Is Still Blocked' : ''}.</p>
     </div>
   );
 }

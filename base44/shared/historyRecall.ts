@@ -129,6 +129,7 @@ export function scoreThread(title, msgs, terms) {
 function display(m) {
   const c = String(m.content || '');
   if (c.startsWith('__IMAGE__')) return '[Generated An Image]';
+  if (c.startsWith('__AUTOPILOT__')) return '[Started An Autopilot Task]';
   return neutralize(c).slice(0, 400);
 }
 

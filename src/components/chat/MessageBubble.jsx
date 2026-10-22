@@ -5,6 +5,15 @@ import CopyResponse from '@/components/chat/CopyResponse';
 import markdownComponents from '@/components/chat/markdownComponents';
 import { Download, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import ChatTaskCard from '@/components/chat/ChatTaskCard';
+
+// Mirrors the server marker format: "__AUTOPILOT__<runId>\n<text>".
+function parseTaskMarker(content) {
+  if (typeof content !== 'string' || !content.startsWith('__AUTOPILOT__')) return null;
+  const nl = content.indexOf('\n');
+  const runId = content.slice(13, nl === -1 ? undefined : nl).trim();
+  return /^[a-zA-Z0-9_-]{6,64}$/.test(runId) ? { runId, text: nl === -1 ? '' : content.slice(nl + 1) } : null;
+}
 
 function GeneratedImage({ url, caption }) {
   const [loaded, setLoaded] = useState(false);
@@ -86,6 +95,7 @@ export default function MessageBubble({ message, isLatest }) {
   }
 
   const isError = String(message.id).startsWith('error-');
+  const task = parseTaskMarker(message.content);
   return (
     <div className={cn("flex gap-3 md:gap-4", message.fresh && "animate-fade-up motion-reduce:animate-none", isLatest && "mb-2")}>
       <div className="shrink-0 mt-0.5">
@@ -100,13 +110,14 @@ export default function MessageBubble({ message, isLatest }) {
             ? <GeneratedImage url={imageUrl} caption={imageCaption} />
             : <TypewriterMarkdown
                 id={message.id}
-                text={message.content || ''}
+                text={task ? task.text : (message.content || '')}
                 animate={!!message.fresh && !isError}
                 components={markdownComponents}
               />
           }
         </div>
-        {!isImageMessage && !isError && message.content && <CopyResponse text={message.content} />}
+        {task && <ChatTaskCard runId={task.runId} />}
+        {!isImageMessage && !isError && message.content && <CopyResponse text={task ? task.text : message.content} />}
       </div>
     </div>
   );

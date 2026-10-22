@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { base44 } from '@/api/base44Client';
 import BrandLogo from '@/components/brand/BrandLogo';
 import NotificationCenter from '@/components/notifications/NotificationCenter';
+import { useSessionAutopilotDriver } from '@/hooks/useSessionAutopilotDriver';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import NavSections from './NavSections';
 import AccountFooter from './AccountFooter';
@@ -25,6 +26,7 @@ function Brand({ size = 28 }) {
 export default function AppShell({ children }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [user, setUser] = useState(null);
+  useSessionAutopilotDriver();
 
   React.useEffect(() => {
     base44.auth.me().then(setUser).catch(() => {});

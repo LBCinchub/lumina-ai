@@ -2,7 +2,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { isFounderEmail, OWNER_AUTHORITY_PROMPT } from '../../shared/security.ts';
 import { getUserPlan } from '../../shared/tiers.ts';
 import { fetchPageText } from '../../shared/pageReader.ts';
-import { detectActionIntent, actionIntentReply } from '../../shared/actionIntent.ts';
+import { detectActionIntent, actionIntentReply, detectDelegation, AUTOPILOT_MARKER } from '../../shared/actionIntent.ts';
+import { startDelegatedRun, delegationMessage, stripDelegationMarker } from '../../shared/chatDelegation.ts';
 import { extractMemories } from '../../shared/longTermMemory.ts';
 import { assembleContinuity, loadRecentThread } from '../../shared/chatContinuity.ts';
 import { authorizeConversation, authorizeSelectedThreads } from '../../shared/conversationAccess.ts';
@@ -185,6 +186,18 @@ export default async function(req) {
       return Response.json({ content: reply });
     }
 
+    // --- Chat-first delegation: an explicit multi-step work request starts
+    // ONE Autopilot run bound to this verified user + this owned conversation,
+    // via the existing authenticated autopilot planner (no second engine).
+    const delegatedGoal = detectDelegation(message);
+    if (delegatedGoal) {
+      const outcome = await startDelegatedRun({ base44, db, user, conversationId: conversation_id, goal: delegatedGoal });
+      const content = delegationMessage(outcome);
+      await db.entities.Message.create({ conversation_id, role: 'assistant', content, owner_email: user.email });
+      (async () => { try { await db.entities.Conversation.update(conversation_id, { last_message_at: new Date().toISOString() }); } catch (_) {} })();
+      return Response.json({ content, autopilot_run_id: outcome.run_id || null });
+    }
+
     // --- Tier gate: live web search + page reading are LBC AI Superagent
     // capabilities. Free plan = basic chat only. Honest, server-side, never faked.
     const plan = await getUserPlan(base44, user);
@@ -210,6 +223,9 @@ export default async function(req) {
     // pollute the thread's context) — the persona, voice, and instructions
     // above are applied identically on every turn.
     const historyText = (m) => {
+      if (m.role === 'assistant' && typeof m.content === 'string' && m.content.startsWith(AUTOPILOT_MARKER)) {
+        return stripDelegationMarker(m.content);
+      }
       if (m.role === 'assistant' && typeof m.content === 'string' && m.content.startsWith('__IMAGE__')) {
         const caption = (m.content.split('__CAPTION__')[1] || '').trim();
         return `[Assistant Generated An Image${caption ? `: ${caption}` : ''}]`;

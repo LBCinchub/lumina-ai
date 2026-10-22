@@ -30,30 +30,4 @@ export function useAutopilotRuns(limit = 15) {
   return { runs, loading, refresh };
 }
 
-// One bound execution step per poll — a foreground driver, never a fake
-// background worker. Stops as soon as the run is not 'running'.
-export function useAutopilotDriver(run, refresh) {
-  const [stepping, setStepping] = useState(false);
-  const status = run?.status;
-  const runId = run?.id;
-
-  useEffect(() => {
-    if (status !== 'running' || !runId || stepping) return;
-    let cancelled = false;
-    const tick = async () => {
-      setStepping(true);
-      try {
-        await invokeAutopilot({ action: 'step', run_id: runId });
-      } finally {
-        if (!cancelled) {
-          setStepping(false);
-          refresh();
-        }
-      }
-    };
-    const t = setTimeout(tick, 800);
-    return () => { cancelled = true; clearTimeout(t); };
-  }, [status, runId, stepping, refresh]);
-
-  return stepping;
-}
+// Step driving lives in useSessionAutopilotDriver (one app-wide driver).
