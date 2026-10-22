@@ -24,6 +24,7 @@ const Terminal = lazy(() => import('@/pages/Terminal'));
 const Settings = lazy(() => import('@/pages/Settings'));
 const Templates = lazy(() => import('@/pages/Templates'));
 const Autopilot = lazy(() => import('@/pages/Autopilot'));
+const AutopilotDashboard = lazy(() => import('@/pages/AutopilotDashboard'));
 
 const Loading = () => (
   <div className="fixed inset-0 flex flex-col items-center justify-center gap-4">
@@ -83,6 +84,7 @@ const AuthenticatedApp = () => {
           <Route path="/settings" element={<Settings />} />
           <Route path="/templates" element={<Templates />} />
           <Route path="/autopilot" element={<Autopilot />} />
+          <Route path="/autopilot/dashboard" element={<AutopilotDashboard />} />
 
           {/* Legacy route consolidation redirects */}
           <Route path="/context" element={<Navigate to="/knowledge" replace />} />
