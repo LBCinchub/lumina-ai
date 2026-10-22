@@ -1,5 +1,5 @@
 import React from 'react';
-import { History, Plus, SlidersHorizontal, Search, FileText, ImageIcon, Download, Phone, ListChecks } from 'lucide-react';
+import { History, Plus, SlidersHorizontal, Search, FileText, ImageIcon, Download, Phone, ListChecks, Puzzle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 function Btn({ icon: Icon, label, onClick, showLabel = true, active }) {
@@ -20,7 +20,7 @@ function Btn({ icon: Icon, label, onClick, showLabel = true, active }) {
   );
 }
 
-export default function ChatHeader({ title, hasThread, voiceMode, onHistory, onNew, onContext, onDeepSearch, onDraft, onImage, onExport, onVoice, onToTasks }) {
+export default function ChatHeader({ title, hasThread, voiceMode, onHistory, onNew, onContext, onDeepSearch, onDraft, onImage, onExport, onVoice, onToTasks, onPlugins }) {
   return (
     <div className="absolute top-0 inset-x-0 z-10 bg-background/90 border-b border-border/70">
       <div className="flex items-center gap-1 px-2 md:px-4 h-14">
@@ -35,6 +35,7 @@ export default function ChatHeader({ title, hasThread, voiceMode, onHistory, onN
           <Btn icon={ImageIcon} label="Image" onClick={onImage} />
           {hasThread && <Btn icon={Download} label="Export" onClick={onExport} />}
           <Btn icon={Phone} label={voiceMode ? 'End Voice' : 'Voice'} onClick={onVoice} active={voiceMode} />
+          {onPlugins && <Btn icon={Puzzle} label="Plugins" onClick={onPlugins} />}
           <Btn icon={SlidersHorizontal} label="Context" onClick={onContext} />
         </div>
       </div>

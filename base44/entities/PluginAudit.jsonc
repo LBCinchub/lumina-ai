@@ -1,0 +1,52 @@
+{
+  "name": "PluginAudit",
+  "type": "object",
+  "properties": {
+    "owner_user_id": {
+      "type": "string"
+    },
+    "plugin_id": {
+      "type": "string"
+    },
+    "event": {
+      "type": "string",
+      "description": "preview | install | enable | disable | uninstall | use"
+    },
+    "outcome": {
+      "type": "string",
+      "description": "Sanitized outcome code. Never payloads or secrets."
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "owner_user_id",
+    "event",
+    "outcome",
+    "at"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    }
+  }
+}

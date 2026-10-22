@@ -1,0 +1,61 @@
+{
+  "name": "PluginInstallation",
+  "type": "object",
+  "properties": {
+    "owner_user_id": {
+      "type": "string",
+      "description": "Server-derived owner id. Never client-set."
+    },
+    "plugin_id": {
+      "type": "string",
+      "description": "Stable first-party plugin id from the server registry"
+    },
+    "version": {
+      "type": "string",
+      "description": "Manifest version the owner consented to"
+    },
+    "permission_hash": {
+      "type": "string",
+      "description": "SHA-256 of the consented permission set"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "installed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "changed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "owner_user_id",
+    "plugin_id",
+    "version",
+    "permission_hash",
+    "enabled"
+  ],
+  "rls": {
+    "read": {
+      "data.owner_user_id": "{{user.id}}"
+    },
+    "create": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "__server_only__"
+      }
+    }
+  }
+}

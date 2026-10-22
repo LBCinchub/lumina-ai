@@ -11,6 +11,7 @@ import { projectHistoryEvidence } from '../../shared/projectHistoryRecall.ts';
 import { meetingEvidence } from '../../shared/meetingContext.ts';
 import { detectTaskIntent, handleTaskIntent } from '../../shared/chatProjectTasks.ts';
 import { detectGmailRead, handleGmailRead } from '../../shared/gmailChatRead.ts';
+import { detectPluginCommand, handlePluginCommand } from '../../shared/pluginChat.ts';
 import { assembleContinuity, loadRecentThread } from '../../shared/chatContinuity.ts';
 import { authorizeConversation, authorizeSelectedThreads } from '../../shared/conversationAccess.ts';
 import { repairGroundingMarkers } from '../../shared/citations.ts';
@@ -162,6 +163,14 @@ export default async function(req) {
       content: message,
       owner_email: user.email
     });
+
+    // --- Plugin commands (typed, server-resolved): show/install/enable/use.
+    const pluginCmd = detectPluginCommand(msgStr);
+    if (pluginCmd) {
+      const content = await handlePluginCommand(pluginCmd, { base44, db, user, timezone });
+      await db.entities.Message.create({ conversation_id, role: 'assistant', content, owner_email: user.email });
+      return Response.json({ content, plugin: pluginCmd.kind });
+    }
 
     // --- External-action intent: post/listing requests route to the typed
     // Autopilot pipeline — the model never claims it already acted.

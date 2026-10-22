@@ -19,6 +19,7 @@ import { useSpeechOutput } from '@/hooks/useSpeechOutput';
 import LiveCallOverlay from '@/components/chat/LiveCallOverlay';
 import ExportDialog from '@/components/chat/ExportDialog';
 import ImageStudio from '@/components/twin/ImageStudio';
+import PluginLibrary from '@/components/plugins/PluginLibrary';
 import { useTwinLearning } from '@/components/twin/useTwinLearning';
 
 const OPENERS = [
@@ -41,6 +42,7 @@ export default function Converse() {
   const [isLoadingConvos, setIsLoadingConvos] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pluginsOpen, setPluginsOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const [hasContext, setHasContext] = useState(null);
   const [opener] = useState(() => OPENERS[Math.floor(Math.random() * OPENERS.length)]);
@@ -394,7 +396,9 @@ export default function Converse() {
           onExport={handleExportClick}
           onVoice={toggleVoiceMode}
           onToTasks={() => !isSending && handleSubmit('Turn this conversation into tasks')}
+          onPlugins={() => setPluginsOpen(true)}
         />
+        <PluginLibrary open={pluginsOpen} onOpenChange={setPluginsOpen} />
 
         {/* Messages */}
         <div className="flex-1 min-h-0 relative">
