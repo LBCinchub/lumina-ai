@@ -32,6 +32,21 @@
       "default": [],
       "description": "Owner-verified Document ids used as untrusted input"
     },
+    "context": {
+      "type": "object",
+      "description": "Server-validated selected context; re-validated before every step",
+      "properties": {
+        "conversation_id": {
+          "type": "string"
+        },
+        "project_id": {
+          "type": "string"
+        },
+        "image_ref": {
+          "type": "string"
+        }
+      }
+    },
     "status": {
       "type": "string",
       "enum": [

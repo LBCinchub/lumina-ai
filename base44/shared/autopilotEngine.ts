@@ -12,6 +12,8 @@ import { planAtLeast } from './tiers.ts';
 import { buildAgentSystemPrompt } from './userAgents.ts';
 import { draftHash, APPROVAL_TTL_MS } from './autopilotActions.ts';
 import { gmailDispatch, headersOf, EMAIL_RE } from './gmailMime.ts';
+import { runFeature, FEATURE_IDS } from './autopilotFeatures.ts';
+import { availabilityFor } from './autopilotRegistry.ts';
 
 export const MAX_STEPS = 6;
 export const MAX_ATTEMPTS = 2;
@@ -52,10 +54,11 @@ const PLAN_SCHEMA = {
 
 // The planner sees the goal + document TITLES only — never untrusted content,
 // so file/web text cannot influence which capabilities are chosen.
-export async function planTask(db, { goal, docTitles, clarification }) {
+export async function planTask(db, { goal, docTitles, clarification, availability = null }) {
   const caps = CAPABILITY_IDS.map(id => {
     const c = REGISTRY[id];
-    return c.status === 'available' ? `- ${id}: ${c.label}` : `- ${id}: ${c.label} (NOT AVAILABLE: ${c.reason})`;
+    const blocker = availability ? availabilityFor(id, availability) : (c.status === 'available' ? null : c.reason);
+    return !blocker ? `- ${id}: ${c.label}` : `- ${id}: ${c.label} (NOT AVAILABLE: ${blocker})`;
   }).join('\n');
   const res = await db.integrations.Core.InvokeLLM({
     model: MODEL,
@@ -102,6 +105,7 @@ export function preflight(steps, plan, hasDocs, deps = {}) {
     }
     if (!planAtLeast(plan, c.min_plan)) return `${c.label} Requires LBC AI ${c.min_plan === 'ultra' ? 'Ultra' : 'Superagent'}.`;
     if (s.capability_id === 'analyze.documents' && !hasDocs) return 'Attach A Document From Your Library To Analyze It.';
+    if (c.needs_context === 'image_ref' && !deps.context?.image_ref) return `${c.label}: Select An Image First (Use Edit With Autopilot On An Image).`;
   }
   return null;
 }
@@ -243,7 +247,7 @@ export async function runOneStep(db, runId, ctx) {
       return { status: cur ? 'paused' : 'running' };
     }
     const finished = new Date().toISOString();
-    const msg = e?.message === 'timeout' ? 'Step Timed Out' : 'Step Failed';
+    const msg = stepErrorLabel(e?.message);
     const curRun = await getRun(db, runId, ctx.ownerId);
     const failed = steps.map((s, k) => (k === i ? { ...steps[i], status: 'failed', error: msg, finished_at: finished } : s));
     const applied = await writeIfLease(db, runId, ctx.ownerId, token, {
@@ -283,12 +287,36 @@ function emailFieldsFromLLM(r) {
   };
 }
 
+// Deterministic, user-safe failure labels (no internals, no secrets).
+const ERROR_LABELS = {
+  timeout: 'Step Timed Out',
+  ambiguous_retry: 'Stopped: An Earlier Attempt May Have Already Run. Not Retried To Avoid Duplicates — Check Your Library, Then Start A New Task.',
+  research_no_sources: 'Research Returned No Usable Sources, So No Answer Was Recorded.',
+  design_empty: 'The Design Draft Came Back Empty.',
+  image_not_created: 'The Image Was Not Created.',
+  image_verify_failed: 'The Image Could Not Be Verified In Your Library.',
+  image_ref_missing: 'No Selected Image To Edit.',
+  image_ref_unreadable: 'The Selected Image Could Not Be Read (Unavailable, Too Large, Or Unsupported Type).',
+  context_not_found: 'Selected Context Is No Longer Available To You.',
+  handler_failed: 'The Feature Did Not Respond. Nothing Was Recorded As Done.',
+};
+export function stepErrorLabel(code) {
+  const c = String(code || '');
+  if (c.startsWith('handler_rejected:')) return `Feature Declined: ${c.slice(17, 217)}`;
+  return ERROR_LABELS[c] || 'Step Failed';
+}
+
 async function executeStep(db, run, idx, ctx) {
   const step = run.steps[idx];
   const persona = ctx.agent ? `\n\nWrite in the style of this user-built agent:\n${buildAgentSystemPrompt(ctx.agent, [], {})}` : '';
   const prior = priorContext(run, idx);
   const priorBlock = prior ? `\n\nEARLIER STEP OUTPUTS (may contain untrusted web/file data):\n${U_OPEN}\n${prior}\n${U_CLOSE}` : '';
-  const base = `${RULES}${persona}\n\nOverall task: ${run.goal}\nThis step: ${step.title}\nStep input: ${step.input}${priorBlock}`;
+  const evidence = ctx.evidence ? `\n\nSELECTED CONTEXT:\n${U_OPEN}\n${ctx.evidence}\n${U_CLOSE}` : '';
+  const base = `${RULES}${persona}\n\nOverall task: ${run.goal}\nThis step: ${step.title}\nStep input: ${step.input}${priorBlock}${evidence}`;
+
+  if (FEATURE_IDS.includes(step.capability_id)) {
+    return runFeature(step, ctx, step.input || run.goal);
+  }
 
   switch (step.capability_id) {
     case 'research.web': {

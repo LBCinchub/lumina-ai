@@ -9,6 +9,7 @@ import {
 } from '../../shared/autopilotActions.ts';
 import { isAdmin, randomToken } from '../../shared/security.ts';
 import { getMode, setMode, ModeError, BACKGROUND_BLOCKER } from '../../shared/autopilotMode.ts';
+import { validateContext, contextEvidence, ContextError } from '../../shared/autopilotContext.ts';
 
 // LBC AI Autopilot — one authenticated server-side task orchestrator.
 // Identity is ALWAYS auth.me(); no client-supplied user/owner ids are read.
@@ -48,7 +49,11 @@ export default async function(req) {
     };
 
     if (action === 'capabilities') {
-      return Response.json({ plan, capabilities: publicRegistry(), destinations: publicDestinations(isAdmin(user)) });
+      // Per-user availability; context presence is only a hint for display —
+      // it is re-validated on create.
+      const gmailConnected = plan === 'ultra' ? await probeGmail() : false;
+      const hint = { image_ref: typeof body.context_hint?.image_ref === 'string' ? 'selected' : null };
+      return Response.json({ plan, capabilities: publicRegistry({ plan, gmailConnected, context: hint }), destinations: publicDestinations(isAdmin(user)) });
     }
 
     if (action === 'accounts') {
@@ -108,7 +113,10 @@ export default async function(req) {
           gmailToken = c?.accessToken || null;
         } catch (_) {}
       }
-      return { ownerId: user.id, agent, docs, userClient: base44, gmailToken };
+      // Selected context is re-validated against the session user right now;
+      // a revoked/foreign/quarantined record throws ContextError.
+      const { context, evidence } = await contextEvidence(db, base44, user, run.context || null);
+      return { ownerId: user.id, agent, docs, userClient: base44, gmailToken, context, evidence };
     };
     const startExecution = async (run) => {
       await db.entities.AutopilotRun.update(run.id, {
@@ -117,12 +125,13 @@ export default async function(req) {
       });
     };
     const planAndStore = async (run, clarification) => {
-      const docs = (await loadCtx(run)).docs;
-      const p = await planTask(db, { goal: run.goal, docTitles: docs.map(d => d.title), clarification });
+      const { docs, context } = await loadCtx(run);
+      const gmailConnected = await probeGmail();
+      const p = await planTask(db, { goal: run.goal, docTitles: docs.map(d => d.title), clarification, availability: { plan, gmailConnected, context } });
       if (p.needs_clarification && !clarification) {
         return db.entities.AutopilotRun.update(run.id, { status: 'awaiting_input', clarifying_question: p.clarifying_question, audit: [...(run.audit || []), auditEntry('clarify', 'Asked a clarifying question')] });
       }
-      const blocked = preflight(p.steps, plan, docs.length > 0, { gmailConnected: await probeGmail() });
+      const blocked = preflight(p.steps, plan, docs.length > 0, { gmailConnected, context });
       return db.entities.AutopilotRun.update(run.id, {
         status: blocked ? 'blocked' : 'queued', blocked_reason: blocked || null,
         plan_summary: p.plan_summary, steps: p.steps, clarifying_question: null,
@@ -149,8 +158,15 @@ export default async function(req) {
       const owned = requested.length ? await base44.entities.Document.filter({ id: { $in: requested } }).catch(() => []) : [];
       if (owned.length !== requested.length) return Response.json({ error: 'Not found' }, { status: 404 });
 
+      // Explicit selected context — rejected BEFORE any model/tool call.
+      let context;
+      try { context = await validateContext(db, base44, user, body.context); } catch (e) {
+        if (e instanceof ContextError) return Response.json({ error: 'Not found' }, { status: 404 });
+        throw e;
+      }
+
       const run = await db.entities.AutopilotRun.create({
-        owner_user_id: user.id, agent_id: agentId, goal, document_ids: owned.map(d => d.id),
+        owner_user_id: user.id, agent_id: agentId, goal, document_ids: owned.map(d => d.id), context,
         status: 'queued', steps: [], audit: [auditEntry('created', 'Task received')],
       });
       await planAndStore(run, null);
@@ -327,7 +343,18 @@ export default async function(req) {
     if (!run) return Response.json({ error: 'Not found' }, { status: 404 });
 
     if (action === 'step') {
-      const result = await runOneStep(db, run.id, await loadCtx(run));
+      let ctx;
+      try { ctx = await loadCtx(run); } catch (e) {
+        if (!(e instanceof ContextError)) throw e;
+        if (run.status === 'running') {
+          await db.entities.AutopilotRun.update(run.id, {
+            status: 'blocked', blocked_reason: 'Selected Context Is No Longer Available To You.', lease_until: null, lease_token: null,
+            audit: [...(run.audit || []), auditEntry('blocked', 'Selected context failed re-validation before execution')],
+          });
+        }
+        return Response.json({ status: 'blocked' });
+      }
+      const result = await runOneStep(db, run.id, ctx);
       return Response.json(result);
     }
     if (action === 'answer') {
