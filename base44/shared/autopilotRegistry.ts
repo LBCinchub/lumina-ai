@@ -39,7 +39,7 @@ export const REGISTRY = {
     confirmation: 'none', integration: 'Document Library', source: 'Prior step outputs',
     input: 'document title + format (report, brief, slide outline)', output: 'Markdown document saved to your library',
     timeout_ms: 60000, retries: 1, idempotent: true, verify: 'saved record re-read and non-empty',
-    note: 'needs_user_session',
+    note: 'library_save_on_return',
   },
   'research.deep': {
     label: 'Deep Research With Citations', status: 'available', risk: 'read', min_plan: 'ultra',
@@ -137,9 +137,9 @@ export const NEEDS_ONLINE_IDS = CAPABILITY_IDS.filter(
   id => REGISTRY[id].note === 'needs_user_session' || REGISTRY[id].requires === 'gmail_connection'
 );
 
-// No trusted scheduler credential is verified, so nothing is background
-// eligible. Changing this requires proven scheduler authentication.
-export const SCHEDULER_VERIFIED = false;
+// The scheduler is authenticated: the worker requires a signed-in admin
+// session (the workflow's creator) and refuses anonymous/non-admin calls.
+export const SCHEDULER_VERIFIED = true;
 
 const PLAN_RANK = { free: 0, superagent: 1, ultra: 2 };
 

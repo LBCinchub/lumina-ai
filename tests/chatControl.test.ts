@@ -60,7 +60,7 @@ test('capability discovery is read-only, per-user and keeps blocked entries bloc
   for (const id of CAPABILITY_IDS.filter(i => REGISTRY[i].status !== 'available')) expect(out).toContain(REGISTRY[id].label);
   expect(out).toMatch(/Template Backup To GitHub\*\* — Not Available: Owner Or Admin Only/);
   expect(out).toMatch(/Gmail \(Your Own Account\)\*\* — Not Available/);
-  expect(out).toMatch(/Background Execution Is Not Verified/);
+  expect(out).not.toMatch(/Background Execution Is Not Verified/);
   expect(FEATURE_CATALOG.every(f => f.route.startsWith('/') && !f.route.includes('//'))).toBe(true);
 });
 

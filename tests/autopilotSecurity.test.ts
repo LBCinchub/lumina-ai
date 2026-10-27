@@ -96,9 +96,11 @@ test('registry: email capabilities are foreground-gated; destructive caps stay u
   assert.equal(REGISTRY['email.send'].requires, 'gmail_connection');
   assert.equal(REGISTRY['email.send'].confirmation, 'exact_plan');
   assert.equal(REGISTRY['email.organize'].status, 'needs_permission');
-  for (const c of ['email.send', 'email.draft', 'email.read', 'document.generate']) {
+  for (const c of ['email.send', 'email.draft', 'email.read']) {
     assert.ok(NEEDS_ONLINE_IDS.includes(c), c);
   }
+  // Library saves run unattended but are written only on the owner's return.
+  assert.ok(!NEEDS_ONLINE_IDS.includes('document.generate'));
   assert.equal(REGISTRY['deploy.app'].status, 'unsupported');
   assert.equal(REGISTRY['payment.execute'].status, 'unsupported');
 });

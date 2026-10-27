@@ -80,11 +80,14 @@ test('unauthenticated rejected; two-user isolation; owner spoof ignored', async 
   assert.doesNotMatch(src, /AutopilotPreference\.updateMany/);
 });
 
-test('no full background claim: ready stays false and names the per-user gate', () => {
+test('background ready only behind the admin-gated worker; session steps named', () => {
   const src = readFileSync('base44/functions/autopilot/entry.ts', 'utf8');
-  assert.match(src, /ready: false, blocker: BACKGROUND_BLOCKER/);
-  assert.match(BACKGROUND_BLOCKER, /Partially Available/);
-  assert.match(BACKGROUND_BLOCKER, /no revocable per-user offline grant/);
+  assert.match(src, /ready: true, blocker: BACKGROUND_BLOCKER/);
+  const worker = readFileSync('base44/functions/autopilotWorker/entry.ts', 'utf8');
+  assert.match(worker, /if \(!user\) return Response\.json\(\{ error: 'Unauthorized' \}, \{ status: 401 \}\)/);
+  assert.match(worker, /user\.role !== 'admin'/);
+  assert.match(BACKGROUND_BLOCKER, /Gmail/);
+  assert.match(BACKGROUND_BLOCKER, /pause until you return/);
   const ui = readFileSync('src/pages/Autopilot.jsx', 'utf8') + readFileSync('src/components/autopilot/PersistentModeToggle.jsx', 'utf8');
   assert.doesNotMatch(ui, /Continue Server-Side\.'/);
 });

@@ -4,7 +4,7 @@
 // so duplicates are DETECTED and refused (409) rather than guessed or deleted.
 
 export const BACKGROUND_BLOCKER =
-  'Background Partially Available: the 5-minute scheduler runs as the app admin and can advance internal planning and drafting steps, but steps that save to your library or use your Gmail need you signed in, because no revocable per-user offline grant exists. Those steps pause until you return.';
+  'Background Ready: a secured 5-minute scheduler advances your runs while you are away (research, planning, drafting, analysis, and documents). Documents finished while you are away are saved to your library the next time you sign in. Gmail, deep research, image, and build steps use your own session, so they pause until you return.';
 
 export class ModeError extends Error {
   code: string; status: number;

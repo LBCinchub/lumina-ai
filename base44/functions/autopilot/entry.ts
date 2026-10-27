@@ -12,6 +12,7 @@ import { getMode, setMode, ModeError, BACKGROUND_BLOCKER } from '../../shared/au
 import { validateContext, contextEvidence, ContextError } from '../../shared/autopilotContext.ts';
 import { createAutopilotRun, planAndStore as planAndStoreCore, startExecution as startExecutionCore } from '../../shared/autopilotCreate.ts';
 import { stepAllowed } from '../../shared/planGuard.ts';
+import { flushPendingArtifacts } from '../../shared/autopilotArtifacts.ts';
 
 // LBC AI Autopilot — one authenticated server-side task orchestrator.
 // Identity is ALWAYS auth.me(); no client-supplied user/owner ids are read.
@@ -65,7 +66,9 @@ export default async function(req) {
 
     if (action === 'get_mode' || action === 'set_mode') {
       // Background execution readiness is separate from the saved preference.
-      const background = { ready: false, blocker: BACKGROUND_BLOCKER };
+      // Owner is signed in: save any library documents finished unattended.
+      const saved = await flushPendingArtifacts(db, base44, user.id).catch(() => 0);
+      const background = { ready: true, blocker: BACKGROUND_BLOCKER, saved_documents: saved };
       let state;
       try {
         state = action === 'get_mode'

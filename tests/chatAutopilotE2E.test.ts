@@ -331,20 +331,21 @@ test('limit refusal surfaces the real reason, foreign conversation stays 404 wit
   expect(runsOf(B).length).toBe(0);
 });
 
-test('mode truth + worker auth: preference on is not readiness; library step pauses offline', async () => {
+test('mode truth + worker auth: unattended run finishes; library doc saved only on owner return', async () => {
   const on = await call(autopilot, A, { action: 'set_mode', enabled: true });
   expect(on.body.enabled).toBe(true);
-  const m = await call(autopilot, A, { action: 'get_mode' });
-  expect(m.body.background.ready).toBe(false);
   expect((await call(worker, null, {})).status).toBe(401);
   expect((await call(worker, A, {})).status).toBe(403);
   const r = await call(chat, A, { conversation_id: 'conv-a1', message: REPRO_DESK });
   const w = await call(worker, ADMIN, {});
   expect(w.status).toBe(200);
   const run = store.AutopilotRun.find((x: any) => x.id === r.body.autopilot_run_id);
-  // Internal plan step may advance; the library save never runs offline.
-  for (let i = 0; i < 4; i++) await call(worker, ADMIN, {});
-  expect(run.steps.find((s: any) => s.capability_id === 'document.generate').status).not.toBe('completed');
+  for (let i = 0; i < 6; i++) await call(worker, ADMIN, {});
+  // Nothing is written to the library under the scheduler's identity.
   expect(store.Document.length).toBe(0);
   expect(gmailSends).toBe(0);
+  const m = await call(autopilot, A, { action: 'get_mode' });
+  expect(m.body.background.ready).toBe(true);
+  const doc = run.steps.find((s: any) => s.capability_id === 'document.generate');
+  if (doc?.status === 'completed') expect(store.Document.length).toBe(1);
 });

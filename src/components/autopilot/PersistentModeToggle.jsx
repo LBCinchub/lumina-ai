@@ -11,7 +11,7 @@ export default function PersistentModeToggle({ onConfirmedChange }) {
   useEffect(() => { onConfirmedChange?.(s.enabled); }, [s.enabled, onConfirmedChange]);
 
   const status = s.loading ? 'Loading…' : s.saving ? 'Saving…'
-    : s.enabled === true ? 'On — Saved. Background Setup Required.' : s.enabled === false ? 'Off — Runs Advance Only While This Screen Is Open.' : 'Unavailable';
+    : s.enabled === true ? 'On — Runs Keep Going While You Are Away.' : s.enabled === false ? 'Off — Runs Advance Only While This Screen Is Open.' : 'Unavailable';
 
   // Readiness is shown only from the server's `background` response; never assumed.
   const bg = s.background;

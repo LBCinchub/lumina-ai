@@ -9,6 +9,7 @@
 // never overwrite another holder's state — fencing, not read-then-write.
 import { REGISTRY, CAPABILITY_IDS, EXECUTABLE_IDS, NEEDS_ONLINE_IDS } from './autopilotRegistry.ts';
 import { planAtLeast } from './tiers.ts';
+import { PENDING_ARTIFACT } from './autopilotArtifacts.ts';
 import { buildAgentSystemPrompt } from './userAgents.ts';
 import { draftHash, APPROVAL_TTL_MS } from './autopilotActions.ts';
 import { gmailDispatch, headersOf, EMAIL_RE } from './gmailMime.ts';
@@ -355,6 +356,8 @@ async function executeStep(db, run, idx, ctx) {
       const content = await llmText(db, `${base}\n\nCompile a polished markdown document (title heading first). For presentations, write a slide-by-slide outline with "## Slide N" headings. Use only the earlier outputs; cite sources where present.`);
       if (!content) return { output: '' };
       const title = ((content.match(/^#\s+(.+)$/m) || [])[1] || step.title).slice(0, 120);
+      // Unattended run: keep it on the owner's run; saved to their library on next sign-in.
+      if (!ctx.userClient) return { output: content.slice(0, 20000), artifact_document_id: PENDING_ARTIFACT };
       // Ambiguous-timeout reconcile: reuse a document an unfinished earlier attempt already saved.
       if ((step.attempts || 0) > 1 && step.started_at) {
         const prior = await ctx.userClient.entities.Document.filter({ created_date: { $gte: step.started_at } }, '-created_date', 1).catch(() => []);

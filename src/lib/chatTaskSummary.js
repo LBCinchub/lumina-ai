@@ -5,7 +5,7 @@ export function taskCardSummary(run) {
   const steps = run?.steps || [];
   const done = steps.filter(s => s.status === 'completed').length;
   const progress = steps.length ? `${done}/${steps.length} Steps` : '';
-  const doc = [...steps].reverse().find(s => s.artifact_document_id);
+  const doc = [...steps].reverse().find(s => s.artifact_document_id && s.artifact_document_id !== 'pending');
   let headline = run?.plan_summary || run?.goal || 'Task';
   let nextStep = null;
 
