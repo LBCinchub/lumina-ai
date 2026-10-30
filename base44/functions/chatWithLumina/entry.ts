@@ -102,6 +102,18 @@ function wrapUntrusted(label, body) {
   return `${UNTRUSTED_OPEN}\n[${label}]\n${body}\n${UNTRUSTED_CLOSE}`;
 }
 
+// Short title for a brand-new thread, written from its first message.
+async function firstTurnTitle(base44, message) {
+  try {
+    const titleRes = await base44.integrations.Core.InvokeLLM({
+      prompt: `Write a 3-5 word title (no quotes, no punctuation at the end, sentence case) that captures the essence of this message from a user to their AI companion:\n\n"${message}"\n\nTitle:`
+    });
+    return (typeof titleRes === 'string' ? titleRes : '').trim().replace(/^["']|["']$/g, '').slice(0, 60);
+  } catch (_) {
+    return '';
+  }
+}
+
 // Live page reading is shared server-side logic — see shared/pageReader.ts.
 // Anything fetched is UNTRUSTED evidence.
 
@@ -405,9 +417,26 @@ Respond directly without prefixing your role name.`;
       return Response.json({ content: primary, images: text ? toolImages : toolImages.slice(0, -1) });
     }
 
+    // --- Memory extraction and the first-turn title need only the user's
+    // message, so they run alongside the reply instead of after it. Started
+    // right after the reply request, so that request always goes out first.
+    let sideWork = null;
+    const startSideWork = () => {
+      const titling = thread.total === 0 ? firstTurnTitle(base44, message) : Promise.resolve('');
+      const remembering = titling.then((title) => continuity.settingsOk
+        ? extractMemories({
+          base44, db, user, settings: continuity.settings,
+          conversationId: conversation_id,
+          conversationTitle: title || currentConvo.title || '',
+          userMessage: message,
+        })
+        : { status: 'error' }).catch(() => ({ status: 'error' }));
+      sideWork = Promise.all([remembering, titling]);
+    };
+
     if (hasImageIntent) {
       try {
-        const promptEnhanceRes = await base44.integrations.Core.InvokeLLM({
+        const enhancing = base44.integrations.Core.InvokeLLM({
           prompt: `You are a world-class prompt engineer for AI image generation.
 The user wants to generate an image. Their request: "${message}"
 
@@ -415,6 +444,8 @@ Write a single, highly detailed image generation prompt (2-4 sentences) that wil
 Include: subject, style, lighting, mood, color palette, composition, quality keywords like "photorealistic", "8k", "cinematic", "masterpiece" etc.
 Return ONLY the prompt text, nothing else.`
         });
+        startSideWork();
+        const promptEnhanceRes = await enhancing;
         let enhancedPrompt = typeof promptEnhanceRes === 'string' ? promptEnhanceRes : (promptEnhanceRes?.content || '');
         // A clean caption, never raw code or markdown fences.
         enhancedPrompt = String(enhancedPrompt || '')
@@ -438,7 +469,9 @@ Return ONLY the prompt text, nothing else.`
         model: webEnabled && !(file_urls && file_urls.length) ? 'gemini_3_flash' : MAIN_CHAT_MODEL,
         ...(file_urls && file_urls.length ? { file_urls } : {}),
       };
-      const llmResponse = await base44.integrations.Core.InvokeLLM(llmCall);
+      const replying = base44.integrations.Core.InvokeLLM(llmCall);
+      startSideWork();
+      const llmResponse = await replying;
       assistantContent = typeof llmResponse === 'string' ? llmResponse : (llmResponse?.content || String(llmResponse));
       // Grounded replies carry numeric markers with no visible source list.
       if (webEnabled) assistantContent = repairGroundingMarkers(assistantContent);
@@ -447,45 +480,22 @@ Return ONLY the prompt text, nothing else.`
     // --- Persist the assistant reply BEFORE responding, so the very next
     // turn always loads the full thread server-side — a background save let
     // a fast follow-up race ahead of it and arrive with no memory of this
-    // answer. Title/metadata updates stay in the background (they never
-    // affect the next turn's context).
-    try {
-      await db.entities.Message.create({ conversation_id, role: 'assistant', content: assistantContent, owner_email: user.email });
-    } catch (_) {}
-
-    // --- Long-term memory extraction: merge-first, bounded (max 3 entries),
-    // silent on failure. Runs synchronously so the response only ever reports
-    // memories that actually persisted.
-    let memoryUpdates = null;
-    try {
-      memoryUpdates = continuity.settingsOk
-        ? await extractMemories({
-          base44, db, user, settings: continuity.settings,
-          conversationId: conversation_id,
-          conversationTitle: currentConvo.title || '',
-          userMessage: message,
-        })
-        : { status: 'error' };
-    } catch (_) {
-      memoryUpdates = { status: 'error' };
-    }
-
-    (async () => {
+    // answer. It is saved as soon as it exists, while the memory update
+    // (merge-first, max 3 entries, silent on failure; the response only
+    // reports memories that persisted) and the first-turn title finish.
+    const savingReply = (async () => {
       try {
-        const updates = { last_message_at: new Date().toISOString() };
-        if (thread.total === 0) {
-          try {
-            const titleRes = await base44.integrations.Core.InvokeLLM({
-              prompt: `Write a 3-5 word title (no quotes, no punctuation at the end, sentence case) that captures the essence of this message from a user to their AI companion:\n\n"${message}"\n\nTitle:`
-            });
-            const title = (typeof titleRes === 'string' ? titleRes : '').trim().replace(/^["']|["']$/g, '').slice(0, 60);
-            if (title) updates.title = title;
-          } catch (_) {}
-        }
-        // User-scoped client respects RLS; conversation ownership already validated.
-        await base44.entities.Conversation.update(conversation_id, updates);
+        await db.entities.Message.create({ conversation_id, role: 'assistant', content: assistantContent, owner_email: user.email });
       } catch (_) {}
     })();
+    const [memoryUpdates, title] = await sideWork;
+    // User-scoped client respects RLS; conversation ownership already validated.
+    const touchingConvo = (async () => {
+      try {
+        await base44.entities.Conversation.update(conversation_id, { last_message_at: new Date().toISOString(), ...(title ? { title } : {}) });
+      } catch (_) {}
+    })();
+    await Promise.all([savingReply, touchingConvo]);
 
     return Response.json({
       content: assistantContent,

@@ -184,17 +184,10 @@ export default function Converse() {
     logInteraction('general', 'chat', { text: displayText.slice(0, 120) });
 
     if (isNew) {
-      // Generate smart title from first message
-      let title = 'New conversation';
-      try {
-        const titleRes = await base44.functions.invoke('orchestrateBuild', { step: 'title', message: displayText });
-        const titleData = titleRes?.data || titleRes || {};
-        title = (titleData.title || '').trim().slice(0, 60) || 'New conversation';
-      } catch (_) {
-        title = displayText.slice(0, 40);
-        if (displayText.length > 40) title += '…';
-      }
-      
+      // Instant working title from the first message; the server writes the
+      // smart title during the first reply, so sending never waits on it.
+      const title = displayText.length > 40 ? `${displayText.slice(0, 40)}…` : displayText;
+
       // Server-side creation: owner_email + ownership_state are derived from
       // the authenticated session inside createConversation — never set here.
       const createRes = await base44.functions.invoke('createConversation', { title: title || 'New conversation' });
@@ -242,16 +235,13 @@ export default function Converse() {
         setMessages(prev => [...prev, ...extra, assistantMsg]);
       }
 
-      // Sync to shared pool if in your context
+      // Sync to shared pool if in your context. Non-critical, so it runs in
+      // the background and never holds up the next message.
       if (currentContext === 'yours') {
-        try {
-          await base44.functions.invoke('syncConversation', {
-            conversationId: convoId,
-            platformOrigin: 'lbchub.site'
-          });
-        } catch (_) {
-          // Non-critical, don't break flow
-        }
+        base44.functions.invoke('syncConversation', {
+          conversationId: convoId,
+          platformOrigin: 'lbchub.site'
+        }).catch(() => {});
       }
 
       // Reload conversations list only (not messages — backend saves async, don't overwrite optimistic)

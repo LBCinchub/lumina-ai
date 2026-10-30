@@ -10,14 +10,12 @@ export function splitGraphemes(text) {
   return segmenter ? Array.from(segmenter.segment(text), s => s.segment) : Array.from(text);
 }
 
-// ~6-20ms per grapheme (faster for long replies) plus short punctuation pauses.
-export function delayFor(g, total) {
-  const base = Math.max(6, Math.min(20, Math.round(6000 / Math.max(total, 1))));
-  if (total > 800) return base;
-  if (/[.!?؟。]/.test(g)) return base + 140;
-  if (/[,;:،]/.test(g)) return base + 60;
-  if (g === '\n') return base + 80;
-  return base;
+// Quick reveal: about one second for a reply of any length. One frame every
+// 16ms; short replies show one grapheme per frame, long ones several.
+export const FRAME_MS = 16;
+const TARGET_FRAMES = 60;
+export function stepFor(total) {
+  return Math.max(1, Math.ceil(total / TARGET_FRAMES));
 }
 
 export function createTypewriter({ onUpdate, onDone, startIndex = 0,
@@ -35,8 +33,8 @@ export function createTypewriter({ onUpdate, onDone, startIndex = 0,
   const run = () => {
     timer = null;
     if (stopped || done) return;
-    if (i < limit()) { i++; emit(); }
-    if (i < limit()) timer = schedule(run, delayFor(gs[i - 1], gs.length));
+    if (i < limit()) { i = Math.min(limit(), i + stepFor(gs.length)); emit(); }
+    if (i < limit()) timer = schedule(run, FRAME_MS);
     else if (final) finish();
   };
   return {

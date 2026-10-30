@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ReactMarkdown from 'react-markdown';
-import { createTypewriter, splitGraphemes } from '../src/lib/typewriter.js';
+import { createTypewriter, splitGraphemes, stepFor } from '../src/lib/typewriter.js';
 
 import { test } from 'vitest';
 
@@ -34,13 +34,15 @@ function make(clock, extra = {}) {
 
 const REPLY = 'Hello, world! Here is a list:\n\n- one\n- two\n\n```js\nconst x = 1;\n```\n[link](https://lbchub.site)';
 
-test('new reply reveals incremental graphemes, one at a time', () => {
+const STEP = stepFor(splitGraphemes(REPLY).length);
+
+test('new reply reveals incrementally, a few graphemes per frame', () => {
   const c = fakeClock(); const { tw, frames } = make(c);
   tw.setText(REPLY); c.advance(1);
-  assert.equal(frames[0], 'H');
+  assert.equal(frames[0], REPLY.slice(0, STEP));
   c.advance(25);
   assert.ok(frames.length >= 2 && frames.length < 6);
-  for (let i = 1; i < frames.length; i++) assert.equal(splitGraphemes(frames[i]).length, splitGraphemes(frames[i - 1]).length + 1);
+  for (let i = 1; i < frames.length; i++) assert.equal(splitGraphemes(frames[i]).length, splitGraphemes(frames[i - 1]).length + STEP);
 });
 
 test('full content eventually matches exactly', () => {
@@ -49,11 +51,12 @@ test('full content eventually matches exactly', () => {
   assert.equal(frames.at(-1), REPLY); assert.ok(isDone()); assert.equal(c.pending(), 0);
 });
 
-test('punctuation adds a natural pause', () => {
-  const c = fakeClock(); const { tw, frames } = make(c);
-  tw.setText('Hi. Ok'); c.advance(0); c.advance(60);
-  assert.equal(frames.at(-1), 'Hi.'); // held at the period
-  c.advance(200); assert.equal(frames.at(-1), 'Hi. Ok');
+test('a reply of any length is fully shown in about a second', () => {
+  for (const text of ['Hi. Ok', REPLY, 'word '.repeat(1200)]) {
+    const c = fakeClock(); const { tw, frames, isDone } = make(c);
+    tw.setText(text); c.advance(1100);
+    assert.equal(frames.at(-1), text); assert.ok(isDone());
+  }
 });
 
 test('incoming chunks are queued, not dumped as whole blocks', () => {
@@ -93,7 +96,7 @@ test('stop (unmount/thread switch) clears timers and emits nothing more', () => 
 test('resume from saved progress does not restart (remount/rerender)', () => {
   const c = fakeClock(); const { tw, frames } = make(c, { startIndex: 10 });
   tw.setText(REPLY); c.advance(1);
-  assert.equal(frames[0], REPLY.slice(0, 11));
+  assert.equal(frames[0], REPLY.slice(0, 10 + STEP));
 });
 
 test('rerender with the same text does not restart', () => {
