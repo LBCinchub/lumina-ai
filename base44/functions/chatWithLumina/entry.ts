@@ -4,7 +4,7 @@ import { getUserPlan } from '../../shared/tiers.ts';
 import { fetchPageText } from '../../shared/pageReader.ts';
 import { detectActionIntent, actionIntentReply, detectDelegation, AUTOPILOT_MARKER } from '../../shared/actionIntent.ts';
 import { startDelegatedRun, delegationMessage, stripDelegationMarker } from '../../shared/chatDelegation.ts';
-// Shared Autopilot modules are bundled per function: redeploy this one after editing them.
+// Shared Autopilot modules are bundled per function: after editing them, redeploy autopilot, autopilotWorker and chatWithLumina.
 import { matchAgentMention } from '../../shared/agentMention.ts';
 import { detectControlIntent, handleControl } from '../../shared/chatControl.ts';
 import { extractMemories } from '../../shared/longTermMemory.ts';
@@ -244,6 +244,11 @@ export default async function(req) {
     // capabilities. Free plan = basic chat only. Honest, server-side, never faked.
     const plan = await getUserPlan(base44, user);
     const webEnabled = plan !== 'free';
+    // Model Tier, the user's own choice in Settings: 'highest' answers with the
+    // main model, which cannot search, so per-message live web search is off.
+    // Attachments and live web search are never combined in one call.
+    const liveWeb = webEnabled && !(file_urls && file_urls.length) && user.ai_model_tier !== 'highest';
+    const noLiveWebNote = liveWeb ? '' : '\nLIVE WEB SEARCH IS OFF FOR THIS ANSWER: do not claim you searched, and cite only sources present above. For news, prices or other current facts, say your information may be out of date.\n';
 
     // --- Live page reading: when the user's message contains links, LBC AI
     // reads them server-side and treats the content as UNTRUSTED evidence.
@@ -341,7 +346,7 @@ ${roleNote}
 PERSONAL CONTEXT ABOUT THIS USER:
 ${contextBlock}
 ---
-${knowledgeSection}${docsSection}${convosSection}${pagesSection}${memSection || ''}${recallSection || ''}${historySection || ''}${meetingSection || ''}
+${knowledgeSection}${docsSection}${convosSection}${pagesSection}${memSection || ''}${recallSection || ''}${historySection || ''}${meetingSection || ''}${noLiveWebNote}
 CONVERSATION SO FAR:
 ${historyBlock}
 
@@ -465,9 +470,8 @@ Return ONLY the prompt text, nothing else.`
     } else {
       const llmCall = {
         prompt: fullPrompt,
-        // Attachments and live web search are never combined in one call.
-        add_context_from_internet: webEnabled && !(file_urls && file_urls.length),
-        model: webEnabled && !(file_urls && file_urls.length) ? 'gemini_3_flash' : MAIN_CHAT_MODEL,
+        add_context_from_internet: liveWeb,
+        model: liveWeb ? 'gemini_3_flash' : MAIN_CHAT_MODEL,
         ...(file_urls && file_urls.length ? { file_urls } : {}),
       };
       const replying = base44.integrations.Core.InvokeLLM(llmCall);

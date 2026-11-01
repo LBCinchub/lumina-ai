@@ -5,6 +5,7 @@ import FaceIdSection from '@/components/biometric/FaceIdSection';
 import GmailSection from '@/components/settings/GmailSection';
 import MemorySection from '@/components/settings/MemorySection';
 import CalendarSection from '@/components/settings/CalendarSection';
+import AiModeSection from '@/components/settings/AiModeSection';
 
 // Settings — account management for the signed-in LBC AI experience.
 // Currently holds the Devices section.
@@ -15,9 +16,10 @@ export default function Settings() {
         <div>
           <h1 className="font-serif text-2xl tracking-tight">Settings</h1>
           <p className="text-[12px] text-muted-foreground mt-1">
-            Manage Your LBC AI Account And Devices.
+            Manage How LBC AI Works, Your Account And Your Devices.
           </p>
         </div>
+        <AiModeSection />
         <FaceIdSection />
         <DevicesSection />
         <GmailSection />

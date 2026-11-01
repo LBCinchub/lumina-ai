@@ -19,7 +19,7 @@ export default function PersistentModeToggle({ onConfirmedChange }) {
     : s.enabled === true
       ? (ready ? 'On — Runs Keep Going While You Are Away.' : 'On — Runs Advance Only While LBC AI Is Open Until Background Execution Is Ready.')
       : s.enabled === false ? 'Off — Runs Advance Only While LBC AI Is Open.' : 'Unavailable';
-  const detail = ready && s.enabled === false ? 'Turn On Persistent Mode To Keep Runs Going While You Are Away.' : bg?.blocker;
+  const detail = ready && s.enabled === false ? 'Turn On Full-Auto Mode To Keep Runs Going While You Are Away.' : bg?.blocker;
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 grid gap-4 sm:grid-cols-2">
@@ -28,9 +28,10 @@ export default function PersistentModeToggle({ onConfirmedChange }) {
         <div className="flex items-center gap-3 mt-1.5">
           <Switch id="persistent-mode" aria-busy={s.loading || s.saving} checked={s.enabled === true}
             disabled={s.loading || s.saving || s.enabled === null} onCheckedChange={(v) => ctl.save(v)} />
-          <label htmlFor="persistent-mode" className="text-sm font-medium">Persistent Mode</label>
+          <label htmlFor="persistent-mode" className="text-sm font-medium">Full-Auto Mode</label>
         </div>
         <div className="text-xs text-muted-foreground mt-1.5" aria-live="polite">{status}</div>
+        <div className="text-[11px] text-muted-foreground mt-1">Sending, Posting And Payments Always Wait For Your Approval.</div>
       </div>
       <div className="sm:border-l sm:border-border sm:pl-4">
         <div className="text-[11px] font-medium text-muted-foreground">Background Execution</div>

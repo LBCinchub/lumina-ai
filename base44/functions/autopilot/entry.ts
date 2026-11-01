@@ -2,7 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.53';
 import { getUserPlan } from '../../shared/tiers.ts';
 import { publicRegistry } from '../../shared/autopilotRegistry.ts';
 import { planTask, preflight, runOneStep, auditEntry, MAX_STEPS } from '../../shared/autopilotEngine.ts';
-// Shared Autopilot modules are bundled per function: redeploy this one after editing them.
+// Shared Autopilot modules are bundled per function: after editing them, redeploy autopilot, autopilotWorker and chatWithLumina.
 import {
   ACTION_KINDS, EMAIL_KINDS, DESTINATIONS, GMAIL_CONNECTOR_ID,
   destinationUsable, publicDestinations, publicAccounts,

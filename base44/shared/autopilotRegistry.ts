@@ -125,7 +125,7 @@ export const REGISTRY = {
   },
   'schedule.recurring': {
     label: 'Repeat On A Schedule', status: 'unsupported', risk: 'generate', min_plan: 'superagent',
-    confirmation: 'none', reason: 'Recurring Runs Only Via Explicit Agent Autopilot Tasks (Daily Or Weekly) In Agents. Persistent Mode Never Repeats Work On Its Own.',
+    confirmation: 'none', reason: 'Recurring Runs Only Via Explicit Agent Autopilot Tasks (Daily Or Weekly) In Agents. Full-Auto Mode Never Repeats Work On Its Own.',
   },
 };
 

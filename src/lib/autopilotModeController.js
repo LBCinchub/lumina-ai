@@ -17,7 +17,7 @@ export function createModeController(invoke, emit) {
       set({ enabled: res.data.enabled === true, background: res.data.background || null, loading: false });
     } catch (e) {
       if (saveStarted) return;
-      set({ loading: false, error: modeErrorMessage(e, 'Could Not Load Persistent Mode. Your Saved Setting Was Not Changed.') });
+      set({ loading: false, error: modeErrorMessage(e, 'Could Not Load Full-Auto Mode. Your Saved Setting Was Not Changed.') });
     }
   };
 
@@ -30,7 +30,7 @@ export function createModeController(invoke, emit) {
       set({ enabled: res.data.enabled === true, background: res.data.background || s.background, saving: false });
       return true;
     } catch (e) {
-      set({ saving: false, error: modeErrorMessage(e, 'Could Not Save Persistent Mode. Your Previous Setting Is Kept.') });
+      set({ saving: false, error: modeErrorMessage(e, 'Could Not Save Full-Auto Mode. Your Previous Setting Is Kept.') });
       return false;
     }
   };
