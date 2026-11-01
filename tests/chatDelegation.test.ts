@@ -93,8 +93,8 @@ test('approval expiry and edited payload both prevent send', async () => {
   expect(checkApproval(app, edited, Date.now())).toBeTruthy();
 });
 
-test('card never claims completion for mock outcomes, never implies offline running', () => {
+test('card never claims completion for mock outcomes, leaves background status to Autopilot', () => {
   expect(taskCardSummary({ status: 'completed', receipt: { mock: true }, final_summary: 'Sent' }).headline).toMatch(/Test Only/);
-  expect(taskCardSummary({ status: 'running', steps: [] }).nextStep).toMatch(/Not Offline/);
+  expect(taskCardSummary({ status: 'running', steps: [] }).nextStep).not.toMatch(/offline|background|signed in/i);
   expect(taskCardSummary({ status: 'blocked', blocked_reason: 'Connect Gmail To Continue.' }).nextStep).toBe('Connect Gmail To Continue.');
 });

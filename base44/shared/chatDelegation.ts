@@ -66,8 +66,8 @@ export function delegationMessage(outcome: any, agentName?: string) {
   const lead = outcome.reused
     ? `${who}This task is already in progress, so I did not start a duplicate.`
     : agentName
-      ? `${who}Got it, I have taken this on. You can follow my progress on the card below while you are signed in.`
-      : 'On it. I started this as a task and I will keep working through the research, analysis and drafting steps while you are signed in.';
+      ? `${who}Got it, I have taken this on. You can follow my progress on the card below.`
+      : 'On it. I started this as a task and I am working through the research, analysis and drafting steps. You can follow my progress on the card below.';
   return `${AUTOPILOT_MARKER}${outcome.run_id}\n${lead} Anything that sends, posts or spends stays locked until you approve the exact content.`;
 }
 

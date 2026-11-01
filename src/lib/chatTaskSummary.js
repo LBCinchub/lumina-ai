@@ -1,6 +1,6 @@
 // Honest one-line summary of a run for the in-chat card. Never says
-// "completed" for mock or draft-only outcomes, and never implies offline
-// background execution.
+// "completed" for mock or draft-only outcomes. Background status is left to
+// the Autopilot screen, which reports it from the server.
 export function taskCardSummary(run) {
   const steps = run?.steps || [];
   const done = steps.filter(s => s.status === 'completed').length;
@@ -12,7 +12,7 @@ export function taskCardSummary(run) {
   switch (run?.status) {
     case 'running':
     case 'queued':
-      nextStep = 'Working While You Are Signed In To LBC AI. This Is Not Offline Background Execution.';
+      nextStep = 'Working On It. Open Details To Follow Each Step.';
       break;
     case 'awaiting_input':
       nextStep = run.clarifying_question ? `One Question: ${run.clarifying_question}` : 'Answer The Question In Details To Continue.';

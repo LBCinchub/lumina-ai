@@ -10,12 +10,16 @@ export default function PersistentModeToggle({ onConfirmedChange }) {
   useEffect(() => { ctl.load(); }, [ctl]);
   useEffect(() => { onConfirmedChange?.(s.enabled); }, [s.enabled, onConfirmedChange]);
 
-  const status = s.loading ? 'Loading…' : s.saving ? 'Saving…'
-    : s.enabled === true ? 'On — Runs Keep Going While You Are Away.' : s.enabled === false ? 'Off — Runs Advance Only While This Screen Is Open.' : 'Unavailable';
-
-  // Readiness is shown only from the server's `background` response; never assumed.
+  // Readiness is shown only from the server's `background` response; never
+  // assumed. Every label below derives from it, so they always agree.
   const bg = s.background;
-  const readiness = !bg ? 'Not Reported' : bg.ready === true ? 'Ready' : 'Not Ready';
+  const ready = bg?.ready === true;
+  const readiness = !bg ? 'Not Reported' : ready ? 'Ready' : 'Not Ready';
+  const status = s.loading ? 'Loading…' : s.saving ? 'Saving…'
+    : s.enabled === true
+      ? (ready ? 'On — Runs Keep Going While You Are Away.' : 'On — Runs Advance Only While LBC AI Is Open Until Background Execution Is Ready.')
+      : s.enabled === false ? 'Off — Runs Advance Only While LBC AI Is Open.' : 'Unavailable';
+  const detail = ready && s.enabled === false ? 'Turn On Persistent Mode To Keep Runs Going While You Are Away.' : bg?.blocker;
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 grid gap-4 sm:grid-cols-2">
@@ -31,7 +35,7 @@ export default function PersistentModeToggle({ onConfirmedChange }) {
       <div className="sm:border-l sm:border-border sm:pl-4">
         <div className="text-[11px] font-medium text-muted-foreground">Background Execution</div>
         <div className={`inline-flex mt-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${bg?.ready === true ? 'bg-green-500/15 text-green-700 dark:text-green-400' : 'bg-amber-500/15 text-amber-700 dark:text-amber-400'}`}>{readiness}</div>
-        {bg?.blocker && <div className="text-xs text-muted-foreground mt-1.5">{bg.blocker}</div>}
+        {detail && <div className="text-xs text-muted-foreground mt-1.5">{detail}</div>}
       </div>
       {s.error && (
         <div role="alert" className="text-[11px] text-destructive mt-1">

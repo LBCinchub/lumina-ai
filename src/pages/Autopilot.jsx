@@ -19,7 +19,6 @@ export default function Autopilot() {
 
   const [capabilities, setCapabilities] = useState(null);
   const [destinations, setDestinations] = useState([]);
-  const [mode, setMode] = useState(null);
   const { runs, loading, refresh } = useAutopilotRuns();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -36,7 +35,6 @@ export default function Autopilot() {
   // Steps are advanced by the single app-wide session driver in the shell.
 
   const onModeConfirmed = useCallback((enabled) => {
-    setMode(enabled);
     if (enabled === false) refresh();
   }, [refresh]);
 
@@ -89,7 +87,7 @@ export default function Autopilot() {
         </TabsList>
 
         <TabsContent value="task" className="pt-4">
-          <TaskStarter mode={mode} onCreated={refresh} busy={busy} setBusy={setBusy} setError={setError} />
+          <TaskStarter onCreated={refresh} busy={busy} setBusy={setBusy} setError={setError} />
         </TabsContent>
         <TabsContent value={kind} className="pt-4">
           {kind !== 'task' && <ActionDraftForm key={kind} kind={kind} destinations={destinations} onDrafted={refresh} />}
@@ -117,7 +115,7 @@ export default function Autopilot() {
   );
 }
 
-function TaskStarter({ mode, onCreated, busy, setBusy, setError }) {
+function TaskStarter({ onCreated, busy, setBusy, setError }) {
   const [goal, setGoal] = useState('');
   const create = async () => {
     setBusy(true); setError(null);
@@ -143,7 +141,7 @@ function TaskStarter({ mode, onCreated, busy, setBusy, setError }) {
       <Button disabled={busy || goal.trim().length < 5} onClick={create}>
         {busy ? 'Starting…' : 'Start Task'}
       </Button>
-      <p className="text-xs text-muted-foreground">Tip: You Can Also Just Ask In Chat. Steps Advance While You Are Signed In On Any Page — Not Offline{mode === true ? '. Persistent Mode Is Saved On, But Offline Background Execution Is Still Blocked' : ''}.</p>
+      <p className="text-xs text-muted-foreground">Tip: You Can Also Just Ask In Chat.</p>
     </div>
   );
 }
