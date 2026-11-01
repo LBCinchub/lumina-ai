@@ -1,12 +1,21 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
 export default function DisclosureSection({ title, hint, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
+  const ref = useRef(null);
+  // These sections sit at the bottom of the page, so opened content would land
+  // below the fold and look like nothing happened: bring it into view.
+  const onOpenChange = (next) => {
+    setOpen(next);
+    if (!next) return;
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+    requestAnimationFrame(() => ref.current?.scrollIntoView({ behavior, block: 'nearest' }));
+  };
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="rounded-xl border border-border bg-card">
+    <Collapsible ref={ref} open={open} onOpenChange={onOpenChange} className="rounded-xl border border-border bg-card scroll-mt-16 scroll-mb-20 md:scroll-mt-4 md:scroll-mb-4">
       <CollapsibleTrigger className="w-full flex items-center justify-between gap-3 px-4 min-h-[52px] text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <span>
           <span className="block text-sm font-medium">{title}</span>

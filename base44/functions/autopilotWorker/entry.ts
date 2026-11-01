@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.53';
 import { runOneStep, auditEntry } from '../../shared/autopilotEngine.ts';
+// Shared Autopilot modules are bundled per function: redeploy this one after editing them.
 import { NEEDS_ONLINE_IDS } from '../../shared/autopilotRegistry.ts';
 
 // Scheduled Autopilot continuation worker.

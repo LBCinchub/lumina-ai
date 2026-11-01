@@ -4,6 +4,7 @@ import { getUserPlan } from '../../shared/tiers.ts';
 import { fetchPageText } from '../../shared/pageReader.ts';
 import { detectActionIntent, actionIntentReply, detectDelegation, AUTOPILOT_MARKER } from '../../shared/actionIntent.ts';
 import { startDelegatedRun, delegationMessage, stripDelegationMarker } from '../../shared/chatDelegation.ts';
+// Shared Autopilot modules are bundled per function: redeploy this one after editing them.
 import { matchAgentMention } from '../../shared/agentMention.ts';
 import { detectControlIntent, handleControl } from '../../shared/chatControl.ts';
 import { extractMemories } from '../../shared/longTermMemory.ts';
