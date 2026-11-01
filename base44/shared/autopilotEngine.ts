@@ -16,6 +16,7 @@ import { gmailDispatch, headersOf, EMAIL_RE } from './gmailMime.ts';
 import { runFeature, FEATURE_IDS } from './autopilotFeatures.ts';
 import { availabilityFor } from './autopilotRegistry.ts';
 import { guardPlanSteps, stepAllowed, goalConstraints } from './planGuard.ts';
+import { fitStepsToPlan } from './planTierFit.ts';
 
 export const MAX_STEPS = 6;
 export const MAX_ATTEMPTS = 2;
@@ -88,11 +89,14 @@ Task: ${goal}${clarification ? `\nUser's answer to your earlier question: ${clar
       status: 'pending', attempts: 0,
     }));
   const steps = guardPlanSteps(goal, proposed, MAX_STEPS);
+  // Plan-gated steps with an honest equivalent on the user's plan are swapped
+  // and disclosed, so the task runs end to end instead of stopping at Blocked.
+  const fit = availability?.plan ? fitStepsToPlan(steps, availability.plan) : { steps, note: '' };
   return {
     needs_clarification: !!res?.needs_clarification && !!res?.clarifying_question,
     clarifying_question: String(res?.clarifying_question || '').slice(0, 500),
-    plan_summary: String(res?.plan_summary || '').slice(0, 1000),
-    steps,
+    plan_summary: [String(res?.plan_summary || '').slice(0, 1000), fit.note].filter(Boolean).join(' '),
+    steps: fit.steps,
   };
 }
 
