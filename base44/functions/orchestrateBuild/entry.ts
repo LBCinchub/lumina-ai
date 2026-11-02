@@ -5,8 +5,41 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 // prompts are exposed to the browser. Any user may call it; rate limiting
 // is enforced separately by checkBuildRequestLimit before this runs.
 //
-// step: "design" -> produces a visual description + generated image
+// step: "design" -> produces a visual description, a generated design image
+//                   and the live page as one self-contained HTML document
 // step: "title" -> produces a short project title
+
+const HTML_RULES = `You are a senior front-end engineer. Turn the request into ONE complete, self-contained, production-quality HTML document.
+- Output only the document: start with <!DOCTYPE html> and end with </html>. No explanations and no markdown fences.
+- Style with the Tailwind CSS CDN: <script src="https://cdn.tailwindcss.com"></script>. Extra CSS goes in one <style> tag. Set an explicit background colour on <body>.
+- Responsive: it must look right at 390px (phone), 768px (tablet) and desktop widths.
+- Real, specific copy for this subject, never lorem ipsum.
+- Visuals: CSS gradients, emoji or inline SVG only. No external images, no libraries, no trackers, no network requests and no forms that submit anywhere. Google Fonts are allowed.
+- Vanilla JavaScript in one <script> tag only where interaction needs it.
+- Keep it under about 350 lines.`;
+
+// The model's reply is untrusted text: keep only one complete HTML document.
+function extractHtml(raw) {
+  const s = typeof raw === 'string' ? raw : String(raw?.content || '');
+  const start = s.search(/<!doctype html|<html[\s>]/i);
+  const end = s.toLowerCase().lastIndexOf('</html>');
+  if (start === -1 || end < start) return null;
+  return s.slice(start, end + 7);
+}
+
+async function buildHtml(base44, { request, design, currentHtml }) {
+  const current = typeof currentHtml === 'string' && currentHtml.trim()
+    ? `\n\nCURRENT PAGE (update it to satisfy the request and keep everything the request does not change):\n${currentHtml.slice(0, 60000)}`
+    : '';
+  try {
+    const res = await base44.integrations.Core.InvokeLLM({
+      prompt: `${HTML_RULES}\n\nDESIGN DIRECTION:\n${design}\n\nUSER REQUEST:\n${request}${current}`,
+    });
+    return extractHtml(res);
+  } catch (_) {
+    return null;
+  }
+}
 
 const DESIGN_SYSTEM = `You are an expert product designer and UI/UX specialist. Your role is to visualize and design beautiful interfaces.
 
@@ -31,7 +64,7 @@ export default async function(req) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { step, message, history } = await req.json().catch(() => ({}));
+    const { step, message, history, current_html } = await req.json().catch(() => ({}));
     if (!step) {
       return Response.json({ error: 'step required' }, { status: 400 });
     }
@@ -56,13 +89,13 @@ Respond with a detailed image description (2-3 sentences) that captures the comp
       });
       const content = typeof res === 'string' ? res : (res?.content || String(res));
 
-      let imageUrl = null;
-      try {
-        const imageRes = await base44.integrations.Core.GenerateImage({ prompt: content });
-        imageUrl = imageRes?.url || null;
-      } catch (_) {}
+      // The design image and the live page are built in parallel from the same direction.
+      const [imageUrl, html] = await Promise.all([
+        base44.integrations.Core.GenerateImage({ prompt: content }).then(r => r?.url || null).catch(() => null),
+        buildHtml(base44, { request: message, design: content, currentHtml: current_html }),
+      ]);
 
-      return Response.json({ content, image_url: imageUrl });
+      return Response.json({ content, image_url: imageUrl, html });
     }
 
     if (step === 'title') {

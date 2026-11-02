@@ -6,6 +6,7 @@ import {
   writeAudit, executeGitHubCommit, createNotification,
 } from '../../shared/security.ts';
 import { normalizeRepo } from '../../shared/githubRepo.ts';
+import { githubFailure } from '../../shared/githubFailure.ts';
 
 const ACTION_TYPE = 'templates_backup_push';
 const DEFAULT_PATH = 'backups/terminal-templates.json';
@@ -27,13 +28,7 @@ export function buildBackupContent(templates: any[], exportedBy: string, exporte
 // Hash binds the exact bytes AND the commit message.
 const bindHash = (content: string, message: string) => sha256Hex(`${content}\n--message--\n${message}`);
 
-function githubFailure(status: number) {
-  if (status === 503) return { error: NO_CONNECTION, code: 'no_connection', status: 503 };
-  if (status === 404) return { error: 'Repository Or Branch Not Found, Or Not Visible To Your GitHub Connection. Check Owner/Repository And Branch.', code: 'not_found', status: 404 };
-  if (status === 401 || status === 403) return { error: 'Your GitHub Connection Does Not Have Write Permission For This Repository.', code: 'no_write_permission', status: 403 };
-  if (status === 409 || status === 422) return { error: 'GitHub Rejected The Commit (The File Changed Or The Branch Is Protected). Review The Backup Again.', code: 'rejected', status: 409 };
-  return { error: 'GitHub Push Failed. Nothing Was Backed Up.', code: 'github_failed', status: 502 };
-}
+const FAILURE_LABELS = { noConnection: NO_CONNECTION, review: 'Review The Backup Again.', nothing: 'Nothing Was Backed Up.' };
 
 // Pushes the actor's own saved Terminal Command Templates to an allowlisted
 // GitHub repository as a versioned JSON backup, behind a two-phase,
@@ -122,7 +117,7 @@ export default async function (req) {
       confirmationId: verified.confirmationId || null, requestHash: payloadHash.slice(0, 12),
     });
     if (!ok) {
-      const f = githubFailure(result.ok ? 502 : result.status);
+      const f = githubFailure(result.ok ? 502 : result.status, FAILURE_LABELS);
       return Response.json({ error: f.error, code: f.code }, { status: f.status });
     }
 

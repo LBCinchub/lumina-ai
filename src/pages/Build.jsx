@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import JSZip from 'jszip';
 import ProjectSidePanels from '@/components/build/ProjectSidePanels';
+import PreviewPane from '@/components/build/PreviewPane';
+import GitHubSyncDialog from '@/components/build/GitHubSyncDialog';
 import { base44 } from '@/api/base44Client';
-import { Link } from 'react-router-dom';
 import {
   Code2, ArrowUp, Copy, Check, ChevronDown, ChevronUp,
   Monitor, Eye, Plus, Trash2, FolderOpen, Github,
-  RefreshCw, ExternalLink, Download, Loader, Zap
+  RefreshCw, ExternalLink, Download, Zap
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import LuminaMark from '@/components/layout/LuminaMark';
 import { useCollaborativeSession } from '@/hooks/useCollaborativeSession';
 import { cn } from '@/lib/utils';
@@ -116,48 +116,9 @@ function ChatMessage({ msg }) {
   );
 }
 
-function PreviewPane({ html, latestImageUrl, loading, deviceMode }) {
-  const widthMap = { desktop: '100%', tablet: '768px', mobile: '390px' };
-  const width = widthMap[deviceMode] || '100%';
-  const isMobile = deviceMode === 'mobile';
-  const isTablet = deviceMode === 'tablet';
-
-  if (!html && !latestImageUrl) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground/60 text-sm">
-        <LuminaMark size={48} className="mb-4 opacity-40" />
-        <p>Your app will appear here</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className={cn(
-      "flex-1 flex flex-col items-center justify-center overflow-auto relative",
-      isMobile || isTablet ? "bg-muted/20 p-4" : "p-0"
-    )}>
-      {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-20">
-          <Loader className="w-6 h-6 animate-spin text-primary" />
-        </div>
-      )}
-      {latestImageUrl ? (
-        <img src={latestImageUrl} alt="Design" className="max-w-full h-auto rounded-lg shadow-lg" />
-      ) : (
-        <iframe
-          srcDoc={html}
-          className={cn(
-            "border-0",
-            isMobile || isTablet ? "rounded-lg shadow-xl" : ""
-          )}
-          style={{ width, height: isMobile || isTablet ? 'auto' : '100%' }}
-          title="Live preview"
-          sandbox="allow-scripts allow-same-origin allow-same-origin-popups"
-        />
-      )}
-    </div>
-  );
-}
+// Collaborator presence is not shown here; a stable callback keeps the
+// presence hook from re-subscribing (and calling the server) on every render.
+const IGNORE_COLLABORATORS = () => {};
 
 export default function Build() {
   const [projects, setProjects] = useState([]);
@@ -173,12 +134,12 @@ export default function Build() {
   const [deviceMode, setDeviceMode] = useState('desktop');
   const [showCode, setShowCode] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [pushingCode, setPushingCode] = useState(false);
-  const [pushConfirm, setPushConfirm] = useState(null);
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [previewKey, setPreviewKey] = useState(0);
 
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
-  const { syncSession } = useCollaborativeSession(activeProjectId, () => {});
+  const { syncSession } = useCollaborativeSession(activeProjectId, IGNORE_COLLABORATORS);
 
   const loadProjects = useCallback(async () => {
     setLoadingProjects(true);
@@ -243,43 +204,55 @@ export default function Build() {
     setPreviewLoading(true);
 
     try {
-      const limitCheck = await base44.functions.invoke('checkBuildRequestLimit', {});
-      if (limitCheck.data.blocked) {
-        setMessages(prev => [...prev, { role: 'assistant', content: limitCheck.data.message, id: Date.now() + 1 }]);
-        setSending(false);
-        setPreviewLoading(false);
+      // A blocked request comes back as an error response that carries the message.
+      let limit;
+      try {
+        limit = (await base44.functions.invoke('checkBuildRequestLimit', {})).data;
+      } catch (err) {
+        limit = err?.response?.data;
+        if (!limit?.blocked) throw err;
+      }
+      if (limit?.blocked) {
+        setMessages(prev => [...prev, { role: 'assistant', content: limit.message, id: Date.now() + 1 }]);
         return;
       }
 
       const userMsg = { role: 'user', content: trimmed, id: Date.now() };
-      const newMessages = [...messages, userMsg];
-      setMessages(newMessages);
+      const withUser = [...messages, userMsg];
+      setMessages(withUser);
       setInput('');
 
-      const history = newMessages
+      const history = withUser
         .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
         .join('\n\n');
 
+      // One call returns the design (description + image) and the live HTML.
       const buildRes = await base44.functions.invoke('orchestrateBuild', {
-        step: 'design', message: trimmed, history
+        step: 'design', message: trimmed, history, current_html: latestHTML || ''
       });
-      const buildData = buildRes?.data || buildRes || {};
-      const content = buildData.content || '';
+      const buildData = buildRes?.data || {};
       const imageUrl = buildData.image_url || null;
+      const html = buildData.html || null;
+      const nextHTML = html || latestHTML;
       const assistantMsg = {
         role: 'assistant',
-        content: imageUrl ? `Here's the design:\n\n![Design](${imageUrl})\n\n${content}` : content,
+        content: [
+          imageUrl ? `Here's the design:\n\n![Design](${imageUrl})` : '',
+          buildData.content || '',
+          html
+            ? 'The live page is in the preview. Open Code to see or edit its HTML.'
+            : 'The live page could not be built this time, so the preview was not changed. Send your request again to retry.'
+        ].filter(Boolean).join('\n\n'),
         id: Date.now() + 1
       };
-      newMessages.push(assistantMsg);
-
-      if (imageUrl) {
-        setLatestImageUrl(imageUrl);
-      }
-      setMessages(newMessages);
+      const finalMessages = [...withUser, assistantMsg];
+      setMessages(finalMessages);
+      if (imageUrl) setLatestImageUrl(imageUrl);
+      if (html) setLatestHTML(html);
+      setPreviewLoading(false);
 
       if (activeProjectId) {
-        await syncSession(latestHTML, null, null);
+        await syncSession(nextHTML, null, null);
       }
 
       let title = null;
@@ -295,8 +268,8 @@ export default function Build() {
       }
 
       const projectData = {
-        messages: newMessages,
-        html: latestHTML,
+        messages: finalMessages,
+        html: nextHTML,
         image_url: imageUrl || latestImageUrl,
         last_built_at: new Date().toISOString(),
         ...(title ? { title } : {})
@@ -316,12 +289,12 @@ export default function Build() {
 
       loadProjects();
 
-      if (projectId && (imageUrl || latestImageUrl)) {
+      if (projectId && (nextHTML || imageUrl || latestImageUrl)) {
         base44.entities.ProjectHistory.create({
           project_id: projectId,
-          html: latestHTML,
+          html: nextHTML,
           image_url: imageUrl || latestImageUrl,
-          messages: newMessages,
+          messages: finalMessages,
           is_auto: true
         }).catch(() => {});
       }
@@ -355,56 +328,6 @@ export default function Build() {
     link.download = `${projectName.replace(/\s+/g, '-')}.zip`;
     link.click();
     URL.revokeObjectURL(link.href);
-  };
-
-  const pushToGithub = async () => {
-    if (!activeProject?.github_repo || !activeProject?.github_path || !latestHTML) return;
-    setPushingCode(true);
-    try {
-      const res = await base44.functions.invoke('luminaPushCode', {
-        repo: activeProject.github_repo,
-        path: activeProject.github_path,
-        content: latestHTML,
-        message: `build: update via Build IDE - ${new Date().toLocaleString()}`
-      });
-      const data = res?.data || res;
-      if (data?.requires_confirmation) {
-        setPushConfirm({ preview: data.preview, token: data.confirmation_token });
-      } else if (data?.success) {
-        setMessages(prev => [...prev, { role: 'assistant', content: '✅ Pushed to GitHub successfully!', id: Date.now() + 1 }]);
-      } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: `❌ GitHub push failed: ${data?.error || 'unknown'}`, id: Date.now() + 1 }]);
-      }
-    } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: `❌ GitHub push failed: ${err.message}`, id: Date.now() + 1 }]);
-    } finally {
-      setPushingCode(false);
-    }
-  };
-
-  const confirmPush = async () => {
-    if (!pushConfirm) return;
-    setPushingCode(true);
-    try {
-      const res = await base44.functions.invoke('luminaPushCode', {
-        repo: pushConfirm.preview.repo,
-        path: pushConfirm.preview.path,
-        content: latestHTML,
-        message: pushConfirm.preview.message,
-        confirmation_token: pushConfirm.token
-      });
-      const data = res?.data || res;
-      if (data?.success) {
-        setMessages(prev => [...prev, { role: 'assistant', content: '✅ Pushed to GitHub successfully!', id: Date.now() + 1 }]);
-        setPushConfirm(null);
-      } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: `❌ GitHub push failed: ${data?.error || 'unknown'}`, id: Date.now() + 1 }]);
-      }
-    } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: `❌ GitHub push failed: ${err.message}`, id: Date.now() + 1 }]);
-    } finally {
-      setPushingCode(false);
-    }
   };
 
   const isEmpty = messages.length === 0;
@@ -471,8 +394,10 @@ export default function Build() {
           <div className="flex items-center gap-1">
             <button
               onClick={() => setShowCode(!showCode)}
+              disabled={!latestHTML}
+              title={latestHTML ? 'Show The Generated HTML' : 'Build A Page First'}
               className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] transition-colors",
+                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
                 showCode ? "bg-primary/20 border border-primary/30 text-foreground" : "text-muted-foreground/70 hover:text-foreground hover:bg-accent/40"
               )}
             >
@@ -482,6 +407,7 @@ export default function Build() {
             <button
               onClick={() => setShowCode(false)}
               className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] transition-colors",
                 !showCode && messages.length > 0 ? "bg-primary/20 border border-primary/30 text-foreground" : "text-muted-foreground/70 hover:text-foreground hover:bg-accent/40"
               )}
             >
@@ -544,6 +470,7 @@ export default function Build() {
                       <span className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-pulse" style={{ animationDelay: '0ms' }} />
                       <span className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-pulse" style={{ animationDelay: '200ms' }} />
                       <span className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-pulse" style={{ animationDelay: '400ms' }} />
+                      <span className="ml-2 text-[12px] text-muted-foreground">Designing And Building Your Page…</span>
                     </div>
                   </div>
                 )}
@@ -569,7 +496,6 @@ export default function Build() {
               }}
               placeholder="Build something beautiful…"
               rows={1}
-              disabled={sending}
               className="flex-1 bg-transparent resize-none outline-none text-[13px] leading-relaxed placeholder:text-muted-foreground/50 scrollbar-minimal"
               style={{ maxHeight: '120px' }}
             />
@@ -626,11 +552,9 @@ export default function Build() {
 
           <div className="flex items-center gap-1">
             <button
-              onClick={() => {
-                setPreviewLoading(true);
-                setTimeout(() => setPreviewLoading(false), 1000);
-              }}
-              className="p-1.5 rounded-md hover:bg-accent/40 text-muted-foreground/70 hover:text-foreground transition-colors"
+              onClick={() => setPreviewKey(k => k + 1)}
+              disabled={!latestHTML}
+              className="p-1.5 rounded-md hover:bg-accent/40 text-muted-foreground/70 hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               title="Refresh preview"
             >
               <RefreshCw className="w-3.5 h-3.5" strokeWidth={1.75} />
@@ -651,55 +575,29 @@ export default function Build() {
             >
               <ExternalLink className="w-3.5 h-3.5" strokeWidth={1.75} />
             </button>
-            <Link
-              to="/github"
-              className="p-1.5 rounded-md hover:bg-accent/40 text-muted-foreground/70 hover:text-foreground transition-colors"
-              title="GitHub Connection"
+            <button
+              onClick={() => setSyncOpen(true)}
+              disabled={!activeProject || !latestHTML || sending}
+              className="p-1.5 rounded-md hover:bg-accent/40 text-muted-foreground/70 hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title={activeProject && latestHTML ? 'Sync To GitHub' : 'Build A Page First, Then Sync It To GitHub'}
+              aria-label="Sync To GitHub"
             >
               <Github className="w-3.5 h-3.5" strokeWidth={1.75} />
-            </Link>
-            {activeProject?.github_repo && (
-              <button
-                onClick={pushToGithub}
-                disabled={!latestHTML || pushingCode}
-                className="p-1.5 rounded-md hover:bg-accent/40 text-muted-foreground/70 hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                title="Push to GitHub"
-              >
-                <Github className={cn("w-3.5 h-3.5", pushingCode && "animate-spin")} strokeWidth={1.75} />
-              </button>
-            )}
+            </button>
           </div>
         </div>
 
         <PreviewPane
           html={latestHTML}
-          latestImageUrl={latestImageUrl}
+          imageUrl={latestImageUrl}
           loading={previewLoading}
           deviceMode={deviceMode}
+          refreshKey={previewKey}
         />
       </div>
 
-      {pushConfirm && (
-        <Dialog open={!!pushConfirm} onOpenChange={(o) => !o && setPushConfirm(null)}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Confirm GitHub push</DialogTitle>
-            </DialogHeader>
-            <div className="text-[12px] text-muted-foreground space-y-1.5">
-              <div>Repo: <span className="text-foreground">{pushConfirm.preview.repo}</span></div>
-              <div>Branch: <span className="text-foreground">{pushConfirm.preview.branch}</span></div>
-              <div>Path: <span className="text-foreground">{pushConfirm.preview.path}</span></div>
-              <div>Size: <span className="text-foreground">{pushConfirm.preview.size_bytes} bytes</span></div>
-              <div>Message: <span className="text-foreground">{pushConfirm.preview.message}</span></div>
-            </div>
-            <DialogFooter className="gap-2">
-              <button onClick={() => setPushConfirm(null)} className="px-3 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground">Cancel</button>
-              <button onClick={confirmPush} disabled={pushingCode} className="px-3 py-1.5 rounded-md text-xs bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50">
-                {pushingCode ? 'Pushing…' : 'Confirm push'}
-              </button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      {syncOpen && activeProject && (
+        <GitHubSyncDialog open onOpenChange={setSyncOpen} project={activeProject} onSynced={loadProjects} />
       )}
     </div>
   );
