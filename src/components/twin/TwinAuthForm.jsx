@@ -74,7 +74,8 @@ export default function TwinAuthForm({ settings, onSaved, onCancel }) {
           id="twin-max-spend"
           type="number"
           min="0"
-          value={vals.max_auto_spend_usd}
+          placeholder="0"
+          value={vals.max_auto_spend_usd || ''}
           onChange={e => change({ max_auto_spend_usd: Math.max(0, Number(e.target.value) || 0) })}
           className="w-full px-3 py-2 rounded-md border border-input bg-transparent text-sm"
         />

@@ -147,9 +147,16 @@ export default async function(req) {
       });
     }
 
-    // Action requests: an explicit owner predicate on top of RLS on every read.
+    // Action requests: read through the user's own RLS-scoped client, like the
+    // profile and settings above (no built-in owner field in the query), and
+    // the owner is re-checked on every record as a second line of defense.
+    const ownRequests = async (query = {}) => {
+      const rows = await base44.entities.TwinActionRequest.filter(query, '-created_date', 50);
+      return (Array.isArray(rows) ? rows : []).filter((r) => r?.created_by_id === user.id);
+    };
+
     if (action === 'list_requests') {
-      const rows = await base44.entities.TwinActionRequest.filter({ created_by_id: user.id }, '-created_date', 50);
+      const rows = await ownRequests();
       return Response.json({ requests: rows.map(publicRequest) });
     }
 
@@ -159,7 +166,7 @@ export default async function(req) {
         return Response.json({ error: 'Choose Approve Or Deny.' }, { status: 400 });
       }
       const rows = typeof body.request_id === 'string' && /^[a-f0-9]{24}$/i.test(body.request_id)
-        ? await base44.entities.TwinActionRequest.filter({ id: body.request_id, created_by_id: user.id })
+        ? await ownRequests({ id: body.request_id })
         : [];
       const r = rows[0];
       if (!r) return Response.json({ error: 'Not found' }, { status: 404 });
@@ -177,6 +184,7 @@ export default async function(req) {
 
     return Response.json({ error: 'Unknown action' }, { status: 400 });
   } catch (error) {
+    console.error('lbcTwinEngine failed:', error?.message);
     return Response.json({ error: error.message }, { status: 500 });
   }
 }
