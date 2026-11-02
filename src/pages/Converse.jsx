@@ -16,6 +16,7 @@ import DeepSearchDialog from '@/components/research/DeepSearchDialog';
 import DocumentDialog from '@/components/documents/DocumentDialog';
 import { useExportPDF } from '@/hooks/useExportPDF';
 import { useSpeechOutput } from '@/hooks/useSpeechOutput';
+import { useCallTurns } from '@/hooks/useCallTurns';
 import LiveCallOverlay from '@/components/chat/LiveCallOverlay';
 import ExportDialog from '@/components/chat/ExportDialog';
 import ImageStudio from '@/components/twin/ImageStudio';
@@ -73,8 +74,8 @@ export default function Converse() {
     startMicRef.current = () => composerRef.current?.start();
   }, []);
 
-  // In voice mode the mic also runs while LBC AI speaks, so the caller can cut
-  // in: their words stop her at once (barge-in, in the speech input).
+  // In voice mode the mic runs for the whole call: while she thinks, so the
+  // caller can keep talking, and while she speaks, so they can cut in.
   const restartMicRef = useRef(null);
   useEffect(() => {
     restartMicRef.current = () => composerRef.current?.restart();
@@ -132,18 +133,11 @@ export default function Converse() {
   // Keep ref in sync so callbacks don't close over stale voiceMode
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
 
-  // Auto-speak latest Lumina message in voice mode
-  // Fire whenever messages change — guard on voiceMode only
-  useEffect(() => {
-    if (!voiceMode) return;
-    const last = [...messages].reverse().find(m => m.role === 'assistant');
-    if (!last || last.id === lastSpokenIdRef.current) return;
-    // Don't speak optimistic/tmp messages
-    if (String(last.id).startsWith('tmp-')) return;
-    lastSpokenIdRef.current = last.id;
-    // Also shown as a caption, so the reply can be read with the sound off.
-    setCallReply(String(last.content).startsWith('__IMAGE__') ? '' : last.content);
-    speak(last.content, () => {
+  // Say a reply in the call, also as a caption so it can be read with the
+  // sound off. When each reply is said is decided by useCallTurns below.
+  const speakReply = useCallback((msg) => {
+    setCallReply(String(msg.content).startsWith('__IMAGE__') ? '' : msg.content);
+    speak(msg.content, () => {
       // Lumina finished speaking naturally — restart mic if not already running
       if (voiceModeRef.current && restartMicRef.current) {
         restartMicRef.current();
@@ -151,7 +145,7 @@ export default function Converse() {
     });
     // Listen while she talks too, so the caller can interrupt her.
     restartMicRef.current?.();
-  }, [messages, voiceMode, speak]);
+  }, [speak]);
 
   const handleSelect = (id) => {
     setSearchParams({ c: id });
@@ -277,6 +271,12 @@ export default function Converse() {
     }
   };
 
+  const callTurns = useCallTurns({
+    active: voiceMode, messages, isSending, isSendingRef, listening, lastSpokenIdRef, speakReply,
+    submit: handleSubmit,
+    restartMic: () => restartMicRef.current?.(),
+  });
+
   const { exportThread } = useExportPDF();
   const activeTitle = activeId ? (conversations.find(c => c.id === activeId)?.title || 'Conversation') : 'New Chat';
 
@@ -291,6 +291,7 @@ export default function Converse() {
     if (voiceMode) {
       stopSpeaking();
       composerRef.current?.stop();
+      callTurns.reset();
       voiceModeRef.current = false;
       setVoiceMode(false);
       setListening(false);
@@ -460,14 +461,15 @@ export default function Converse() {
               value={input}
               onChange={setInput}
               onSubmit={(text, attachments) => {
-                handleSubmit(text, attachments);
+                if (voiceModeRef.current) callTurns.onVoiceTurn(text);
+                else handleSubmit(text, attachments);
               }}
               disabled={isSending}
               voiceMode={voiceMode}
               luminaSpeaking={speaking}
               onListeningChange={setListening}
               onMicErrorChange={setMicError}
-              onBargeIn={stopSpeaking}
+              onBargeIn={() => { callTurns.onCallerSpeech(); stopSpeaking(); }}
               getSpoken={getSpoken}
             />
             <p className="text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground/60 text-center mt-3">

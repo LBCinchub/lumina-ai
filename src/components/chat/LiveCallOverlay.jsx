@@ -3,6 +3,7 @@ import { PhoneOff } from 'lucide-react';
 import BrandLogo from '@/components/brand/BrandLogo';
 import CallCaption from '@/components/chat/CallCaption';
 import CallTypeBox from '@/components/chat/CallTypeBox';
+import { useWakeLock } from '@/hooks/useWakeLock';
 import { cn } from '@/lib/utils';
 
 export default function LiveCallOverlay({ speaking, listening, isSending, micError, onRetryMic, transcript, reply, typed, onTypedChange, onSendTyped, onEnd }) {
@@ -20,16 +21,22 @@ export default function LiveCallOverlay({ speaking, listening, isSending, micErr
       if (prev && typeof prev.focus === 'function') prev.focus();
     };
   }, []);
-  // Typed turns (mic unavailable) still show Thinking and Speaking.
+  // Keeps the screen on, so a phone does not lock and drop the call while
+  // she thinks.
+  useWakeLock();
+  // Typed turns (mic unavailable) still show Thinking and Speaking. While she
+  // thinks the mic keeps listening, so the caller can add to what they said.
   const status = speaking
     ? 'Speaking…'
-    : listening
-      ? 'Listening…'
-      : isSending
-        ? 'Thinking…'
+    : isSending
+      ? (micError ? 'Thinking…' : 'Thinking… Still Listening')
+      : listening
+        ? 'Listening…'
         : micError
           ? 'Microphone Unavailable'
           : 'On call';
+  // The orb stays live through the whole turn, thinking pause included.
+  const live = speaking || listening || isSending;
 
   // The screen scrolls when its content is taller than the viewport (small
   // phones, or the keyboard open while typing), so nothing gets cut off.
@@ -53,11 +60,11 @@ export default function LiveCallOverlay({ speaking, listening, isSending, micErr
           {/* Outer pulse ring */}
           <div className={cn(
             "absolute rounded-full border border-foreground/10 transition-all duration-500 pointer-events-none",
-            (speaking || listening) ? "w-48 h-48 opacity-100 animate-ping motion-reduce:animate-none" : "w-36 h-36 opacity-0"
+            live ? "w-48 h-48 opacity-100 animate-ping motion-reduce:animate-none" : "w-36 h-36 opacity-0"
           )} style={{ animationDuration: '2s' }} />
           <div className={cn(
             "absolute rounded-full border border-foreground/15 transition-all duration-700 pointer-events-none",
-            (speaking || listening) ? "w-40 h-40 opacity-100" : "w-28 h-28 opacity-0"
+            live ? "w-40 h-40 opacity-100" : "w-28 h-28 opacity-0"
           )} />
           {/* Core */}
           <div className={cn(
@@ -75,7 +82,7 @@ export default function LiveCallOverlay({ speaking, listening, isSending, micErr
 
         {/* Status */}
         <div className="flex items-center gap-2 mb-6">
-          {(speaking || listening || isSending) && (
+          {live && (
             <span className="flex gap-1">
               {[0, 1, 2].map(i => (
                 <span
