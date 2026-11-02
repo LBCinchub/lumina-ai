@@ -91,7 +91,9 @@ export function useExportPDF() {
     }
 
     const filename = (title || 'conversation').replace(/[^a-z0-9]/gi, '-').toLowerCase();
-    doc.save(`lumina-${filename}.pdf`);
+    const name = `lumina-${filename}.pdf`;
+    doc.save(name);
+    return name;
   };
 
   return { exportThread };

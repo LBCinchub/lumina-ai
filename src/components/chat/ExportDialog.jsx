@@ -8,38 +8,47 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Download, Share2, Loader2 } from 'lucide-react';
+import { Download, Share2 } from 'lucide-react';
+import ExportOption from '@/components/chat/ExportOption';
 
+// Stays open until the user closes it, so every result stays visible:
+// the downloaded file name, the share confirmation, or what went wrong.
 export default function ExportDialog({ open, onOpenChange, title, messages, onDownload }) {
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [pdfFile, setPdfFile] = useState('');
+  const [share, setShare] = useState('idle');
+  const [error, setError] = useState('');
 
-  const handleDownload = () => {
-    onDownload();
-    onOpenChange(false);
+  const handleOpenChange = (next) => {
+    if (!next) { setPdfFile(''); setShare('idle'); setError(''); }
+    onOpenChange(next);
   };
 
-  const handleSendToHub = async () => {
-    setSending(true);
+  const handleDownload = () => {
+    setError('');
     try {
-      await base44.functions.invoke('shareToLbcHub', {
-        title,
-        messages
-      });
-      setSent(true);
-      setTimeout(() => {
-        onOpenChange(false);
-        setSent(false);
-      }, 2000);
-    } catch {
-      // share failed — keep dialog open
-    } finally {
-      setSending(false);
+      setPdfFile(onDownload());
+    } catch (_) {
+      setPdfFile('');
+      setError('The PDF Could Not Be Created, So Nothing Was Downloaded. Please Try Again.');
     }
   };
 
+  const handleSendToHub = async () => {
+    setShare('working');
+    setError('');
+    try {
+      await base44.functions.invoke('shareToLbcHub', { title, messages });
+      setShare('done');
+    } catch (_) {
+      setShare('idle');
+      setError('Sharing To lbc-hub.com Failed, So Nothing Was Sent. Please Try Again.');
+    }
+  };
+
+  const finished = !!pdfFile || share === 'done';
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
           <DialogTitle>Export conversation</DialogTitle>
@@ -48,46 +57,28 @@ export default function ExportDialog({ open, onOpenChange, title, messages, onDo
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 py-4">
-          <button
+        <div className="space-y-3 py-4" aria-live="polite">
+          <ExportOption
+            icon={Download}
+            state={pdfFile ? 'done' : 'idle'}
+            title={pdfFile ? 'PDF Download Started' : 'Download as PDF'}
+            hint={pdfFile ? `${pdfFile} · Check Your Downloads` : 'Save to your device'}
             onClick={handleDownload}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-border hover:bg-accent transition-colors text-left"
-          >
-            <Download className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-            <div>
-              <div className="text-sm font-medium text-foreground">Download as PDF</div>
-              <div className="text-xs text-muted-foreground">Save to your device</div>
-            </div>
-          </button>
-
-          <button
+          />
+          <ExportOption
+            icon={Share2}
+            state={share}
+            disabled={share !== 'idle'}
+            title={share === 'done' ? 'Sent to lbc-hub.com' : 'Send to lbc-hub.com'}
+            hint={share === 'done' ? 'Conversation shared' : 'Share with your hub'}
             onClick={handleSendToHub}
-            disabled={sending || sent}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-border hover:bg-accent transition-colors text-left disabled:opacity-50"
-          >
-            {sending ? (
-              <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
-            ) : (
-              <Share2 className="w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-            )}
-            <div>
-              <div className="text-sm font-medium text-foreground">
-                {sent ? '✓ Sent to lbc-hub.com' : 'Send to lbc-hub.com'}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {sent ? 'Conversation shared' : 'Share with your hub'}
-              </div>
-            </div>
-          </button>
+          />
+          {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
         </div>
 
         <div className="flex gap-2 justify-end pt-2">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={sending}
-          >
-            Cancel
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={share === 'working'}>
+            {finished ? 'Done' : 'Cancel'}
           </Button>
         </div>
       </DialogContent>
