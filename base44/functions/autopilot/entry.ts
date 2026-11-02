@@ -14,6 +14,7 @@ import { validateContext, contextEvidence, ContextError } from '../../shared/aut
 import { createAutopilotRun, planAndStore as planAndStoreCore, startExecution as startExecutionCore } from '../../shared/autopilotCreate.ts';
 import { stepAllowed } from '../../shared/planGuard.ts';
 import { flushPendingArtifacts } from '../../shared/autopilotArtifacts.ts';
+import { planFallback } from '../../shared/planTierFit.ts';
 
 // LBC AI Autopilot — one authenticated server-side task orchestrator.
 // Identity is ALWAYS auth.me(); no client-supplied user/owner ids are read.
@@ -57,7 +58,10 @@ export default async function(req) {
       // it is re-validated on create.
       const gmailConnected = plan === 'ultra' ? await probeGmail() : false;
       const hint = { image_ref: typeof body.context_hint?.image_ref === 'string' ? 'selected' : null };
-      return Response.json({ plan, capabilities: publicRegistry({ plan, gmailConnected, context: hint }), destinations: publicDestinations(isAdmin(user)) });
+      // Plan-gated capabilities report the same substitute the planner uses.
+      const capabilities = publicRegistry({ plan, gmailConnected, context: hint })
+        .map(c => ({ ...c, fallback: planFallback(c.id, plan)?.instead || null }));
+      return Response.json({ plan, capabilities, destinations: publicDestinations(isAdmin(user)) });
     }
 
     if (action === 'accounts') {

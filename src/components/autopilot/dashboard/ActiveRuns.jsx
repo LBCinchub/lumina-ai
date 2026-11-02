@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { StatusPill } from './statusMeta';
+import { serverDate } from '@/lib/utils';
 
 export default function ActiveRuns({ runs }) {
   if (!runs.length) {
@@ -26,7 +27,7 @@ export default function ActiveRuns({ runs }) {
               <span className="line-clamp-1">
                 {r.blocked_reason || r.clarifying_question || (current ? `Next: ${current.title}` : `${done}/${steps.length} steps`)}
               </span>
-              <span className="whitespace-nowrap">{formatDistanceToNow(new Date(r.updated_date), { addSuffix: true })}</span>
+              <span className="whitespace-nowrap">{formatDistanceToNow(serverDate(r.updated_date), { addSuffix: true })}</span>
             </div>
           </Link>
         );

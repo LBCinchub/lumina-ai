@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
+import { usePollWhile } from '@/hooks/usePollWhile';
+import { isMovingRun } from '@/hooks/useAutopilot';
 
 export const ACTIVE_STATUSES = ['queued', 'running', 'awaiting_input', 'awaiting_approval', 'paused', 'blocked'];
 
@@ -29,6 +31,7 @@ export function useAutopilotDashboard() {
     refresh();
     return base44.entities.AutopilotRun.subscribe(() => refresh());
   }, [refresh]);
+  usePollWhile(active.some(isMovingRun), refresh);
 
   return { counts, active, recent, loading };
 }
