@@ -282,7 +282,7 @@ export default function Converse() {
     setExportOpen(true);
   };
 
-  // Returns the saved file name so the Export dialog can confirm it.
+  // Returns the saved file (name + a link to open it) so the Export dialog can confirm it.
   const handleExport = () => exportThread(activeTitle, messages);
 
   const toggleVoiceMode = () => {

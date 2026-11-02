@@ -8,27 +8,33 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Download, Share2 } from 'lucide-react';
+import { Download, Share2, ExternalLink } from 'lucide-react';
 import ExportOption from '@/components/chat/ExportOption';
 
 // Stays open until the user closes it, so every result stays visible:
-// the downloaded file name, the share confirmation, or what went wrong.
+// the downloaded file (which can also be opened from here), the share
+// confirmation, or what went wrong.
 export default function ExportDialog({ open, onOpenChange, title, messages, onDownload }) {
-  const [pdfFile, setPdfFile] = useState('');
+  const [pdf, setPdf] = useState(null); // { name, url }
   const [share, setShare] = useState('idle');
   const [error, setError] = useState('');
 
+  const dropPdf = () => {
+    if (pdf?.url) URL.revokeObjectURL(pdf.url);
+    setPdf(null);
+  };
+
   const handleOpenChange = (next) => {
-    if (!next) { setPdfFile(''); setShare('idle'); setError(''); }
+    if (!next) { dropPdf(); setShare('idle'); setError(''); }
     onOpenChange(next);
   };
 
   const handleDownload = () => {
     setError('');
+    dropPdf();
     try {
-      setPdfFile(onDownload());
+      setPdf(onDownload());
     } catch (_) {
-      setPdfFile('');
       setError('The PDF Could Not Be Created, So Nothing Was Downloaded. Please Try Again.');
     }
   };
@@ -45,7 +51,7 @@ export default function ExportDialog({ open, onOpenChange, title, messages, onDo
     }
   };
 
-  const finished = !!pdfFile || share === 'done';
+  const finished = !!pdf || share === 'done';
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -60,11 +66,22 @@ export default function ExportDialog({ open, onOpenChange, title, messages, onDo
         <div className="space-y-3 py-4" aria-live="polite">
           <ExportOption
             icon={Download}
-            state={pdfFile ? 'done' : 'idle'}
-            title={pdfFile ? 'PDF Download Started' : 'Download as PDF'}
-            hint={pdfFile ? `${pdfFile} · Check Your Downloads` : 'Save to your device'}
+            state={pdf ? 'done' : 'idle'}
+            title={pdf ? 'PDF Download Started' : 'Download as PDF'}
+            hint={pdf ? `${pdf.name} · Check Your Downloads` : 'Save to your device'}
             onClick={handleDownload}
           />
+          {pdf && (
+            <a
+              href={pdf.url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 px-1 text-xs text-primary hover:underline"
+            >
+              <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+              Open The PDF In A New Tab
+            </a>
+          )}
           <ExportOption
             icon={Share2}
             state={share}
