@@ -306,6 +306,14 @@ export default function Converse() {
     }
   };
 
+  // Mic unavailable during a call: a typed turn goes through the same send,
+  // and if it fails the words come back into the box.
+  const sendTyped = () => {
+    if (isSendingRef.current) return;
+    setInput('');
+    handleSubmit(input);
+  };
+
   const showEmpty = !activeId && messages.length === 0;
 
   // Auth gate — show sign-in screen for unauthenticated users (common on mobile)
@@ -357,6 +365,9 @@ export default function Converse() {
         onRetryMic={() => composerRef.current?.start()}
         transcript={listening ? input : ''}
         reply={isSending ? '' : callReply}
+        typed={input}
+        onTypedChange={setInput}
+        onSendTyped={sendTyped}
         onEnd={toggleVoiceMode}
       />
     )}

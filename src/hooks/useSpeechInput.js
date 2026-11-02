@@ -10,7 +10,7 @@ const MIC_ERRORS = {
   'network': 'Voice Input Could Not Reach Its Speech Service. Check Your Connection, Then Try Again.',
 };
 const START_FAILED = 'Voice Input Stopped Unexpectedly. Try Again.';
-const UNSUPPORTED = { message: 'Voice Input Is Not Supported In This Browser. Try Chrome, Edge Or Safari, Or End The Call And Type.', canRetry: false };
+const UNSUPPORTED = { message: 'Voice Input Is Not Supported In This Browser. Try Chrome, Edge Or Safari, Or Type Below.', canRetry: false };
 
 export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn }) {
   const [listening, setListening] = useState(false);

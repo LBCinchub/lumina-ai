@@ -2,9 +2,10 @@ import React, { useEffect, useRef } from 'react';
 import { PhoneOff } from 'lucide-react';
 import BrandLogo from '@/components/brand/BrandLogo';
 import CallCaption from '@/components/chat/CallCaption';
+import CallTypeBox from '@/components/chat/CallTypeBox';
 import { cn } from '@/lib/utils';
 
-export default function LiveCallOverlay({ speaking, listening, isSending, micError, onRetryMic, transcript, reply, onEnd }) {
+export default function LiveCallOverlay({ speaking, listening, isSending, micError, onRetryMic, transcript, reply, typed, onTypedChange, onSendTyped, onEnd }) {
   const endRef = useRef(null);
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
@@ -19,18 +20,21 @@ export default function LiveCallOverlay({ speaking, listening, isSending, micErr
       if (prev && typeof prev.focus === 'function') prev.focus();
     };
   }, []);
-  const status = micError
-    ? 'Microphone Unavailable'
-    : speaking
-      ? 'Speaking…'
-      : listening
-        ? 'Listening…'
-        : isSending
-          ? 'Thinking…'
+  // Typed turns (mic unavailable) still show Thinking and Speaking.
+  const status = speaking
+    ? 'Speaking…'
+    : listening
+      ? 'Listening…'
+      : isSending
+        ? 'Thinking…'
+        : micError
+          ? 'Microphone Unavailable'
           : 'On call';
 
+  // The screen scrolls when its content is taller than the viewport (small
+  // phones, or the keyboard open while typing), so nothing gets cut off.
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
+    <div className="fixed inset-0 z-50 flex overflow-y-auto overflow-x-hidden bg-background">
       {/* Soft ambient glow */}
       <div className={cn(
         "absolute inset-0 transition-opacity duration-700 pointer-events-none",
@@ -43,67 +47,72 @@ export default function LiveCallOverlay({ speaking, listening, isSending, micErr
         }} />
       </div>
 
-      {/* Lumina orb */}
-      <div className="relative flex items-center justify-center mb-10">
-        {/* Outer pulse ring */}
-        <div className={cn(
-          "absolute rounded-full border border-foreground/10 transition-all duration-500 pointer-events-none",
-          (speaking || listening) ? "w-48 h-48 opacity-100 animate-ping motion-reduce:animate-none" : "w-36 h-36 opacity-0"
-        )} style={{ animationDuration: '2s' }} />
-        <div className={cn(
-          "absolute rounded-full border border-foreground/15 transition-all duration-700 pointer-events-none",
-          (speaking || listening) ? "w-40 h-40 opacity-100" : "w-28 h-28 opacity-0"
-        )} />
-        {/* Core */}
-        <div className={cn(
-          "relative w-28 h-28 rounded-full flex items-center justify-center transition-all duration-500",
-          "bg-accent/40 border border-border",
-          speaking && "scale-110",
-          listening && "scale-105"
-        )}>
-          <BrandLogo size={64} alt="LBC AI" rounded />
+      <div className="m-auto flex w-full flex-col items-center py-8">
+        {/* Lumina orb */}
+        <div className="relative flex items-center justify-center mb-10">
+          {/* Outer pulse ring */}
+          <div className={cn(
+            "absolute rounded-full border border-foreground/10 transition-all duration-500 pointer-events-none",
+            (speaking || listening) ? "w-48 h-48 opacity-100 animate-ping motion-reduce:animate-none" : "w-36 h-36 opacity-0"
+          )} style={{ animationDuration: '2s' }} />
+          <div className={cn(
+            "absolute rounded-full border border-foreground/15 transition-all duration-700 pointer-events-none",
+            (speaking || listening) ? "w-40 h-40 opacity-100" : "w-28 h-28 opacity-0"
+          )} />
+          {/* Core */}
+          <div className={cn(
+            "relative w-28 h-28 rounded-full flex items-center justify-center transition-all duration-500",
+            "bg-accent/40 border border-border",
+            speaking && "scale-110",
+            listening && "scale-105"
+          )}>
+            <BrandLogo size={64} alt="LBC AI" rounded />
+          </div>
         </div>
+
+        {/* Name */}
+        <p className="font-serif text-2xl tracking-tight text-foreground mb-2">LBC AI</p>
+
+        {/* Status */}
+        <div className="flex items-center gap-2 mb-6">
+          {(speaking || listening || isSending) && (
+            <span className="flex gap-1">
+              {[0, 1, 2].map(i => (
+                <span
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full bg-foreground/50 animate-pulse-soft"
+                  style={{ animationDelay: `${i * 0.2}s` }}
+                />
+              ))}
+            </span>
+          )}
+          <span className="text-sm text-muted-foreground">{status}</span>
+        </div>
+
+        {/* Live captions; when the mic is unavailable, what to do and a box to type instead */}
+        <div className="w-full min-h-[5rem] mb-8 flex flex-col items-center gap-4">
+          <CallCaption micError={micError} onRetryMic={onRetryMic} transcript={transcript} reply={reply} />
+          {micError && (
+            <CallTypeBox value={typed} onChange={onTypedChange} onSend={onSendTyped} disabled={isSending} />
+          )}
+        </div>
+
+        {/* End call button */}
+        <button
+          ref={endRef}
+          onClick={onEnd}
+          className={cn(
+            "w-16 h-16 rounded-full flex items-center justify-center",
+            "bg-destructive text-destructive-foreground",
+            "hover:bg-destructive/80 active:scale-95 transition-all duration-150",
+            "shadow-lg"
+          )}
+          aria-label="End call"
+        >
+          <PhoneOff className="w-6 h-6" strokeWidth={1.75} />
+        </button>
+        <p className="mt-3 text-xs text-muted-foreground/60 uppercase tracking-[0.14em]">End call</p>
       </div>
-
-      {/* Name */}
-      <p className="font-serif text-2xl tracking-tight text-foreground mb-2">LBC AI</p>
-
-      {/* Status */}
-      <div className="flex items-center gap-2 mb-6">
-        {(speaking || listening || isSending) && (
-          <span className="flex gap-1">
-            {[0, 1, 2].map(i => (
-              <span
-                key={i}
-                className="w-1.5 h-1.5 rounded-full bg-foreground/50 animate-pulse-soft"
-                style={{ animationDelay: `${i * 0.2}s` }}
-              />
-            ))}
-          </span>
-        )}
-        <span className="text-sm text-muted-foreground">{status}</span>
-      </div>
-
-      {/* Live captions, or what to do when the mic is unavailable */}
-      <div className="w-full min-h-[5rem] mb-8 flex justify-center">
-        <CallCaption micError={micError} onRetryMic={onRetryMic} transcript={transcript} reply={reply} />
-      </div>
-
-      {/* End call button */}
-      <button
-        ref={endRef}
-        onClick={onEnd}
-        className={cn(
-          "w-16 h-16 rounded-full flex items-center justify-center",
-          "bg-destructive text-destructive-foreground",
-          "hover:bg-destructive/80 active:scale-95 transition-all duration-150",
-          "shadow-lg"
-        )}
-        aria-label="End call"
-      >
-        <PhoneOff className="w-6 h-6" strokeWidth={1.75} />
-      </button>
-      <p className="mt-3 text-xs text-muted-foreground/60 uppercase tracking-[0.14em]">End call</p>
     </div>
   );
 }
