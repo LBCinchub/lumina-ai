@@ -55,6 +55,8 @@ export default function Converse() {
   const [isAuthenticated, setIsAuthenticated] = useState(null); // null = checking
   const [voiceMode, setVoiceMode] = useState(false);
   const [listening, setListening] = useState(false);
+  const [micError, setMicError] = useState(null);
+  const [callReply, setCallReply] = useState('');
   const [exportOpen, setExportOpen] = useState(false);
   const lastSpokenIdRef = useRef(null);
   const voiceModeRef = useRef(false);
@@ -139,6 +141,8 @@ export default function Converse() {
     // Don't speak optimistic/tmp messages
     if (String(last.id).startsWith('tmp-')) return;
     lastSpokenIdRef.current = last.id;
+    // Also shown as a caption, so the reply can be read with the sound off.
+    setCallReply(String(last.content).startsWith('__IMAGE__') ? '' : last.content);
     speak(last.content, () => {
       // Lumina finished speaking naturally — restart mic if not already running
       if (voiceModeRef.current && restartMicRef.current) {
@@ -290,6 +294,9 @@ export default function Converse() {
       setListening(false);
     } else {
       unlockSpeech(); // unlock speech synthesis on this direct user gesture
+      // Only replies that arrive during the call are spoken.
+      lastSpokenIdRef.current = [...messages].reverse().find(m => m.role === 'assistant')?.id ?? null;
+      setCallReply('');
       voiceModeRef.current = true;
       setVoiceMode(true);
       // Start mic immediately — it will stay on for the whole call
@@ -346,6 +353,10 @@ export default function Converse() {
         speaking={speaking}
         listening={listening}
         isSending={isSending}
+        micError={micError}
+        onRetryMic={() => composerRef.current?.start()}
+        transcript={listening ? input : ''}
+        reply={isSending ? '' : callReply}
         onEnd={toggleVoiceMode}
       />
     )}
@@ -442,6 +453,7 @@ export default function Converse() {
               voiceMode={voiceMode}
               luminaSpeaking={speaking}
               onListeningChange={setListening}
+              onMicErrorChange={setMicError}
               onBargeIn={stopSpeaking}
             />
             <p className="text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground/60 text-center mt-3">

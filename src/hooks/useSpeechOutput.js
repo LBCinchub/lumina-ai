@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 
-function stripMarkdown(text) {
+export function stripMarkdown(text) {
   return text
     .replace(/\*\*(.*?)\*\*/g, '$1')
     .replace(/\*(.*?)\*/g, '$1')
@@ -42,6 +42,7 @@ export function useSpeechOutput() {
   const [speaking, setSpeaking] = useState(false);
   const onEndRef = useRef(null);
   const stoppedRef = useRef(false); // true when stop() was called manually
+  const tokenRef = useRef(0); // latest speak() call; callbacks of older ones are ignored
 
   // Call this on a direct user gesture (e.g. clicking the voice button)
   // to unlock the browser's speech synthesis autoplay policy
@@ -53,16 +54,27 @@ export function useSpeechOutput() {
   }, []);
 
   const speak = useCallback((text, onEnd) => {
-    if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
+    const synth = window.speechSynthesis;
+    const clean = stripMarkdown(String(text || ''));
+    // Nothing can be played: hand back at once so a voice call keeps going.
+    if (!synth || !clean) { onEnd?.(); return; }
 
-    const clean = stripMarkdown(text);
-    if (!clean) return;
-
+    const token = ++tokenRef.current;
     stoppedRef.current = false;
     onEndRef.current = onEnd;
+    synth.cancel();
+    const current = () => token === tokenRef.current && !stoppedRef.current;
+    // Finished, or failed to play: either way the call moves on, once.
+    const done = () => {
+      if (!current()) return; // manual stop or a newer reply — do nothing
+      setSpeaking(false);
+      const cb = onEndRef.current;
+      onEndRef.current = null;
+      cb?.();
+    };
 
     const doSpeak = () => {
+      if (!current()) return;
       const utter = new SpeechSynthesisUtterance(clean);
       utter.rate = 0.95;
       utter.pitch = 1.0;
@@ -71,32 +83,25 @@ export function useSpeechOutput() {
       const voice = getBestVoice();
       if (voice) utter.voice = voice;
 
-      utter.onstart = () => { if (!stoppedRef.current) setSpeaking(true); };
-      utter.onend = () => {
-        if (stoppedRef.current) return; // manual stop — do nothing
-        setSpeaking(false);
-        onEndRef.current?.();
-      };
-      utter.onerror = (e) => {
-        if (stoppedRef.current) return; // manual stop — do nothing
-        if (e.error === 'interrupted' || e.error === 'canceled') return;
-        setSpeaking(false);
-        onEndRef.current?.();
-      };
+      utter.onstart = () => { if (current()) setSpeaking(true); };
+      utter.onend = done;
+      utter.onerror = done;
 
-      window.speechSynthesis.speak(utter);
+      synth.speak(utter);
     };
 
-    // Voices may not be loaded yet — wait if needed
-    const voices = window.speechSynthesis.getVoices();
-    if (voices.length > 0) {
+    // Voices may load late, or never on some systems: wait up to a second,
+    // then speak with the default voice.
+    if (synth.getVoices().length > 0) { doSpeak(); return; }
+    let begun = false;
+    const begin = () => {
+      if (begun) return;
+      begun = true;
+      synth.onvoiceschanged = null;
       doSpeak();
-    } else {
-      window.speechSynthesis.onvoiceschanged = () => {
-        window.speechSynthesis.onvoiceschanged = null;
-        doSpeak();
-      };
-    }
+    };
+    synth.onvoiceschanged = begin;
+    setTimeout(begin, 1000);
   }, []);
 
   const stop = useCallback(() => {

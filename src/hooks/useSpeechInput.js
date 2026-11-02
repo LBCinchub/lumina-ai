@@ -1,7 +1,20 @@
 import { useState, useRef, useCallback } from 'react';
 
+// Errors that would repeat on every automatic retry: listening stops and the
+// call screen says what to do. 'no-speech' and 'aborted' are routine.
+const BLOCKED = 'Microphone Access Is Blocked. Allow It For This Site In Your Browser Settings, Then Try Again.';
+const MIC_ERRORS = {
+  'not-allowed': BLOCKED,
+  'service-not-allowed': BLOCKED,
+  'audio-capture': 'No Microphone Was Found. Connect One, Then Try Again.',
+  'network': 'Voice Input Could Not Reach Its Speech Service. Check Your Connection, Then Try Again.',
+};
+const START_FAILED = 'Voice Input Stopped Unexpectedly. Try Again.';
+const UNSUPPORTED = { message: 'Voice Input Is Not Supported In This Browser. Try Chrome, Edge Or Safari, Or End The Call And Type.', canRetry: false };
+
 export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn }) {
   const [listening, setListening] = useState(false);
+  const [error, setError] = useState(null); // { message, canRetry } when listening cannot continue
   const [supported] = useState(() => 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
   const recognitionRef = useRef(null);
   const accumulatedRef = useRef('');
@@ -83,6 +96,12 @@ export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn }) {
     rec.onerror = (e) => {
       setListening(false);
       recognitionRef.current = null;
+      if (e.error !== 'no-speech' && e.error !== 'aborted') {
+        // Restarting on our own would hit the same error in a loop.
+        shouldRestartRef.current = false;
+        setError({ message: MIC_ERRORS[e.error] || START_FAILED, canRetry: true });
+        return;
+      }
       // Auto-restart on no-speech so we keep listening
       if (shouldRestartRef.current && e.error === 'no-speech') {
         setTimeout(() => {
@@ -92,13 +111,21 @@ export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn }) {
     };
 
     recognitionRef.current = rec;
-    try { rec.start(); } catch (_) {}
+    try {
+      rec.start();
+    } catch (_) {
+      recognitionRef.current = null;
+      shouldRestartRef.current = false;
+      setError({ message: START_FAILED, canRetry: true });
+    }
   }, [supported]);
 
   const start = useCallback(() => {
+    if (!supported) { setError(UNSUPPORTED); return; }
+    setError(null);
     shouldRestartRef.current = true;
     createAndStart();
-  }, [createAndStart]);
+  }, [supported, createAndStart]);
 
   const stop = useCallback(() => {
     shouldRestartRef.current = false;
@@ -109,6 +136,7 @@ export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn }) {
       recognitionRef.current = null;
     }
     setListening(false);
+    setError(null);
   }, []);
 
   const toggle = useCallback(() => {
@@ -125,5 +153,5 @@ export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn }) {
     }, 200);
   }, [createAndStart]);
 
-  return { listening, supported, toggle, start, stop, restart };
+  return { listening, supported, error, toggle, start, stop, restart };
 }

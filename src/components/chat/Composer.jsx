@@ -28,7 +28,7 @@ function AttachmentPreview({ attachments, onRemove }) {
 }
 
 const Composer = forwardRef(function Composer(
-  { value, onChange, onSubmit, disabled, placeholder = "Speak plainly.", luminaSpeaking = false, onListeningChange, onBargeIn },
+  { value, onChange, onSubmit, disabled, placeholder = "Speak plainly.", luminaSpeaking = false, onListeningChange, onMicErrorChange, onBargeIn },
   ref
 ) {
   const textareaRef = useRef(null);
@@ -44,7 +44,7 @@ const Composer = forwardRef(function Composer(
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
   useEffect(() => { onBargeInRef.current = onBargeIn; }, [onBargeIn]);
 
-  const { listening, supported, toggle: toggleVoice, start: startVoice, stop: stopVoice, restart: restartVoice } = useSpeechInput({
+  const { listening, supported, error: micError, toggle: toggleVoice, start: startVoice, stop: stopVoice, restart: restartVoice } = useSpeechInput({
     onTranscript: (text) => onChangeRef.current(text),
     onAutoSubmit: (text) => {
       onChangeRef.current('');
@@ -56,6 +56,7 @@ const Composer = forwardRef(function Composer(
   useImperativeHandle(ref, () => ({ start: startVoice, stop: stopVoice, restart: restartVoice }), [startVoice, stopVoice, restartVoice]);
 
   useEffect(() => { onListeningChange?.(listening); }, [listening, onListeningChange]);
+  useEffect(() => { onMicErrorChange?.(micError); }, [micError, onMicErrorChange]);
 
   useEffect(() => {
     const el = textareaRef.current;

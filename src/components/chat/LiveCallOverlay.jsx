@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { PhoneOff } from 'lucide-react';
 import BrandLogo from '@/components/brand/BrandLogo';
+import CallCaption from '@/components/chat/CallCaption';
 import { cn } from '@/lib/utils';
 
-export default function LiveCallOverlay({ speaking, listening, isSending, onEnd }) {
+export default function LiveCallOverlay({ speaking, listening, isSending, micError, onRetryMic, transcript, reply, onEnd }) {
   const endRef = useRef(null);
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
@@ -18,13 +19,15 @@ export default function LiveCallOverlay({ speaking, listening, isSending, onEnd 
       if (prev && typeof prev.focus === 'function') prev.focus();
     };
   }, []);
-  const status = speaking
-    ? 'Speaking…'
-    : listening
-      ? 'Listening…'
-      : isSending
-        ? 'Thinking…'
-        : 'On call';
+  const status = micError
+    ? 'Microphone Unavailable'
+    : speaking
+      ? 'Speaking…'
+      : listening
+        ? 'Listening…'
+        : isSending
+          ? 'Thinking…'
+          : 'On call';
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
@@ -66,7 +69,7 @@ export default function LiveCallOverlay({ speaking, listening, isSending, onEnd 
       <p className="font-serif text-2xl tracking-tight text-foreground mb-2">LBC AI</p>
 
       {/* Status */}
-      <div className="flex items-center gap-2 mb-14">
+      <div className="flex items-center gap-2 mb-6">
         {(speaking || listening || isSending) && (
           <span className="flex gap-1">
             {[0, 1, 2].map(i => (
@@ -79,6 +82,11 @@ export default function LiveCallOverlay({ speaking, listening, isSending, onEnd 
           </span>
         )}
         <span className="text-sm text-muted-foreground">{status}</span>
+      </div>
+
+      {/* Live captions, or what to do when the mic is unavailable */}
+      <div className="w-full min-h-[5rem] mb-8 flex justify-center">
+        <CallCaption micError={micError} onRetryMic={onRetryMic} transcript={transcript} reply={reply} />
       </div>
 
       {/* End call button */}
