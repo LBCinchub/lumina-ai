@@ -1,4 +1,4 @@
-import { Bot, MessageSquare, Code2, Database, FolderKanban, Terminal as TerminalIcon, Settings, SlidersHorizontal, Zap, LayoutDashboard, LayoutTemplate } from 'lucide-react';
+import { Bot, MessageSquare, Code2, Database, FolderKanban, Terminal as TerminalIcon, Settings, SlidersHorizontal, Zap, LayoutDashboard, LayoutTemplate, Sparkles } from 'lucide-react';
 
 // Presentation-only grouping of the existing routes. No routes are added or
 // removed here. Operations is appended by the shell only for role === 'admin';
@@ -11,6 +11,7 @@ export const NAV_GROUPS = [
       { to: '/agents', label: 'My Agents', icon: Bot, end: true },
       { to: '/build', label: 'Build', icon: Code2 },
       { to: '/knowledge', label: 'Knowledge', icon: Database },
+      { to: '/twin', label: 'My Twin', icon: Sparkles },
       { to: '/projects', label: 'Projects', icon: FolderKanban },
       { to: '/autopilot', label: 'Autopilot', icon: Zap, end: true },
       { to: '/autopilot/dashboard', label: 'Autopilot Dashboard', icon: LayoutDashboard },
@@ -29,6 +30,5 @@ export const UTILITY_NAV = [{ to: '/settings', label: 'Settings', icon: SlidersH
 export const ADMIN_NAV = { to: '/operations', label: 'Owner Operations', icon: Settings };
 
 // Mobile bottom bar: four prominent workspaces; everything else is in the drawer.
-export const MOBILE_BAR = [
-  NAV_GROUPS[0].items[0], NAV_GROUPS[0].items[1], NAV_GROUPS[0].items[2], NAV_GROUPS[0].items[5],
-];
+export const MOBILE_BAR = ['/', '/agents', '/build', '/autopilot']
+  .map(to => NAV_GROUPS[0].items.find(i => i.to === to));

@@ -26,6 +26,7 @@ const Templates = lazy(() => import('@/pages/Templates'));
 const Autopilot = lazy(() => import('@/pages/Autopilot'));
 const GitHub = lazy(() => import('@/pages/GitHub'));
 const AutopilotDashboard = lazy(() => import('@/pages/AutopilotDashboard'));
+const Twin = lazy(() => import('@/pages/Twin'));
 
 const Loading = () => (
   <div className="fixed inset-0 flex flex-col items-center justify-center gap-4">
@@ -86,10 +87,11 @@ const AuthenticatedApp = () => {
           <Route path="/templates" element={<Templates />} />
           <Route path="/autopilot" element={<Autopilot />} />
           <Route path="/autopilot/dashboard" element={<AutopilotDashboard />} />
+          <Route path="/twin" element={<Twin />} />
 
           {/* Legacy route consolidation redirects */}
           <Route path="/context" element={<Navigate to="/knowledge" replace />} />
-          <Route path="/twin" element={<Navigate to="/knowledge" replace />} />
+          <Route path="/YourTwinDigital" element={<Navigate to="/twin" replace />} />
           <Route path="/insights" element={<Navigate to="/knowledge" replace />} />
           <Route path="/resources" element={<Navigate to="/knowledge" replace />} />
           <Route path="/dashboard" element={<Navigate to="/projects" replace />} />

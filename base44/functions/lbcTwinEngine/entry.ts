@@ -11,6 +11,16 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 //                            optionally the communication style
 //   recommend              — up to 3 personalized recommendations from learned traits
 //   learn_from_interaction — silently log an interaction and update the profile
+//   list_requests          — the user's own twin action requests, newest first
+//   decide_request         — approve or deny one pending request; approval is
+//                            bound to the estimated cost the user was shown
+
+const MODES = ['auto', 'confirm', 'off'];
+const pickMode = (value, current) => (MODES.includes(value) ? value : (current || 'confirm'));
+const publicRequest = (r) => ({
+  id: r.id, vertical: r.vertical, summary: r.summary, status: r.status,
+  estimated_cost_usd: r.estimated_cost_usd || 0, created_date: r.created_date,
+});
 
 export default async function(req) {
   try {
@@ -46,10 +56,12 @@ export default async function(req) {
       const settingsRows = await base44.entities.TwinAuthorizationSettings.list();
       let s = settingsRows[0];
       const settingsData = {
-        ride_booking: ride_booking || s?.ride_booking || 'confirm',
-        marketplace_listing: marketplace_listing || s?.marketplace_listing || 'confirm',
-        travel_booking: travel_booking || s?.travel_booking || 'confirm',
-        max_auto_spend_usd: typeof max_auto_spend_usd === 'number' ? max_auto_spend_usd : (s?.max_auto_spend_usd || 0)
+        ride_booking: pickMode(ride_booking, s?.ride_booking),
+        marketplace_listing: pickMode(marketplace_listing, s?.marketplace_listing),
+        travel_booking: pickMode(travel_booking, s?.travel_booking),
+        max_auto_spend_usd: typeof max_auto_spend_usd === 'number' && Number.isFinite(max_auto_spend_usd)
+          ? Math.max(0, max_auto_spend_usd)
+          : (s?.max_auto_spend_usd || 0)
       };
       if (!s) s = await base44.entities.TwinAuthorizationSettings.create(settingsData);
       else s = await base44.entities.TwinAuthorizationSettings.update(s.id, settingsData);
@@ -133,6 +145,34 @@ export default async function(req) {
         confidence_score: p.confidence_score || 0,
         communication_style: p.communication_style || 'balanced'
       });
+    }
+
+    // Action requests: an explicit owner predicate on top of RLS on every read.
+    if (action === 'list_requests') {
+      const rows = await base44.entities.TwinActionRequest.filter({ created_by_id: user.id }, '-created_date', 50);
+      return Response.json({ requests: rows.map(publicRequest) });
+    }
+
+    if (action === 'decide_request') {
+      const decision = body.decision;
+      if (decision !== 'approve' && decision !== 'deny') {
+        return Response.json({ error: 'Choose Approve Or Deny.' }, { status: 400 });
+      }
+      const rows = typeof body.request_id === 'string' && /^[a-f0-9]{24}$/i.test(body.request_id)
+        ? await base44.entities.TwinActionRequest.filter({ id: body.request_id, created_by_id: user.id })
+        : [];
+      const r = rows[0];
+      if (!r) return Response.json({ error: 'Not found' }, { status: 404 });
+      if (r.status !== 'pending') {
+        return Response.json({ error: 'This Request Was Already Decided.', request: publicRequest(r) }, { status: 409 });
+      }
+      // Every financial action needs explicit approval of the exact cost shown.
+      if (decision === 'approve' && Number(body.expected_cost_usd) !== Number(r.estimated_cost_usd || 0)) {
+        return Response.json({ error: 'The Estimated Cost Changed. Review It Before Approving.', request: publicRequest(r) }, { status: 409 });
+      }
+      const status = decision === 'approve' ? 'confirmed' : 'denied';
+      await base44.entities.TwinActionRequest.update(r.id, { status });
+      return Response.json({ request: publicRequest({ ...r, status }) });
     }
 
     return Response.json({ error: 'Unknown action' }, { status: 400 });
