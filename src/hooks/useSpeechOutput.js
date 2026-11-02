@@ -43,6 +43,9 @@ export function useSpeechOutput() {
   const onEndRef = useRef(null);
   const stoppedRef = useRef(false); // true when stop() was called manually
   const tokenRef = useRef(0); // latest speak() call; callbacks of older ones are ignored
+  // What she is saying (endedAt null) or said last, so the mic can tell her
+  // own voice coming back through the speaker apart from the caller's.
+  const spokenRef = useRef({ text: '', endedAt: 0 });
 
   // Call this on a direct user gesture (e.g. clicking the voice button)
   // to unlock the browser's speech synthesis autoplay policy
@@ -62,11 +65,13 @@ export function useSpeechOutput() {
     const token = ++tokenRef.current;
     stoppedRef.current = false;
     onEndRef.current = onEnd;
+    spokenRef.current = { text: clean, endedAt: null };
     synth.cancel();
     const current = () => token === tokenRef.current && !stoppedRef.current;
     // Finished, or failed to play: either way the call moves on, once.
     const done = () => {
       if (!current()) return; // manual stop or a newer reply — do nothing
+      spokenRef.current.endedAt = Date.now();
       setSpeaking(false);
       const cb = onEndRef.current;
       onEndRef.current = null;
@@ -108,11 +113,14 @@ export function useSpeechOutput() {
     if (!window.speechSynthesis) return;
     stoppedRef.current = true; // block any pending onend/onerror callbacks
     onEndRef.current = null;
+    if (spokenRef.current.endedAt == null) spokenRef.current.endedAt = Date.now();
     window.speechSynthesis.cancel();
     setTimeout(() => window.speechSynthesis.cancel(), 50);
     setTimeout(() => window.speechSynthesis.cancel(), 150);
     setSpeaking(false);
   }, []);
 
-  return { speak, stop, speaking, unlock };
+  const getSpoken = useCallback(() => spokenRef.current, []);
+
+  return { speak, stop, speaking, unlock, getSpoken };
 }

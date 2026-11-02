@@ -62,7 +62,7 @@ export default function Converse() {
   const voiceModeRef = useRef(false);
   const startMicRef = useRef(null);
   const composerRef = useRef(null);
-  const { speak, stop: stopSpeaking, speaking, unlock: unlockSpeech } = useSpeechOutput();
+  const { speak, stop: stopSpeaking, speaking, unlock: unlockSpeech, getSpoken } = useSpeechOutput();
   const [imageOpen, setImageOpen] = useState(false);
   const [deepSearchOpen, setDeepSearchOpen] = useState(false);
   const [docOpen, setDocOpen] = useState(false);
@@ -73,8 +73,8 @@ export default function Converse() {
     startMicRef.current = () => composerRef.current?.start();
   }, []);
 
-  // In voice mode, keep mic running even while Lumina speaks
-  // When user speaks, stopSpeaking() is called inside handleSubmit to interrupt
+  // In voice mode the mic also runs while LBC AI speaks, so the caller can cut
+  // in: their words stop her at once (barge-in, in the speech input).
   const restartMicRef = useRef(null);
   useEffect(() => {
     restartMicRef.current = () => composerRef.current?.restart();
@@ -149,6 +149,8 @@ export default function Converse() {
         restartMicRef.current();
       }
     });
+    // Listen while she talks too, so the caller can interrupt her.
+    restartMicRef.current?.();
   }, [messages, voiceMode, speak]);
 
   const handleSelect = (id) => {
@@ -466,6 +468,7 @@ export default function Converse() {
               onListeningChange={setListening}
               onMicErrorChange={setMicError}
               onBargeIn={stopSpeaking}
+              getSpoken={getSpoken}
             />
             <p className="text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground/60 text-center mt-3">
               LBC AI · Reflects · Not Advises

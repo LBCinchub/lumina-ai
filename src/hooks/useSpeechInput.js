@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { echoFor, userSpeechStart } from '@/lib/echoGuard';
 
 // Errors that would repeat on every automatic retry: listening stops and the
 // call screen says what to do. 'no-speech' and 'aborted' are routine.
@@ -12,7 +13,7 @@ const MIC_ERRORS = {
 const START_FAILED = 'Voice Input Stopped Unexpectedly. Try Again.';
 const UNSUPPORTED = { message: 'Voice Input Is Not Supported In This Browser. Try Chrome, Edge Or Safari, Or Type Below.', canRetry: false };
 
-export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn }) {
+export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn, getSpoken }) {
   const [listening, setListening] = useState(false);
   const [error, setError] = useState(null); // { message, canRetry } when listening cannot continue
   const [supported] = useState(() => 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
@@ -27,7 +28,11 @@ export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn }) {
   onTranscriptRef.current = onTranscript;
   onAutoSubmitRef.current = onAutoSubmit;
   onBargeInRef.current = onBargeIn;
+  const getSpokenRef = useRef(getSpoken); // what she is saying, to tell her voice from the caller's
+  getSpokenRef.current = getSpoken;
   const bargedInRef = useRef(false);
+  const keepFromRef = useRef(0); // words before this index were her own voice
+  const sessionStartRef = useRef(0);
 
   const createAndStart = useCallback(() => {
     if (!supported) return;
@@ -42,16 +47,10 @@ export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn }) {
 
     accumulatedRef.current = '';
     bargedInRef.current = false;
+    keepFromRef.current = 0;
+    sessionStartRef.current = Date.now();
 
     rec.onstart = () => setListening(true);
-
-    // Fire barge-in as soon as the mic picks up ANY audio — before speech is even recognised
-    rec.onaudiostart = () => {
-      if (!bargedInRef.current && onBargeInRef.current) {
-        bargedInRef.current = true;
-        onBargeInRef.current();
-      }
-    };
 
     rec.onresult = (e) => {
       let final = '';
@@ -64,16 +63,26 @@ export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn }) {
           interim = t;
         }
       }
-      accumulatedRef.current = final;
-      const transcript = (final + interim).trim();
+      const finalWords = final.trim().split(/\s+/).filter(Boolean);
+      const words = [...finalWords, ...interim.trim().split(/\s+/).filter(Boolean)];
 
-      // Barge-in: fire immediately on ANY speech activity to interrupt Lumina
-      if (!bargedInRef.current && onBargeInRef.current) {
-        bargedInRef.current = true;
-        onBargeInRef.current();
+      // Barge-in: the caller talking stops her at once. While she speaks the
+      // mic also hears her, so only words she is not saying count as the
+      // caller, and her own words are left out of what gets sent.
+      if (!bargedInRef.current) {
+        const echo = echoFor(getSpokenRef.current?.(), sessionStartRef.current);
+        const from = echo ? userSpeechStart(words, echo) : keepFromRef.current;
+        if (from >= 0 && from < words.length) {
+          keepFromRef.current = from;
+          bargedInRef.current = true;
+          onBargeInRef.current?.();
+        } else if (echo) {
+          keepFromRef.current = words.length;
+        }
       }
 
-      onTranscriptRef.current(transcript);
+      accumulatedRef.current = finalWords.slice(keepFromRef.current).join(' ');
+      onTranscriptRef.current(words.slice(keepFromRef.current).join(' '));
     };
 
     rec.onend = () => {

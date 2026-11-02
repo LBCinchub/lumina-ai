@@ -28,7 +28,7 @@ function AttachmentPreview({ attachments, onRemove }) {
 }
 
 const Composer = forwardRef(function Composer(
-  { value, onChange, onSubmit, disabled, placeholder = "Speak plainly.", luminaSpeaking = false, onListeningChange, onMicErrorChange, onBargeIn },
+  { value, onChange, onSubmit, disabled, placeholder = "Speak plainly.", luminaSpeaking = false, onListeningChange, onMicErrorChange, onBargeIn, getSpoken },
   ref
 ) {
   const textareaRef = useRef(null);
@@ -51,6 +51,7 @@ const Composer = forwardRef(function Composer(
       onSubmitRef.current(text, []);
     },
     onBargeIn: () => onBargeInRef.current?.(),
+    getSpoken,
   });
 
   useImperativeHandle(ref, () => ({ start: startVoice, stop: stopVoice, restart: restartVoice }), [startVoice, stopVoice, restartVoice]);
