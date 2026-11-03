@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
+import { waitUntil } from 'base44:runtime';
 
 // Public — captures early-access interest from the landing page for signed-out
 // visitors. Strictly validated (email format + plan whitelist), deduplicated
@@ -28,6 +29,10 @@ export default async function(req) {
     }
 
     await db.entities.EarlyAccessInterest.create({ email, plan });
+    // Marketing KPI "Early access signups". track() sends in the background,
+    // so keep the worker alive briefly for that send to finish.
+    base44.analytics.track({ eventName: 'early_access_signup', properties: { plan } });
+    waitUntil(new Promise((resolve) => setTimeout(resolve, 3000)));
     return Response.json({ ok: true });
   } catch (_) {
     return Response.json({ error: 'Something Went Wrong — Please Try Again' }, { status: 500 });
