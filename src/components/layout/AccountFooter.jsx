@@ -18,7 +18,7 @@ export default function AccountFooter({ user, showNotifications = true }) {
       {/* Email shown exactly as stored — never case-transformed. */}
       <div className="px-3 pt-1 text-xs text-muted-foreground truncate" title={user?.email || ''}>{user?.email || '—'}</div>
       {user ? (
-        <button onClick={() => base44.auth.logout('/').catch(() => {})} className={btn}>
+        <button onClick={() => base44.auth.logout('/')} className={btn}>
           <LogOut className="w-3.5 h-3.5" aria-hidden="true" /> Sign Out
         </button>
       ) : (
