@@ -12,6 +12,7 @@ import { projectHistoryEvidence } from '../../shared/projectHistoryRecall.ts';
 import { meetingEvidence } from '../../shared/meetingContext.ts';
 import { detectTaskIntent, handleTaskIntent } from '../../shared/chatProjectTasks.ts';
 import { detectGmailRead, handleGmailRead } from '../../shared/gmailChatRead.ts';
+import { detectDigestIntent, handleDigestIntent } from '../../shared/dailyDigest.ts';
 import { detectPluginCommand, handlePluginCommand } from '../../shared/pluginChat.ts';
 import { assembleContinuity, loadRecentThread } from '../../shared/chatContinuity.ts';
 import { authorizeConversation, authorizeSelectedThreads } from '../../shared/conversationAccess.ts';
@@ -183,6 +184,17 @@ export default async function(req) {
       const content = await handlePluginCommand(pluginCmd, { base44, db, user, timezone });
       await db.entities.Message.create({ conversation_id, role: 'assistant', content, owner_email: user.email });
       return Response.json({ content, plugin: pluginCmd.kind });
+    }
+
+    // --- Daily digest on request: "read my digest" shows it here; "send my
+    // digest" emails it from the user's own Gmail to that same mailbox. Runs
+    // before the email and Gmail routes, which would otherwise claim it.
+    const digestIntent = detectDigestIntent(msgStr);
+    if (digestIntent) {
+      const content = await handleDigestIntent(digestIntent, { base44, db, user, timezone });
+      await db.entities.Message.create({ conversation_id, role: 'assistant', content, owner_email: user.email });
+      (async () => { try { await db.entities.Conversation.update(conversation_id, { last_message_at: new Date().toISOString() }); } catch (_) {} })();
+      return Response.json({ content, digest: digestIntent.kind });
     }
 
     // --- External-action intent: post/listing requests route to the typed

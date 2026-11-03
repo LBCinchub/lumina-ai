@@ -1,0 +1,47 @@
+{
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 8 * * *",
+      "one_time_date": null,
+      "timezone": "America/Toronto",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "description": "Every morning at 8:00 AM, emails the owner a digest of their pending Action Requests and new insights from their own connected Gmail to that same inbox.",
+  "name": "Daily Email Digest",
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "daily_email_digest",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "send_digest": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "sendDailyDigest",
+            "args": {
+              "timezone": "America/Toronto"
+            }
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Send Daily Digest",
+            "description": "Gmail digest to your own inbox"
+          }
+        }
+      }
+    ]
+  }
+}
