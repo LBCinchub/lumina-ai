@@ -1,5 +1,6 @@
 import React from 'react';
-import { Sun, Moon, LogIn, LogOut } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Sun, Moon, LogIn, LogOut, Shield } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useTheme } from '@/hooks/useTheme';
 import NotificationCenter from '@/components/notifications/NotificationCenter';
@@ -15,6 +16,9 @@ export default function AccountFooter({ user, showNotifications = true }) {
         {theme === 'dark' ? <Sun className="w-3.5 h-3.5" aria-hidden="true" /> : <Moon className="w-3.5 h-3.5" aria-hidden="true" />}
         {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
       </button>
+      <Link to="/privacy" className={btn}>
+        <Shield className="w-3.5 h-3.5" aria-hidden="true" /> Privacy Policy
+      </Link>
       {/* Email shown exactly as stored — never case-transformed. */}
       <div className="px-3 pt-1 text-xs text-muted-foreground truncate" title={user?.email || ''}>{user?.email || '—'}</div>
       {user ? (

@@ -12,6 +12,7 @@ import RootGate from '@/components/RootGate';
 import BrandLogo from '@/components/brand/BrandLogo';
 import Landing from '@/pages/Landing';
 import OAuthConsent from '@/pages/OAuthConsent';
+import PrivacyPolicy from '@/pages/PrivacyPolicy';
 
 // Lazy-loaded pages (code-split per workspace).
 const Agents = lazy(() => import('@/pages/Agents'));
@@ -64,6 +65,7 @@ const AuthenticatedApp = () => {
       // Signed-out visitors see the public landing at the app root; every
       // other path keeps the login redirect.
       if (window.location.pathname === '/') return <Landing />;
+      if (window.location.pathname === '/privacy') return <PrivacyPolicy />;
       navigateToLogin();
       return null;
     }
@@ -75,6 +77,7 @@ const AuthenticatedApp = () => {
         {/* Root gate: signed-out → public landing, signed-in → Chat in the shell. */}
         <Route path="/" element={<RootGate />} />
         <Route path="/oauth/consent" element={<OAuthConsent />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route element={<AppShell />}>
           <Route path="/agents" element={<Agents />} />
           <Route path="/build" element={<Build />} />

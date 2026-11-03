@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const ECOSYSTEM_LINKS = [
   { label: 'HTTPS://LBCHUB.SITE', href: 'https://lbchub.site' },
@@ -38,7 +39,8 @@ export default function LandingFooter() {
           Powered By LBC AI — The $LBC Token Lives On Solana.
         </p>
         <p className="text-[11px] text-zinc-600">
-          Copyright 2026 LBC Network Inc.
+          Copyright 2026 LBC Network Inc. ·{' '}
+          <Link to="/privacy" className="hover:text-pink-400 transition-colors">Privacy Policy</Link>
         </p>
       </div>
     </footer>
