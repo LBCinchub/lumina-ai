@@ -44,7 +44,7 @@ const Composer = forwardRef(function Composer(
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
   useEffect(() => { onBargeInRef.current = onBargeIn; }, [onBargeIn]);
 
-  const { listening, supported, error: micError, toggle: toggleVoice, start: startVoice, stop: stopVoice, restart: restartVoice } = useSpeechInput({
+  const { listening, supported, error: micError, toggle: toggleVoice, start: startVoice, stop: stopVoice, restart: restartVoice, callerStarted } = useSpeechInput({
     onTranscript: (text) => onChangeRef.current(text),
     onAutoSubmit: (text) => {
       onChangeRef.current('');
@@ -54,7 +54,7 @@ const Composer = forwardRef(function Composer(
     getSpoken,
   });
 
-  useImperativeHandle(ref, () => ({ start: startVoice, stop: stopVoice, restart: restartVoice }), [startVoice, stopVoice, restartVoice]);
+  useImperativeHandle(ref, () => ({ start: startVoice, stop: stopVoice, restart: restartVoice, callerStarted }), [startVoice, stopVoice, restartVoice, callerStarted]);
 
   useEffect(() => { onListeningChange?.(listening); }, [listening, onListeningChange]);
   useEffect(() => { onMicErrorChange?.(micError); }, [micError, onMicErrorChange]);

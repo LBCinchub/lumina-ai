@@ -17,6 +17,7 @@ import DocumentDialog from '@/components/documents/DocumentDialog';
 import { useExportPDF } from '@/hooks/useExportPDF';
 import { useSpeechOutput } from '@/hooks/useSpeechOutput';
 import { useCallTurns } from '@/hooks/useCallTurns';
+import { useVoiceOnset } from '@/hooks/useVoiceOnset';
 import LiveCallOverlay from '@/components/chat/LiveCallOverlay';
 import ExportDialog from '@/components/chat/ExportDialog';
 import ImageStudio from '@/components/twin/ImageStudio';
@@ -275,6 +276,17 @@ export default function Converse() {
     active: voiceMode, messages, isSending, isSendingRef, listening, lastSpokenIdRef, speakReply,
     submit: handleSubmit,
     restartMic: () => restartMicRef.current?.(),
+  });
+
+  // The mic level shows the caller starting to talk over her, before any word
+  // is recognized: she stops at once, and what they say is their turn.
+  useVoiceOnset({
+    active: voiceMode,
+    speaking,
+    onOnset: () => {
+      composerRef.current?.callerStarted();
+      stopSpeaking();
+    },
   });
 
   const { exportThread } = useExportPDF();

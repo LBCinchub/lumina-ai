@@ -58,7 +58,9 @@ function close(a, b) {
 // Index of the first word the caller said over her, or -1 while everything
 // heard can be her own voice. Evidence is a stop cue she is not saying, or two
 // words she is not saying within three heard words ("no", or 3+ letters).
-export function userSpeechStart(words, echo) {
+// `eager`: the mic level already showed the caller talking over her, so their
+// first word she is not saying is enough.
+export function userSpeechStart(words, echo, eager = false) {
   const hers = echo.split(/\s+/).map(norm).filter(Boolean);
   const said = new Set(hers);
   const readsNumbers = /\d/.test(echo);
@@ -67,12 +69,12 @@ export function userSpeechStart(words, echo) {
   const heard = [];
   words.forEach((word, i) => {
     const w = norm(word);
-    if (w.length >= 3 || w === 'no') heard.push({ i, w });
+    if (eager ? w : (w.length >= 3 || w === 'no')) heard.push({ i, w });
   });
   for (let k = 0; k < heard.length; k++) {
     const { i, w } = heard[k];
     if (isHers(w)) continue;
-    if (CUES.has(w) || heard.slice(k + 1, k + 3).some(c => !isHers(c.w))) return i;
+    if (eager || CUES.has(w) || heard.slice(k + 1, k + 3).some(c => !isHers(c.w))) return i;
   }
   return -1;
 }

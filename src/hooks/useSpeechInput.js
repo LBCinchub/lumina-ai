@@ -33,6 +33,7 @@ export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn, getSpoke
   const bargedInRef = useRef(false);
   const keepFromRef = useRef(0); // words before this index were her own voice
   const sessionStartRef = useRef(0);
+  const eagerRef = useRef(false); // the mic level already showed the caller talking over her
 
   const createAndStart = useCallback(() => {
     if (!supported) return;
@@ -49,6 +50,7 @@ export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn, getSpoke
     bargedInRef.current = false;
     keepFromRef.current = 0;
     sessionStartRef.current = Date.now();
+    eagerRef.current = false;
 
     rec.onstart = () => setListening(true);
 
@@ -71,7 +73,7 @@ export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn, getSpoke
       // caller, and her own words are left out of what gets sent.
       if (!bargedInRef.current) {
         const echo = echoFor(getSpokenRef.current?.(), sessionStartRef.current);
-        const from = echo ? userSpeechStart(words, echo) : keepFromRef.current;
+        const from = echo ? userSpeechStart(words, echo, eagerRef.current) : keepFromRef.current;
         if (from >= 0 && from < words.length) {
           keepFromRef.current = from;
           bargedInRef.current = true;
@@ -162,5 +164,9 @@ export function useSpeechInput({ onTranscript, onAutoSubmit, onBargeIn, getSpoke
     }, 200);
   }, [createAndStart]);
 
-  return { listening, supported, error, toggle, start, stop, restart };
+  // The mic level heard the caller start talking over her: their first word
+  // she is not saying begins what they say.
+  const callerStarted = useCallback(() => { eagerRef.current = true; }, []);
+
+  return { listening, supported, error, toggle, start, stop, restart, callerStarted };
 }
