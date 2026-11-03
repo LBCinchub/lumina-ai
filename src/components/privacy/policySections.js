@@ -1,8 +1,8 @@
 // Privacy policy content. Keep it in step with what the app actually does.
 export const LAST_UPDATED = 'November 2, 2026';
 
-// Where people send privacy requests. Replace before relying on this policy.
-export const CONTACT_EMAIL = '[Add Your Privacy Contact Email]';
+// Where people send privacy requests.
+export const CONTACT_EMAIL = 'lbcnetworkteam@gmail.com';
 
 export const INTRO = 'This policy explains what information LBC AI collects, how it is used and shared, and the choices you have. It applies to the LBC AI app at lbchub.site.';
 
