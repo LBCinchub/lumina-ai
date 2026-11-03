@@ -43,9 +43,10 @@ export function useSpeechOutput() {
   const onEndRef = useRef(null);
   const stoppedRef = useRef(false); // true when stop() was called manually
   const tokenRef = useRef(0); // latest speak() call; callbacks of older ones are ignored
-  // What she is saying (endedAt null) or said last, so the mic can tell her
-  // own voice coming back through the speaker apart from the caller's.
-  const spokenRef = useRef({ text: '', endedAt: 0 });
+  // What she is saying (endedAt null) or said last, and where in it she is
+  // (`mark`, the character her voice last reported, at `markAt`), so the mic
+  // can tell her own voice coming back through the speaker from the caller's.
+  const spokenRef = useRef({ text: '', mark: 0, markAt: null, endedAt: 0 });
 
   // Call this on a direct user gesture (e.g. clicking the voice button)
   // to unlock the browser's speech synthesis autoplay policy
@@ -65,7 +66,7 @@ export function useSpeechOutput() {
     const token = ++tokenRef.current;
     stoppedRef.current = false;
     onEndRef.current = onEnd;
-    spokenRef.current = { text: clean, endedAt: null };
+    spokenRef.current = { text: clean, mark: 0, markAt: null, endedAt: null };
     synth.cancel();
     const current = () => token === tokenRef.current && !stoppedRef.current;
     // Finished, or failed to play: either way the call moves on, once.
@@ -88,7 +89,15 @@ export function useSpeechOutput() {
       const voice = getBestVoice();
       if (voice) utter.voice = voice;
 
-      utter.onstart = () => { if (current()) setSpeaking(true); };
+      utter.onstart = () => {
+        if (!current()) return;
+        spokenRef.current.markAt = Date.now();
+        setSpeaking(true);
+      };
+      // Voices that report each word keep her place exact; others are timed.
+      utter.onboundary = (e) => {
+        if (current()) Object.assign(spokenRef.current, { mark: e.charIndex, markAt: Date.now() });
+      };
       utter.onend = done;
       utter.onerror = done;
 
